@@ -14,7 +14,7 @@ export function useServerClock() {
         now.value = toThaiTimeParts(new Date(Date.now() + offset).toISOString())
       }
       tick()
-      timer = setInterval(tick, 5000)
+      timer = setInterval(tick, 1000)
     }
     catch {
       // อ่านเวลาไม่ได้ หน้าจอคงปุ่มแบบเดิม เซิร์ฟเวอร์ยังตรวจเวลาตอนบันทึก

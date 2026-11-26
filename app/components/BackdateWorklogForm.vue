@@ -92,12 +92,17 @@ const dateError = computed(() => {
 
 const timesOptional = computed(() => isDraftEdit && checked.value !== 'submit')
 
+// รายการของวันนี้กรอกได้เฉพาะเวลาที่ผ่านมาแล้ว (เซิร์ฟเวอร์ตรวจซ้ำตอนบันทึก)
+function futureError(time: string) {
+  return clock.value && workDate.value ? futureTimeError(workDate.value, time, clock.value) : undefined
+}
+
 const startError = computed(() => {
   if (!startTime.value.trim()) {
     return timesOptional.value && !endTime.value.trim() ? undefined : requiredError(startTime.value, 'เวลาเริ่ม')
   }
   if (!start.value) return 'รูปแบบเวลาไม่ถูกต้อง (ชช:นน)'
-  return startTimeError(start.value, props.context)
+  return startTimeError(start.value, props.context) ?? futureError(start.value)
 })
 
 const endError = computed(() => {
@@ -108,7 +113,7 @@ const endError = computed(() => {
   }
   if (!end.value) return 'รูปแบบเวลาไม่ถูกต้อง (ชช:นน)'
   if (!start.value || startError.value) return undefined
-  return timeRangeError(start.value, end.value, props.context)
+  return timeRangeError(start.value, end.value, props.context) ?? futureError(end.value)
 })
 
 // รายการอื่นของวันที่เลือก (ไม่นับรายการนี้เอง) ไม่มีค่าระหว่างโหลด
@@ -177,6 +182,8 @@ async function finishWork() {
   notice.value = undefined
   try {
     const now = toThaiTimeParts(await api.getServerTime())
+    // ให้การตรวจเวลาในฟอร์มใช้เวลาล่าสุดเดียวกับเวลาที่กำลังใส่
+    clock.value = now
     const day = workDate.value!
     const from = start.value!
 

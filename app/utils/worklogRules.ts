@@ -30,6 +30,12 @@ export function timerStartError(now: string, { workStartTime, workEndTime }: Wor
   return `เลยเวลาเลิกงาน ${workEndTime} น. แล้ว จับเวลาไม่ได้ ถ้าเป็นงานที่ทำวันนี้ ให้กรอกเวลาที่ทำจริงเอง`
 }
 
+/** บันทึกได้เฉพาะงานที่ทำแล้ว เวลาของวันนี้ต้องไม่เกินเวลาปัจจุบัน */
+export function futureTimeError(date: string, time: string, now: { date: string, time: string }) {
+  if (date !== now.date || toMinutes(time) <= toMinutes(now.time)) return undefined
+  return 'เวลายังมาไม่ถึง กรอกได้เฉพาะงานที่ทำแล้ว'
+}
+
 /** กดเสร็จหลังเลิกงานไม่ได้ ต้องกรอกเวลาที่ทำเสร็จจริงแทน */
 export function timerFinishError(now: string, { workEndTime }: WorkHours) {
   if (!isAfterWork(now, workEndTime)) return undefined

@@ -4,7 +4,7 @@ import type { Attachment, HistoryEvent, SaveWorklogInput, UserRole, WeeklyReport
 import { addDays, formatThaiDate, toThaiTimeParts } from '~/utils/date'
 import { fileError } from '~/utils/attachments'
 import { toMinutes } from '~/utils/time'
-import { findOverlaps, isAfterWork, overlapMessage, startTimeError, timePolicy, timerFinishError, timerStartError, timeRangeError } from '~/utils/worklogRules'
+import { findOverlaps, futureTimeError, isAfterWork, overlapMessage, startTimeError, timePolicy, timerFinishError, timerStartError, timeRangeError } from '~/utils/worklogRules'
 import { ApiError, type Api } from './api'
 import { createMockAuth, currentAccount, requireRole } from './mockAuth'
 import type { MockSession } from './mockSession'
@@ -29,9 +29,11 @@ function findWorklog(id: number) {
   throw new ApiError('ไม่พบรายการงานนี้', 404)
 }
 
-/** เวลาเซิร์ฟเวอร์จำลอง: วันที่ตัวอย่าง + เวลาจริงตามเขตเวลาไทย */
+/** เวลาเซิร์ฟเวอร์จำลอง: วันนี้ + เวลาจริงตามเขตเวลาไทย */
 function serverNow() {
-  return `${db.TODAY}T${toThaiTimeParts(new Date().toISOString()).time}:00+07:00`
+  const now = new Date()
+  const seconds = String(now.getUTCSeconds()).padStart(2, '0')
+  return `${db.TODAY}T${toThaiTimeParts(now.toISOString()).time}:${seconds}+07:00`
 }
 
 function isAfterWorkNow() {
@@ -98,8 +100,10 @@ function validate(input: SaveWorklogInput) {
   if (!input.title.trim() || !input.description.trim()) throw new ApiError('กรุณากรอกหัวข้องานและรายละเอียด', 422)
   if (input.endTime && !input.startTime) throw new ApiError('กรุณากรอกเวลาเริ่ม', 422)
   if (input.startTime) {
+    const now = toThaiTimeParts(serverNow())
     const timeError = startTimeError(input.startTime, db.internship)
       ?? (input.endTime ? timeRangeError(input.startTime, input.endTime, db.internship) : undefined)
+      ?? futureTimeError(input.date, input.endTime ?? input.startTime, now)
     if (timeError) throw new ApiError(timeError, 422)
     const sameDay = db.studentWorklogs.filter(log => log.date === input.date)
     const overlap = findOverlaps(sameDay, input.startTime, input.endTime, input.id)[0]
