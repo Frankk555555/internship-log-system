@@ -1,0 +1,52 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@font-face {
+  font-family: "Bai Jamjuree";
+  src: url("/fonts/bai-jamjuree-400.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Bai Jamjuree";
+  src: url("/fonts/bai-jamjuree-500.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Bai Jamjuree";
+  src: url("/fonts/bai-jamjuree-600.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Bai Jamjuree";
+  src: url("/fonts/bai-jamjuree-700.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "Bai Jamjuree", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  font-family: "Bai Jamjuree", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: #f8fafc;
+}
+
+@media (min-width: 64rem) {
+  .dashboard-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
