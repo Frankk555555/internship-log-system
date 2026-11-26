@@ -8,6 +8,7 @@ const { data: context, status, error, refresh } = await useLazyAsyncData('worklo
 <template>
   <div>
     <header class="mb-4 border-b border-slate-200 pb-5">
+      <BackButton fallback="/worklogs" class="mb-3" />
       <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-400" aria-label="breadcrumb">
         <span>พื้นที่นักศึกษา</span>
         <span>/</span>

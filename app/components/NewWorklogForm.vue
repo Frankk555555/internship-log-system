@@ -10,8 +10,12 @@ const api = useApi()
 const defaults = props.context.defaults
 const startTime = defaults.startTime!
 const { workEndTime } = props.context
-// เปิดฟอร์มหลังเวลาเลิกงาน บันทึกเป็นงานของวันนี้ไม่ได้
-const tooLate = startTimeError(startTime, workEndTime)
+// เริ่มงานใหม่ไม่ได้ ถ้าอยู่นอกเวลางาน หรือยังมีงานอื่นจับเวลาอยู่ (ตรวจตอนเปิดฟอร์ม)
+const running = props.context.runningWorklog
+const outsideHours = timerStartError(startTime, props.context)
+const blocked = outsideHours ?? (running
+  ? `เริ่มงานใหม่ไม่ได้ ยังมีงานกำลังดำเนินการอยู่: “${running.title}” (เริ่ม ${running.startTime} น.)`
+  : undefined)
 
 const worklogId = ref<number>()
 const title = ref(defaults.title)
@@ -26,7 +30,25 @@ const notice = ref<{ tone: 'error' | 'success', text: string }>()
 const workStatus = computed<WorkStatus>(() => endTime.value ? 'done' : 'in_progress')
 const isSubmitted = computed(() => reviewStatus.value === 'submitted')
 const isLocked = computed(() => isSubmitted.value || Boolean(pending.value))
-const canSubmit = computed(() => Boolean(endTime.value) && !isLocked.value && !tooLate)
+const canSubmit = computed(() => Boolean(endTime.value) && !isLocked.value && !blocked)
+
+// เปิดฟอร์มค้างไว้จนเลยเวลาเลิกงาน ต้องกรอกเวลาสิ้นสุดเองในหน้าแก้ไข
+const clock = useServerClock()
+const afterWork = computed(() => Boolean(clock.value) && isAfterWork(clock.value!.time, workEndTime))
+const missedFinish = computed(() => afterWork.value && !endTime.value && !isSubmitted.value)
+
+// ทางไปต่อเมื่อทำในฟอร์มนี้ไม่ได้
+const nextStep = computed(() => {
+  if (outsideHours) {
+    // ก่อนเวลาเข้างานต้องรอ ไม่มีหน้าให้ไปต่อ
+    if (toMinutes(startTime) < toMinutes(workEndTime)) return undefined
+    return running
+      ? { to: `/worklogs/${running.id}/edit`, label: 'ไปกรอกเวลาสิ้นสุดของงานที่ค้าง' }
+      : { to: '/worklogs/backdate', label: 'ไปบันทึกย้อนหลัง' }
+  }
+  if (running) return { to: `/worklogs/${running.id}/edit`, label: afterWork.value ? 'ไปกรอกเวลาสิ้นสุดของงานนั้น' : 'ไปจบงานนั้นก่อน' }
+  return missedFinish.value && worklogId.value ? { to: `/worklogs/${worklogId.value}/edit`, label: 'กรอกเวลาสิ้นสุด' } : undefined
+})
 
 const errors = computed(() => ({
   title: checked.value && !title.value.trim() ? 'กรุณากรอกหัวข้องาน' : undefined,
@@ -37,9 +59,14 @@ const errors = computed(() => ({
 }))
 
 const hint = computed(() => {
-  if (tooLate) return tooLate
+  if (blocked) return blocked
   if (isSubmitted.value) return 'ส่งตรวจแล้ว ไม่สามารถแก้ไขรายการนี้ได้'
   if (endTime.value) return 'บันทึกเวลาสิ้นสุดแล้ว สามารถกด "ส่งตรวจ" ได้'
+  if (afterWork.value) {
+    return worklogId.value
+      ? `เลยเวลาเลิกงาน ${workEndTime} น. แล้ว กรอกเวลาที่ทำเสร็จจริงในหน้าแก้ไขรายการ`
+      : `เลยเวลาเลิกงาน ${workEndTime} น. แล้ว กด "บันทึกฉบับร่าง" ก่อน แล้วจึงกรอกเวลาที่ทำเสร็จจริง`
+  }
   return `ปุ่ม "ส่งตรวจ" จะใช้งานได้เมื่อกด "ทำงานนี้เสร็จสิ้น" แล้วเท่านั้น (ต้องเสร็จภายใน ${workEndTime} น. ของวันนี้)`
 })
 
@@ -63,7 +90,8 @@ async function finishWork() {
 
     // งานต้องเสร็จภายในวันเดียวกัน
     const dateError = now.date === defaults.date ? undefined : 'บันทึกเวลาสิ้นสุดข้ามวันไม่ได้ กรุณาสร้างรายการใหม่ของวันนี้'
-    const failure = dateError ?? timeRangeError(startTime, now.time, workEndTime) ?? await overlapError(now.time)
+    const failure = dateError ?? timerFinishError(now.time, props.context)
+      ?? timeRangeError(startTime, now.time, props.context) ?? await overlapError(now.time)
     if (failure) {
       notice.value = { tone: 'error', text: failure }
       return
@@ -81,7 +109,7 @@ async function finishWork() {
 async function save(mode: 'draft' | 'submit') {
   if (pending.value || (mode === 'submit' && !canSubmit.value)) return
 
-  if (tooLate) return
+  if (blocked) return
 
   checked.value = mode
   if (Object.values(errors.value).some(Boolean)) {
@@ -189,7 +217,7 @@ async function save(mode: 'draft' | 'submit') {
         <div class="mt-auto flex flex-wrap justify-end gap-3 pt-10">
           <button
             type="button"
-            :disabled="Boolean(endTime) || isLocked || Boolean(tooLate)"
+            :disabled="Boolean(endTime) || isLocked || Boolean(blocked) || afterWork"
             class="rounded-lg bg-emerald-700 px-3 py-2.5 text-[11px] font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
             @click="finishWork"
           >
@@ -197,7 +225,7 @@ async function save(mode: 'draft' | 'submit') {
           </button>
           <button
             type="button"
-            :disabled="isLocked || Boolean(tooLate)"
+            :disabled="isLocked || Boolean(blocked)"
             class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
             @click="save('draft')"
           >
@@ -216,7 +244,12 @@ async function save(mode: 'draft' | 'submit') {
 
       <p class="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-[11px] font-medium text-amber-700">
         <UIcon name="i-lucide-triangle-alert" class="size-3.5 shrink-0" />
-        {{ hint }}
+        <span>
+          {{ hint }}
+          <NuxtLink v-if="nextStep" :to="nextStep.to" class="ml-1 font-semibold text-indigo-600 underline underline-offset-2">
+            {{ nextStep.label }}
+          </NuxtLink>
+        </span>
       </p>
     </div>
 

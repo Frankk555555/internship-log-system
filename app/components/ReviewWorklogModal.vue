@@ -10,19 +10,21 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   approve: [comment: string]
-  return: [comment: string]
+  return: [comment: string, allowTimeEdit: boolean]
 }>()
 
 const open = defineModel<boolean>('open', { required: true })
 
 const comment = ref('')
 const needsComment = ref(false)
+const allowTimeEdit = ref(false)
 const commentError = computed(() => needsComment.value && !comment.value.trim() ? 'กรุณาระบุความคิดเห็นเมื่อส่งกลับแก้ไข' : undefined)
 
 watch(open, (isOpen) => {
   if (!isOpen) return
   comment.value = ''
   needsComment.value = false
+  allowTimeEdit.value = false
 })
 
 const worklog = computed(() => props.item?.worklog)
@@ -42,7 +44,7 @@ function approve() {
 // ส่งกลับต้องมีความเห็นทุกครั้ง (ขอบเขตงานข้อ 10.5)
 function sendBack() {
   needsComment.value = true
-  if (!props.pending && comment.value.trim()) emit('return', comment.value.trim())
+  if (!props.pending && comment.value.trim()) emit('return', comment.value.trim(), allowTimeEdit.value)
 }
 </script>
 
@@ -76,7 +78,10 @@ function sendBack() {
             <dt class="text-[11px] font-semibold text-slate-500">หัวข้อ</dt>
             <dd class="text-xs font-semibold text-slate-900">{{ worklog.title }}</dd>
           </div>
-          <div class="ml-auto text-[11px] text-slate-400">{{ summary }}</div>
+          <div class="ml-auto flex flex-col items-end gap-1 text-[11px] text-slate-400">
+            <span>{{ summary }}</span>
+            <TimeFlagBadges :worklog="worklog" />
+          </div>
         </dl>
 
         <h4 class="mt-2 text-[11px] font-semibold text-slate-500">รายละเอียดงาน</h4>
@@ -114,6 +119,10 @@ function sendBack() {
             class="mt-1.5 block w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-red-400"
           />
           <p v-if="commentError" id="review-comment-error" class="mt-1 text-[11px] font-medium text-red-500">{{ commentError }}</p>
+          <label class="mt-2 flex items-start gap-2 text-[11px] text-slate-600">
+            <input id="review-allow-time" v-model="allowTimeEdit" type="checkbox" class="mt-px size-3.5 accent-indigo-600" :disabled="Boolean(pending)">
+            เปิดให้นักศึกษาแก้วันที่และเวลา (ใช้เมื่อส่งกลับเพราะเวลาไม่ถูกต้อง)
+          </label>
         </template>
 
         <div v-else class="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">

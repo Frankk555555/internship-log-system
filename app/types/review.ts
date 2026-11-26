@@ -14,7 +14,16 @@ export interface ReviewItem {
   isOverdue: boolean
 }
 
+/** รายการที่ถูกลบ worklog.deletion บอกผู้ลบ เวลา และเหตุผล */
+export interface DeletedWorklog {
+  worklog: WorkLog
+  studentId: string
+  studentName: string
+}
+
 export interface ReviewQueue {
+  /** รายการที่ส่งกลับแล้วนักศึกษาลบ ใหม่สุดก่อน แสดงทุกแท็บ */
+  deletedReturns: DeletedWorklog[]
   /** รอตรวจ: เก่าสุดก่อน, ทั้งหมด: ใหม่สุดก่อน */
   items: ReviewItem[]
   total: number

@@ -16,7 +16,7 @@ const workspaces: Record<UserRole, { name: string, roleLabel: string, menus: { l
       { label: 'หน้าหลัก', icon: 'i-lucide-house', to: '/' },
       { label: 'บันทึกงานประจำวัน', icon: 'i-lucide-notebook-pen', to: '/worklogs' },
       { label: 'ข้อมูลสถานที่ฝึกงาน', icon: 'i-lucide-building-2', to: '/internship' },
-      { label: 'ปฏิทินการทำงาน', icon: 'i-lucide-calendar', to: '#' },
+      { label: 'ปฏิทินการทำงาน', icon: 'i-lucide-calendar', to: '/calendar' },
       { label: 'รายงานรายสัปดาห์', icon: 'i-lucide-file-text', to: '/reports' },
       { label: 'ตั้งค่าบัญชี', icon: 'i-lucide-settings', to: '/settings' },
     ],

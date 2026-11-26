@@ -22,19 +22,22 @@ watch(error, async (failure) => {
 
 const events = computed(() => (data.value?.events ?? []).map(event => ({ ...event, at: toThaiTimeParts(event.changedAt) })))
 
-// ค่าเริ่มต้นเลือกการแก้ไขข้อมูลครั้งล่าสุด
+// ค่าเริ่มต้นเลือกการลบ ถ้าไม่มีเลือกการแก้ไขข้อมูลครั้งล่าสุด
 const pickedId = ref<number>()
 const selected = computed(() => events.value.find(event => event.id === pickedId.value)
+  ?? events.value.find(event => event.type === 'delete')
   ?? events.value.find(event => event.type === 'edit')
   ?? events.value[0])
 
 const reviewStatus = computed(() => data.value?.worklog.reviewStatus)
 const isApproved = computed(() => reviewStatus.value === 'approved')
+const deletion = computed(() => data.value?.worklog.deletion)
 </script>
 
 <template>
   <div>
     <header class="mb-4 border-b border-slate-200 pb-5">
+      <BackButton :fallback="isMentor ? '/mentor/reviews' : '/worklogs'" class="mb-3" />
       <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-400" aria-label="breadcrumb">
         <span>พื้นที่{{ isMentor ? 'พี่เลี้ยง' : 'นักศึกษา' }}</span>
         <span>/</span>
@@ -47,6 +50,14 @@ const isApproved = computed(() => reviewStatus.value === 'approved')
     </header>
 
     <AsyncState :loading="!data && status !== 'error'" :error="error" @retry="refresh()">
+      <div v-if="data && deletion" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+        <p class="font-semibold">รายการ “{{ data.worklog.title }}” ถูกลบแล้ว</p>
+        <p class="mt-1">
+          ลบโดย {{ deletion.deletedBy }} เมื่อ {{ formatThaiDate(toThaiTimeParts(deletion.deletedAt).date) }} · {{ toThaiTimeParts(deletion.deletedAt).time }} น.
+        </p>
+        <p class="mt-1 break-words">เหตุผล: {{ deletion.reason }}</p>
+      </div>
+
       <div class="grid gap-4 lg:min-h-[38rem] lg:grid-cols-[minmax(0,1.36fr)_minmax(0,1fr)]">
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 class="text-base font-semibold text-slate-900">ประวัติรายการ</h3>
@@ -56,7 +67,7 @@ const isApproved = computed(() => reviewStatus.value === 'approved')
               <span v-if="index < events.length - 1" class="absolute -bottom-2 left-[7px] top-5 w-0.5 bg-slate-100" aria-hidden="true" />
               <span
                 class="absolute left-0 top-2 size-4 rounded-full"
-                :class="event.type === 'approval' ? 'bg-emerald-500' : 'bg-indigo-50'"
+                :class="event.type === 'approval' ? 'bg-emerald-500' : event.type === 'delete' ? 'bg-red-500' : 'bg-indigo-50'"
                 aria-hidden="true"
               />
               <button
@@ -100,7 +111,9 @@ const isApproved = computed(() => reviewStatus.value === 'approved')
 
             <div class="mt-2 flex items-center gap-2">
               <span class="text-[11px] text-slate-400">สถานะ:</span>
+              <StatusBadge v-if="deletion" label="ถูกลบ" tone="pink" />
               <StatusBadge
+                v-else
                 :label="isApproved ? 'อนุมัติแล้ว' : reviewStatusMeta[reviewStatus].label"
                 :tone="reviewStatusMeta[reviewStatus].tone"
                 :solid="reviewStatus === 'approved' || reviewStatus === 'submitted'"

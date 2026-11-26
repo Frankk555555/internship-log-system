@@ -24,14 +24,14 @@ export interface Api extends AuthApi {
   getDailyWorklogs(date?: string): Promise<DailyWorklogs>
   listWorklogs(from: string, to: string): Promise<WorkLog[]>
   getWorklog(id: number): Promise<WorkLog>
-  /** ฉบับร่างทุกวันที่ ใหม่สุดก่อน */
-  getDraftWorklogs(): Promise<WorkLog[]>
-  /** รายการที่ถูกส่งกลับทุกวันที่ พร้อมความคิดเห็นของผู้ตรวจ ใหม่สุดก่อน (8.3) */
-  getReturnedWorklogs(): Promise<WorkLog[]>
   getWorklogFormContext(mode: WorklogFormMode): Promise<WorklogFormContext>
   /** เวลาปัจจุบันของเซิร์ฟเวอร์ (ISO 8601) */
   getServerTime(): Promise<string>
   saveWorklog(input: SaveWorklogInput): Promise<WorkLog>
+  /** เริ่มงานของรายการที่รอดำเนินการ เซิร์ฟเวอร์บันทึกวันที่และเวลาปัจจุบัน */
+  startWorklog(id: number): Promise<WorkLog>
+  /** จบงานที่กำลังดำเนินการของวันนี้ เซิร์ฟเวอร์บันทึกเวลาสิ้นสุด (7.3) */
+  finishWorklog(id: number): Promise<WorkLog>
   deleteWorklog(id: number, reason: string): Promise<void>
   getWorklogHistory(id: number): Promise<WorklogHistory>
   getMyWeeklyReport(weekStart: string): Promise<WeeklyReportData>
@@ -42,8 +42,8 @@ export interface Api extends AuthApi {
   getMentorWeeklyReports(weekStart: string, studentId?: string): Promise<WeeklyReportData[]>
   getReviewQueue(filter: ReviewFilter, limit: number): Promise<ReviewQueue>
   approveWorklogs(targets: ReviewTarget[], comment?: string): Promise<ReviewResult>
-  /** ต้องมีความเห็นทุกครั้ง (10.5) */
-  returnWorklogs(targets: ReviewTarget[], comment: string): Promise<ReviewResult>
+  /** ต้องมีความเห็นทุกครั้ง (10.5) allowTimeEdit = เปิดให้นักศึกษาแก้วันที่และเวลา */
+  returnWorklogs(targets: ReviewTarget[], comment: string, allowTimeEdit?: boolean): Promise<ReviewResult>
   /** พี่เลี้ยงแจ้งช่วงไม่สะดวกตรวจงาน (ประเภท unavailable) */
   createUnavailability(input: UnavailabilityInput): Promise<void>
 }

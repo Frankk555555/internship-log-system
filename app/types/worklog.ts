@@ -21,7 +21,15 @@ export interface UserProfile {
   defaultReportDate: string
 }
 
-export interface InternshipInfo {
+/** เวลางานของสถานประกอบการ แอดมินเป็นผู้กำหนด */
+export interface WorkHours {
+  /** เวลาเข้างาน */
+  workStartTime: string
+  /** เวลาเลิกงาน */
+  workEndTime: string
+}
+
+export interface InternshipInfo extends WorkHours {
   company: string
   position: string
   mentorName: string
@@ -30,8 +38,6 @@ export interface InternshipInfo {
   progress: number
   startDate: string
   endDate: string
-  /** เวลาเลิกงานของสถานประกอบการ */
-  workEndTime: string
 }
 
 export interface Attachment {
@@ -62,17 +68,28 @@ export interface WorkLog {
   version?: number
   /** ความเห็นล่าสุดของผู้ตรวจ */
   reviewComment?: string
+  /**
+   * timer = ระบบจับเวลาจากฟอร์มรายการใหม่, manual = นักศึกษากรอกเวลาเอง,
+   * timer_manual_end = ระบบจับเวลาเริ่ม แต่ลืมกดเสร็จสิ้นจึงกรอกเวลาสิ้นสุดเอง (ยังล็อกเหมือน timer)
+   */
+  timeSource?: 'timer' | 'manual' | 'timer_manual_end'
+  /** พี่เลี้ยงเปิดให้แก้วันที่และเวลาตอนส่งกลับ */
+  timeEditAllowed?: boolean
+  /** มีการแก้วันที่หรือเวลาหลังถูกส่งกลับ */
+  timeEdited?: boolean
   /** ชื่อผู้ตรวจและเวลาที่ตรวจครั้งล่าสุด */
   reviewedBy?: string
   reviewedAt?: string
   /** false = แก้ไขไม่ได้แล้ว เช่น ถูกส่งกลับแต่เกินช่วงย้อนหลัง */
   canEdit?: boolean
+  /** มีค่า = ถูกลบแล้ว ไม่อยู่ในรายการใด ดูได้จากประวัติ */
+  deletion?: { deletedAt: string, deletedBy: string, reason: string }
 }
 
 /** ประวัติการเปลี่ยนแปลง 1 ครั้ง (ขอบเขตงานข้อ 7.2 และ 8.2) */
 export interface HistoryEvent {
   id: number
-  type: 'status' | 'edit' | 'return' | 'approval'
+  type: 'status' | 'edit' | 'return' | 'approval' | 'delete'
   changedAt: string
   title: string
   actorName: string
@@ -81,6 +98,8 @@ export interface HistoryEvent {
 }
 
 export interface StudentDashboard {
+  /** วันที่ปัจจุบันของเซิร์ฟเวอร์ */
+  today: string
   internship: InternshipInfo
   summary: {
     approvedCount: number
@@ -101,14 +120,15 @@ export interface DailyWorklogs {
 export type WorklogFormMode = 'new' | 'backdate'
 
 /** ค่าตั้งต้นและเงื่อนไขของฟอร์มบันทึกงาน */
-export interface WorklogFormContext {
+export interface WorklogFormContext extends WorkHours {
   today: string
   backdateLimitDays: number
-  /** เวลาเลิกงานของสถานประกอบการ งานต้องเสร็จภายในเวลานี้ของวันเดียวกัน */
-  workEndTime: string
   internshipStart: string
   internshipEnd: string
+  /** งานของวันนี้ที่ยังจับเวลาอยู่ ถ้ามีจะเริ่มงานใหม่ไม่ได้ */
+  runningWorklog?: { id: number, title: string, startTime: string }
   defaults: {
+    /** ค่าว่าง = ผู้ใช้เลือกวันเอง (บันทึกย้อนหลัง) */
     date: string
     startTime?: string
     endTime?: string

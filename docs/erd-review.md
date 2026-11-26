@@ -32,6 +32,8 @@
 | `users` | failed_login_count, locked_until | ล็อก 15 นาทีเมื่อผิด 5 ครั้ง | 1.2 |
 | `users` | updated_at | ติดตามการแก้ไขบัญชี | 4.1 |
 | `work_lists` | completed_at | เวลาที่งานเสร็จจริง | 7.3 |
+| `work_lists` | time_source (ENUM timer, manual, timer_manual_end), time_edit_allowed, time_edited (BOOLEAN) | ล็อกเวลาและแสดงป้ายให้พี่เลี้ยง | 8.4 |
+| `work_list_reviews` | allow_time_edit (BOOLEAN) | บันทึกว่าพี่เลี้ยงเปิดให้แก้เวลาครั้งใด | 10.5 |
 | `work_lists` | version | กันอนุมัติซ้ำ หรืออนุมัติรายการที่ถูกแก้หลังตรวจ | 10.3 |
 | `work_lists` | deleted_at, deleted_by, delete_reason | หน้าลบต้องกรอกเหตุผล และประวัติต้องไม่หาย | 8.2, 8.4 |
 | `attachments` | uploaded_by, deleted_at, deleted_by | เปลี่ยนไฟล์แล้วยังดูข้อมูลก่อนแก้ได้ | 6.2, 8.2 |
@@ -40,7 +42,7 @@
 | `mentor_busy` | created_by, type (absent, unavailable) | `absent` แอดมินบันทึกและเปิดสิทธิ์อนุมัติแทน `unavailable` พี่เลี้ยงบันทึกเพื่อแจ้งเท่านั้น | 10.6 |
 | `mentor_assignments` | assigned_by, created_at | ตรวจย้อนหลังว่าใครเปลี่ยนพี่เลี้ยง | 3.2 |
 | `internships` | position, semester | หน้าจอแสดงตำแหน่งและภาคการศึกษา | หน้าจอ |
-| `internships` | work_end_time (TIME, NOT NULL) | เวลาเลิกงานต่างกันตามสถานประกอบการ | 5.4 |
+| `internships` | work_start_time, work_end_time (TIME, NOT NULL) | เวลาเข้างานและเลิกงานต่างกันตามสถานประกอบการ | 5.4 |
 
 ## ข้อกำหนด (constraint) ที่ควรมี
 

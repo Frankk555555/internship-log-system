@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { errorMessage } from '~/services/api'
+
 definePageMeta({ role: 'student' })
 
 const route = useRoute()
@@ -32,11 +34,46 @@ const initialBlock = ref<string | null>()
 watch(data, (value) => {
   if (value && initialBlock.value === undefined) initialBlock.value = blockedReason.value ?? null
 }, { immediate: true })
+
+// ลบได้เฉพาะฉบับร่างหรือถูกส่งกลับ แม้เกินช่วงย้อนหลังแล้ว (ขอบเขตงานข้อ 8.4)
+const canDelete = computed(() => ['draft', 'returned'].includes(data.value?.worklog.reviewStatus ?? ''))
+const notify = useNotify()
+const goBack = useGoBack()
+const isDeleteOpen = ref(false)
+const isDeleting = ref(false)
+const deleteError = ref<string>()
+
+function askDelete() {
+  deleteError.value = undefined
+  isDeleteOpen.value = true
+}
+
+async function deleteLog(reason: string) {
+  const target = data.value?.worklog
+  if (!target || isDeleting.value) return
+
+  isDeleting.value = true
+  deleteError.value = undefined
+  try {
+    await api.deleteWorklog(target.id, reason)
+    isDeleteOpen.value = false
+    notify('success', 'ลบรายการแล้ว', target.title)
+    // ไม่ย้อนไปหน้าของรายการที่ถูกลบ เช่น หน้าประวัติ
+    await goBack('/worklogs', path => path.startsWith(`/worklogs/${target.id}/`))
+  }
+  catch (failure) {
+    deleteError.value = errorMessage(failure)
+  }
+  finally {
+    isDeleting.value = false
+  }
+}
 </script>
 
 <template>
   <div>
     <header class="mb-4 border-b border-slate-200 pb-5">
+      <BackButton fallback="/worklogs" class="mb-3" />
       <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-400" aria-label="breadcrumb">
         <span>พื้นที่นักศึกษา</span>
         <span>/</span>
@@ -52,9 +89,11 @@ watch(data, (value) => {
       <template v-if="data">
         <div v-if="initialBlock" class="rounded-xl border border-slate-200 bg-white px-5 py-10 text-center">
           <p class="text-sm font-medium text-slate-700">{{ initialBlock }}</p>
-          <div class="mt-4 flex justify-center gap-4 text-xs font-semibold text-indigo-600 underline underline-offset-2">
-            <NuxtLink to="/worklogs">กลับหน้าบันทึกงาน</NuxtLink>
-            <NuxtLink :to="`/worklogs/${worklogId}/history`">ดูประวัติ</NuxtLink>
+          <div class="mt-4 flex items-center justify-center gap-4">
+            <NuxtLink :to="`/worklogs/${worklogId}/history`" class="text-xs font-semibold text-indigo-600 underline underline-offset-2">ดูประวัติ</NuxtLink>
+            <button v-if="canDelete" type="button" class="rounded-lg border border-red-200 bg-white px-3 py-2 text-[11px] font-semibold text-red-600 hover:bg-red-50" @click="askDelete">
+              ลบรายการ
+            </button>
           </div>
         </div>
 
@@ -64,15 +103,23 @@ watch(data, (value) => {
             {{ data.worklog.reviewComment ?? 'ไม่ได้ระบุ' }}
           </blockquote>
 
-          <BackdateWorklogForm :context="data.context" :worklog="data.worklog" />
-
-          <div class="mt-4 flex justify-end">
-            <NuxtLink to="/worklogs" class="rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50">
-              กลับหน้าบันทึกงาน
-            </NuxtLink>
-          </div>
+          <BackdateWorklogForm :context="data.context" :worklog="data.worklog">
+            <template #secondary-actions="{ disabled, submitted }">
+              <button v-if="canDelete && !submitted" type="button" :disabled="disabled" class="mr-auto rounded-lg border border-red-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400" @click="askDelete">
+                ลบรายการ
+              </button>
+            </template>
+          </BackdateWorklogForm>
         </template>
       </template>
     </AsyncState>
+
+    <DeleteWorklogModal
+      v-model:open="isDeleteOpen"
+      :log="data?.worklog"
+      :pending="isDeleting"
+      :server-error="deleteError"
+      @confirm="deleteLog"
+    />
   </div>
 </template>

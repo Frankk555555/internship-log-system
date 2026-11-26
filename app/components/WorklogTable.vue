@@ -5,9 +5,24 @@ type FilterKey = 'all' | 'in_progress' | 'returned' | 'approved'
 
 const props = defineProps<{
   logs: WorkLog[]
+  /** วันที่ปัจจุบันของเซิร์ฟเวอร์ */
+  today: string
+  /** รายการที่กำลังบันทึกเวลา ระหว่างนั้นปิดปุ่มบันทึกเวลาทุกแถว */
+  busyId?: number
 }>()
 
+defineEmits<{
+  start: [log: WorkLog]
+  finish: [log: WorkLog]
+}>()
+
+const pageSize = 10
 const activeFilter = ref<FilterKey>('all')
+const visibleCount = ref(pageSize)
+
+watch(activeFilter, () => {
+  visibleCount.value = pageSize
+})
 
 const filters = computed(() => [
   { key: 'all' as const, label: 'ทั้งหมด', count: props.logs.length },
@@ -21,6 +36,14 @@ const filteredLogs = computed(() => {
   if (activeFilter.value === 'in_progress') return props.logs.filter(log => log.workStatus === 'in_progress')
   return props.logs.filter(log => log.reviewStatus === activeFilter.value)
 })
+
+const visibleLogs = computed(() => filteredLogs.value.slice(0, visibleCount.value))
+
+function approvedLabel(log: WorkLog) {
+  if (!log.reviewedAt) return log.reviewedBy
+  const { date, time } = toThaiTimeParts(log.reviewedAt)
+  return `${log.reviewedBy} (${formatThaiDateRange(date, date)} ${time} น.)`
+}
 
 function startLabel(log: WorkLog) {
   return log.startTime ? `${log.startTime} น.` : 'ยังไม่เริ่ม'
@@ -67,11 +90,14 @@ function endLabel(log: WorkLog) {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="log in filteredLogs" :key="log.id" class="border-b border-slate-100 align-top last:border-0">
+          <tr v-for="log in visibleLogs" :key="log.id" class="border-b border-slate-100 align-top last:border-0">
             <td class="px-4 py-4 text-xs font-semibold text-slate-600">{{ formatThaiDate(log.date) }}</td>
             <td class="px-3 py-4">
               <p class="max-w-[290px] text-[13px] font-semibold leading-snug text-slate-700">{{ log.title }}</p>
               <p v-if="log.description" class="mt-1 max-w-[290px] text-[11px] leading-snug text-slate-400">{{ log.description }}</p>
+              <p v-if="log.reviewStatus === 'approved' && log.reviewedBy" class="mt-1 max-w-[290px] text-[11px] leading-snug text-slate-400">
+                อนุมัติโดย: {{ approvedLabel(log) }}
+              </p>
               <p v-if="log.reviewStatus === 'returned' && log.reviewComment" class="mt-1 max-w-[290px] text-[11px] leading-snug text-slate-400">
                 ความเห็นพี่เลี้ยง: “{{ log.reviewComment }}”
               </p>
@@ -86,21 +112,8 @@ function endLabel(log: WorkLog) {
             </td>
             <td class="px-3 py-4">
               <div class="flex flex-col items-end gap-1.5">
-                <button v-if="log.workStatus === 'pending'" type="button" class="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700">
-                  <UIcon name="i-lucide-play" class="size-3.5" />
-                  เริ่มทำงาน (บันทึกเวลาเข้างาน)
-                </button>
-
-                <template v-else-if="log.workStatus === 'in_progress'">
-                  <button type="button" class="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-emerald-700">
-                    <UIcon name="i-lucide-check" class="size-3.5" />
-                    ทำงานเสร็จสิ้น
-                  </button>
-                  <button type="button" class="rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-400">ส่งตรวจ (เลือก)</button>
-                </template>
-
                 <NuxtLink
-                  v-else-if="log.reviewStatus === 'returned' && log.canEdit !== false"
+                  v-if="log.reviewStatus === 'returned' && log.canEdit !== false"
                   :to="`/worklogs/${log.id}/edit`"
                   class="rounded-lg bg-amber-500 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-amber-600"
                 >
@@ -117,9 +130,55 @@ function endLabel(log: WorkLog) {
                   แก้ไข &amp; ส่งตรวจใหม่
                 </button>
 
-                <button v-else type="button" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-500 shadow-sm hover:bg-slate-50">
-                  ดูรายละเอียด (เลือก)
+                <button
+                  v-else-if="log.reviewStatus === 'draft' && log.workStatus === 'pending'"
+                  type="button"
+                  :disabled="log.canEdit === false || busyId !== undefined"
+                  :title="log.canEdit === false ? 'เกินช่วงย้อนหลังแล้ว' : undefined"
+                  :aria-label="`เริ่มทำงาน ${log.title}`"
+                  class="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                  @click="$emit('start', log)"
+                >
+                  <UIcon :name="busyId === log.id ? 'i-lucide-loader-circle' : 'i-lucide-play'" class="size-3.5" :class="busyId === log.id ? 'animate-spin' : ''" />
+                  เริ่มทำงาน
                 </button>
+
+                <template v-else-if="log.reviewStatus === 'draft' && log.workStatus === 'in_progress'">
+                  <!-- ข้ามวันแล้วกดจบงานไม่ได้ ต้องกรอกเวลาเองในหน้าแก้ไข -->
+                  <NuxtLink
+                    v-if="log.date !== today && log.canEdit !== false"
+                    :to="`/worklogs/${log.id}/edit`"
+                    class="rounded-lg bg-amber-500 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-amber-600"
+                  >
+                    กรอกเวลาสิ้นสุด
+                  </NuxtLink>
+                  <button
+                    v-else
+                    type="button"
+                    :disabled="log.canEdit === false || busyId !== undefined"
+                    :title="log.canEdit === false ? 'เกินช่วงย้อนหลังแล้ว' : undefined"
+                    :aria-label="`ทำงานเสร็จสิ้น ${log.title}`"
+                    class="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                    @click="$emit('finish', log)"
+                  >
+                    <UIcon :name="busyId === log.id ? 'i-lucide-loader-circle' : 'i-lucide-check'" class="size-3.5" :class="busyId === log.id ? 'animate-spin' : ''" />
+                    ทำงานเสร็จสิ้น
+                  </button>
+                  <button type="button" disabled title="ส่งตรวจได้หลังทำงานเสร็จสิ้น" class="cursor-not-allowed rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-400">ส่งตรวจ (เลือก)</button>
+                </template>
+
+                <!-- ส่งตรวจต้องมีไฟล์แนบ จึงไปทำต่อในหน้าแก้ไข -->
+                <NuxtLink
+                  v-else-if="log.reviewStatus === 'draft' && log.canEdit !== false"
+                  :to="`/worklogs/${log.id}/edit`"
+                  class="rounded-lg bg-indigo-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-indigo-700"
+                >
+                  แนบไฟล์ &amp; ส่งตรวจ
+                </NuxtLink>
+
+                <NuxtLink v-else :to="`/worklogs/${log.id}/history`" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-500 shadow-sm hover:bg-slate-50">
+                  ดูรายละเอียด (เลือก)
+                </NuxtLink>
               </div>
             </td>
           </tr>
@@ -128,6 +187,13 @@ function endLabel(log: WorkLog) {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <div v-if="filteredLogs.length > pageSize" class="flex items-center justify-center gap-3 border-t border-slate-100 py-3 text-[11px] text-slate-400">
+      <span>แสดง {{ visibleLogs.length }} จาก {{ filteredLogs.length }} รายการ</span>
+      <button v-if="visibleLogs.length < filteredLogs.length" type="button" class="font-semibold text-indigo-600 underline underline-offset-2" @click="visibleCount += pageSize">
+        แสดงเพิ่ม
+      </button>
     </div>
   </section>
 </template>

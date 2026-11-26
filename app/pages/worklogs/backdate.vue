@@ -8,6 +8,7 @@ const { data: context, status, error, refresh } = await useLazyAsyncData('worklo
 <template>
   <div>
     <header class="mb-4 border-b border-slate-200 pb-5">
+      <BackButton fallback="/worklogs" class="mb-3" />
       <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-400" aria-label="breadcrumb">
         <span>พื้นที่นักศึกษา</span>
         <span>/</span>
@@ -16,7 +17,7 @@ const { data: context, status, error, refresh } = await useLazyAsyncData('worklo
         <span class="text-slate-500">บันทึกงานย้อนหลัง</span>
       </nav>
       <h2 class="mt-2 text-2xl font-bold text-slate-900">บันทึกงานย้อนหลัง</h2>
-      <p class="mt-1 text-xs text-slate-500">บันทึกรายการที่ทำเสร็จแล้วภายในช่วงฝึกงาน</p>
+      <p class="mt-1 text-xs text-slate-500">บันทึกรายการที่ต้องการบันทึกย้อนหลัง ย้อนได้สูงสุด 3 วัน</p>
     </header>
 
     <AsyncState :loading="!context && status !== 'error'" :error="error" @retry="refresh()">

@@ -7,14 +7,7 @@ definePageMeta({ role: 'student' })
 const api = useApi()
 const { data, status, error, refresh } = await useLazyAsyncData('daily-worklogs', () => api.getDailyWorklogs())
 
-// รายการที่ถูกส่งกลับแสดงทุกวันที่ ไม่เฉพาะวันที่ของตาราง
-const { data: returned, error: returnedError, refresh: refreshReturned } = await useLazyAsyncData('returned-worklogs', () => api.getReturnedWorklogs())
-
-const { data: drafts, error: draftsError, refresh: refreshDrafts } = await useLazyAsyncData('draft-worklogs', () => api.getDraftWorklogs())
-
 const logs = computed(() => data.value?.worklogs ?? [])
-// ฉบับร่างของวันที่ในตารางแสดงอยู่แล้ว
-const otherDrafts = computed(() => data.value ? drafts.value?.filter(log => log.date !== data.value!.date) ?? [] : [])
 const logToDelete = ref<WorkLog>()
 const isDeleteOpen = ref(false)
 const isDeleting = ref(false)
@@ -37,7 +30,7 @@ async function deleteLog(reason: string) {
     await api.deleteWorklog(target.id, reason)
     isDeleteOpen.value = false
     deletedTitle.value = target.title
-    await Promise.all([refresh(), refreshReturned(), refreshDrafts()])
+    await refresh()
   }
   catch (failure) {
     deleteError.value = errorMessage(failure)
@@ -111,12 +104,6 @@ const unavailable = computed(() => {
         <DailyWorklogTable :date="formatThaiDate(data.date)" :logs="logs" class="mt-3" @delete="askDelete" />
       </template>
     </AsyncState>
-
-    <AsyncState v-if="returnedError" class="mt-3" :loading="false" :error="returnedError" @retry="refreshReturned()" />
-    <ReturnedWorklogList v-else-if="returned?.length" :worklogs="returned" class="mt-3" />
-
-    <AsyncState v-if="draftsError" class="mt-3" :loading="false" :error="draftsError" @retry="refreshDrafts()" />
-    <DraftWorklogList v-else-if="otherDrafts.length" :worklogs="otherDrafts" class="mt-3" @delete="askDelete" />
 
     <p v-if="deletedTitle" class="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-medium text-emerald-700" role="status">
       ลบรายการ “{{ deletedTitle }}” แล้ว

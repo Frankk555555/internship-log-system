@@ -4,7 +4,7 @@ definePageMeta({ role: 'student' })
 const api = useApi()
 const { data: internship, status, error, refresh } = await useLazyAsyncData('internship', () => api.getInternship())
 
-// นักศึกษาดูได้อย่างเดียว ช่วงฝึกงาน เวลาเลิกงาน และพี่เลี้ยงกำหนดโดยแอดมิน (ขอบเขตงานข้อ 3)
+// นักศึกษาดูได้อย่างเดียว ช่วงฝึกงาน เวลาเข้า–เลิกงาน และพี่เลี้ยงกำหนดโดยแอดมิน (ขอบเขตงานข้อ 3)
 const fields = computed(() => {
   const info = internship.value
   if (!info) return []
@@ -14,6 +14,7 @@ const fields = computed(() => {
     { id: 'internship-position', label: 'ตำแหน่ง', value: info.position },
     { id: 'internship-start', label: 'วันเริ่มต้นการฝึกงาน', value: formatThaiDate(info.startDate), icon: 'i-lucide-calendar' },
     { id: 'internship-end', label: 'วันสิ้นสุดการฝึกงาน', value: formatThaiDate(info.endDate), icon: 'i-lucide-calendar' },
+    { id: 'internship-work-start', label: 'เวลาเข้างาน', value: `${info.workStartTime} น.`, icon: 'i-lucide-clock' },
     { id: 'internship-work-end', label: 'เวลาเลิกงาน', value: `${info.workEndTime} น.`, icon: 'i-lucide-clock' },
   ]
 })
@@ -51,9 +52,7 @@ const fields = computed(() => {
           </dl>
 
           <div class="mt-14 flex justify-end">
-            <NuxtLink to="/worklogs" class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50">
-              กลับหน้าบันทึกงาน
-            </NuxtLink>
+            <BackButton fallback="/worklogs" />
           </div>
         </div>
       </AsyncState>

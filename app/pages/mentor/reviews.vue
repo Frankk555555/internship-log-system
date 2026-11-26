@@ -91,7 +91,7 @@ function announce(kind: 'approve' | 'return', items: ReviewItem[]) {
   }
 }
 
-async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: string) {
+async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: string, allowTimeEdit = false) {
   if (pending.value || !items.length) return
 
   pending.value = kind
@@ -100,7 +100,7 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
     const targets = items.map(({ worklog }) => ({ id: worklog.id, version: worklog.version ?? 0 }))
     const result = kind === 'approve'
       ? await api.approveWorklogs(targets, comment || undefined)
-      : await api.returnWorklogs(targets, comment)
+      : await api.returnWorklogs(targets, comment, allowTimeEdit)
 
     const succeeded = items.filter(item => result.succeededIds.includes(item.worklog.id))
     if (succeeded.length) announce(kind, succeeded)
@@ -197,7 +197,10 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
                   <td class="px-2 py-3.5">{{ item.studentName }}</td>
                   <td class="px-2 py-3.5">{{ formatThaiDateRange(item.worklog.date, item.worklog.date) }}</td>
                   <td class="px-2 py-3.5">{{ item.worklog.title }}</td>
-                  <td class="px-2 py-3.5">{{ item.worklog.startTime }}–{{ item.worklog.endTime }} น.</td>
+                  <td class="px-2 py-3.5">
+                    {{ item.worklog.startTime }}–{{ item.worklog.endTime }} น.
+                    <TimeFlagBadges :worklog="item.worklog" class="mt-1" />
+                  </td>
                   <td class="px-2 py-3.5">{{ formatHours(minutesOf(item)) }}</td>
                   <td class="px-2 py-3.5">{{ submittedLabel(item) }}</td>
                   <td class="px-2 py-3.5">
@@ -238,6 +241,8 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
               </button>
             </div>
           </div>
+
+          <DeletedReturnList v-if="queue.deletedReturns.length" :items="queue.deletedReturns" class="mt-6" />
         </template>
       </AsyncState>
     </div>
@@ -248,7 +253,7 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
       :pending="pending"
       :server-error="failure"
       @approve="comment => viewing && decide('approve', [viewing], comment)"
-      @return="comment => viewing && decide('return', [viewing], comment)"
+      @return="(comment, allowTimeEdit) => viewing && decide('return', [viewing], comment, allowTimeEdit)"
     />
 
     <ReturnReasonModal
@@ -256,7 +261,7 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
       :count="selected.length"
       :pending="pending === 'return'"
       :server-error="failure"
-      @confirm="comment => decide('return', selected, comment)"
+      @confirm="(comment, allowTimeEdit) => decide('return', selected, comment, allowTimeEdit)"
     />
   </div>
 </template>

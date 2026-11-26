@@ -7,24 +7,26 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  confirm: [comment: string]
+  confirm: [comment: string, allowTimeEdit: boolean]
 }>()
 
 const open = defineModel<boolean>('open', { required: true })
 
 const comment = ref('')
 const showError = ref(false)
+const allowTimeEdit = ref(false)
 const error = computed(() => showError.value && !comment.value.trim() ? 'กรุณาระบุความคิดเห็นเมื่อส่งกลับแก้ไข' : undefined)
 
 watch(open, (isOpen) => {
   if (!isOpen) return
   comment.value = ''
   showError.value = false
+  allowTimeEdit.value = false
 })
 
 function confirm(pending?: boolean) {
   showError.value = true
-  if (!pending && comment.value.trim()) emit('confirm', comment.value.trim())
+  if (!pending && comment.value.trim()) emit('confirm', comment.value.trim(), allowTimeEdit.value)
 }
 </script>
 
@@ -61,6 +63,10 @@ function confirm(pending?: boolean) {
         class="mt-1.5 block w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-red-400"
       />
       <p v-if="error" id="return-comment-error" class="mt-1 text-[11px] font-medium text-red-500">{{ error }}</p>
+      <label class="mt-2 flex items-start gap-2 text-[11px] text-slate-600">
+        <input id="return-allow-time" v-model="allowTimeEdit" type="checkbox" class="mt-px size-3.5 accent-indigo-600" :disabled="pending">
+        เปิดให้นักศึกษาแก้วันที่และเวลาของทุกรายการที่เลือก (ใช้เมื่อเวลาไม่ถูกต้อง)
+      </label>
       <p v-if="serverError" class="mt-1 text-[11px] font-medium text-red-500" role="alert">{{ serverError }}</p>
     </template>
 

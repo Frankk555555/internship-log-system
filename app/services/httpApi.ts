@@ -35,9 +35,7 @@ export function createHttpApi(baseURL: string, headers?: Record<string, string>,
     getInternship: () => request('/me/internship'),
     getDailyWorklogs: date => request('/me/worklogs/daily', { query: { date } }),
     listWorklogs: (from, to) => request('/me/worklogs', { query: { from, to } }),
-    getReturnedWorklogs: () => request('/me/worklogs/returned'),
     getWorklog: id => request(`/me/worklogs/${id}`),
-    getDraftWorklogs: () => request('/me/worklogs/drafts'),
     getWorklogFormContext: mode => request('/me/worklogs/form-context', { query: { mode } }),
     getServerTime: async () => (await request<{ now: string }>('/time')).now,
 
@@ -49,6 +47,9 @@ export function createHttpApi(baseURL: string, headers?: Record<string, string>,
       return request(id ? `/me/worklogs/${id}` : '/me/worklogs', { method: id ? 'PUT' : 'POST', body })
     },
 
+    startWorklog: id => request(`/me/worklogs/${id}/start`, { method: 'POST' }),
+    finishWorklog: id => request(`/me/worklogs/${id}/finish`, { method: 'POST' }),
+
     deleteWorklog: async (id, reason) => {
       await request(`/me/worklogs/${id}`, { method: 'DELETE', body: { reason } })
     },
@@ -59,7 +60,7 @@ export function createHttpApi(baseURL: string, headers?: Record<string, string>,
     getMentorWeeklyReports: (weekStart, studentId) => request('/mentor/reports/weekly', { query: { weekStart, studentId } }),
     getReviewQueue: (filter, limit) => request('/mentor/reviews', { query: { filter, limit } }),
     approveWorklogs: (items, comment) => request('/mentor/reviews/approve', { method: 'POST', body: { items, comment } }),
-    returnWorklogs: (items, comment) => request('/mentor/reviews/return', { method: 'POST', body: { items, comment } }),
+    returnWorklogs: (items, comment, allowTimeEdit) => request('/mentor/reviews/return', { method: 'POST', body: { items, comment, allowTimeEdit } }),
     createUnavailability: async (body) => {
       await request('/mentor/unavailability', { method: 'POST', body })
     },

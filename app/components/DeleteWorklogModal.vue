@@ -60,6 +60,11 @@ function confirm() {
         ใช่หรือไม่
       </p>
 
+      <p v-if="props.log?.reviewStatus === 'returned'" class="mt-3 flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
+        <UIcon name="i-lucide-triangle-alert" class="mt-px size-3.5 shrink-0" />
+        รายการนี้ถูกส่งกลับให้แก้ไข พี่เลี้ยงจะเห็นว่าคุณลบรายการ พร้อมเหตุผลที่ระบุ
+      </p>
+
       <label for="delete-reason" class="mt-4 block text-xs font-medium text-slate-700">เหตุผล *</label>
       <textarea
         id="delete-reason"
