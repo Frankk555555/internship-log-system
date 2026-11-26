@@ -1,5 +1,5 @@
 import type { AuthApi } from '~/types/auth'
-import type { ReviewFilter, ReviewQueue, ReviewResult, ReviewTarget, UnavailabilityInput } from '~/types/review'
+import type { ReviewFilter, ReviewQueue, ReviewResult, ReviewTarget, SupervisedStudents, UnavailabilityInput } from '~/types/review'
 import type {
   DailyWorklogs,
   InternshipInfo,
@@ -40,7 +40,9 @@ export interface Api extends AuthApi {
   getMentorStudents(): Promise<MentorStudent[]>
   /** ไม่ระบุ studentId = นักศึกษาในความดูแลทั้งหมด */
   getMentorWeeklyReports(weekStart: string, studentId?: string): Promise<WeeklyReportData[]>
-  getReviewQueue(filter: ReviewFilter, limit: number): Promise<ReviewQueue>
+  getSupervisedStudents(): Promise<SupervisedStudents>
+  /** ไม่ระบุ studentId = นักศึกษาในความดูแลทั้งหมด */
+  getReviewQueue(filter: ReviewFilter, limit: number, studentId?: string): Promise<ReviewQueue>
   approveWorklogs(targets: ReviewTarget[], comment?: string): Promise<ReviewResult>
   /** ต้องมีความเห็นทุกครั้ง (10.5) allowTimeEdit = เปิดให้นักศึกษาแก้วันที่และเวลา */
   returnWorklogs(targets: ReviewTarget[], comment: string, allowTimeEdit?: boolean): Promise<ReviewResult>

@@ -66,8 +66,9 @@ function weekly(student: { studentId: string, name: string, worklogs: WorkLog[] 
 
 /** นักศึกษาในความดูแลของพี่เลี้ยง (ขอบเขตงานข้อ 9.2) */
 function mentoredStudents() {
+  const { company, position, startDate, endDate } = db.internship
   return [
-    { studentId: db.student.studentId!, name: db.student.name, worklogs: db.studentWorklogs },
+    { studentId: db.student.studentId!, name: db.student.name, email: db.student.email, company, position, startDate, endDate, worklogs: db.studentWorklogs },
     ...db.otherStudents,
   ]
 }
@@ -419,19 +420,42 @@ const dataApi: Omit<Api, keyof AuthApi> = {
     // ฉบับร่างยังไม่ถูกส่งตรวจ พี่เลี้ยงจึงไม่เห็น
     .map(student => weekly(student, weekStart, false))),
 
-  getReviewQueue(filter, limit) {
-    const items = mentoredStudents().flatMap(student => student.worklogs
+  getSupervisedStudents: () => respond({
+    overdueDays: db.REVIEW_OVERDUE_DAYS,
+    students: mentoredStudents().map(({ worklogs, ...profile }) => {
+      const withStatus = (status: WorkLog['reviewStatus']) => worklogs.filter(log => log.reviewStatus === status)
+      const waiting = withStatus('submitted').map(log => toReviewItem(profile.studentId, profile.name, log))
+      const submittedTimes = worklogs.flatMap(log => log.reviewStatus !== 'draft' && log.submittedAt ? [log.submittedAt] : [])
+
+      return {
+        ...profile,
+        approvedMinutes: withStatus('approved').reduce((total, log) => total + toMinutes(log.endTime!) - toMinutes(log.startTime!), 0),
+        pendingCount: waiting.length,
+        overdueCount: waiting.filter(item => item.isOverdue).length,
+        returnedCount: withStatus('returned').length,
+        lastSubmittedAt: submittedTimes.sort((a, b) => Date.parse(b) - Date.parse(a))[0],
+      }
+    }),
+  }),
+
+  getReviewQueue(filter, limit, studentId) {
+    const students = mentoredStudents().filter(student => !studentId || student.studentId === studentId)
+    // ดูได้เฉพาะนักศึกษาในความดูแล (9.2)
+    if (studentId && !students.length) throw new ApiError('นักศึกษานี้ไม่อยู่ในความดูแลของคุณ', 403)
+
+    const items = students.flatMap(student => student.worklogs
       .filter(log => filter === 'all' ? log.reviewStatus !== 'draft' : log.reviewStatus === 'submitted')
       .map(log => toReviewItem(student.studentId, student.name, log)))
     items.sort((a, b) => Date.parse(a.submittedAt) - Date.parse(b.submittedAt))
     if (filter === 'all') items.reverse()
 
     return respond({
+      student: studentId ? { studentId, name: students[0]!.name } : undefined,
       items: items.slice(0, limit),
       total: items.length,
-      pendingCount: mentoredStudents().flatMap(student => student.worklogs).filter(log => log.reviewStatus === 'submitted').length,
+      pendingCount: students.flatMap(student => student.worklogs).filter(log => log.reviewStatus === 'submitted').length,
       overdueDays: db.REVIEW_OVERDUE_DAYS,
-      deletedReturns: deletedReturns(),
+      deletedReturns: deletedReturns().filter(item => !studentId || item.studentId === studentId),
     })
   },
 
@@ -498,6 +522,7 @@ export function createMockApi(session: MockSession): Api {
 
     getMentorStudents: guard('supervisor', dataApi.getMentorStudents),
     getMentorWeeklyReports: guard('supervisor', dataApi.getMentorWeeklyReports),
+    getSupervisedStudents: guard('supervisor', dataApi.getSupervisedStudents),
     getReviewQueue: guard('supervisor', dataApi.getReviewQueue),
     approveWorklogs: guard('supervisor', dataApi.approveWorklogs),
     returnWorklogs: guard('supervisor', dataApi.returnWorklogs),

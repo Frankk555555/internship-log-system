@@ -16,7 +16,7 @@ function deletedLabel(value: string) {
     <h3 id="deleted-returns-title" class="text-sm font-semibold text-slate-900">รายการที่ส่งกลับแล้วถูกลบ ({{ items.length }})</h3>
     <p class="mt-1 text-[11px] text-slate-500">นักศึกษาลบรายการที่คุณส่งกลับให้แก้ไข รายการเหล่านี้ไม่ถูกนับชั่วโมง</p>
 
-    <div class="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+    <div class="relative mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
       <table class="w-full min-w-[860px] table-fixed border-collapse text-left">
         <thead>
           <tr class="bg-slate-100 text-[11px] font-semibold text-slate-500">

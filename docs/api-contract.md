@@ -90,7 +90,8 @@ backend ต้องทำเอง
 | GET | `/me/reports/weekly?weekStart=` | `WeeklyReportData` | รายงานของนักศึกษา |
 | GET | `/mentor/students` | `MentorStudent[]` | รายงานของพี่เลี้ยง |
 | GET | `/mentor/reports/weekly?weekStart=&studentId=` | `WeeklyReportData[]` | รายงานของพี่เลี้ยง |
-| GET | `/mentor/reviews?filter=pending\|all&limit=` | `ReviewQueue` | ตรวจงานนักศึกษา |
+| GET | `/mentor/students/overview` | `SupervisedStudents` | นักศึกษาในความดูแล |
+| GET | `/mentor/reviews?filter=pending\|all&limit=&studentId=` | `ReviewQueue` (กรองรายคนได้ ถ้าไม่อยู่ในความดูแลตอบ 403) | ตรวจงานนักศึกษา |
 | POST | `/mentor/reviews/approve` body `{ items: [{ id, version }], comment? }` | `ReviewResult` | ตรวจงานนักศึกษา |
 | POST | `/mentor/reviews/return` body `{ items: [{ id, version }], comment, allowTimeEdit? }` | `ReviewResult` | ตรวจงานนักศึกษา |
 | POST | `/mentor/unavailability` body `{ date, startTime, endTime, reason }` | ไม่มี | ตารางเวลาไม่สะดวก |
@@ -164,7 +165,7 @@ backend ต้องทำเอง
 ## ยังไม่มีในสัญญานี้
 
 หน้าจอเหล่านี้ยังไม่ได้ทำ จึงยังไม่กำหนด endpoint: จัดการบัญชีและนำเข้า Excel,
-กำหนดพี่เลี้ยง, ย้อนการอนุมัติ, การแจ้งเตือน, นักศึกษาในความดูแล, ปฏิทินของพี่เลี้ยงและแอดมิน
+กำหนดพี่เลี้ยง, ย้อนการอนุมัติ, การแจ้งเตือน, ปฏิทินของพี่เลี้ยงและแอดมิน
 
 
 ## เริ่มและจบงานจากหน้าหลัก

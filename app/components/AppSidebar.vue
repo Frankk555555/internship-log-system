@@ -26,7 +26,7 @@ const workspaces: Record<UserRole, { name: string, roleLabel: string, menus: { l
     roleLabel: 'พี่เลี้ยง',
     menus: [
       { label: 'ตรวจงานนักศึกษา', icon: 'i-lucide-notebook-text', to: '/mentor/reviews' },
-      { label: 'นักศึกษาในความดูแล', icon: 'i-lucide-users', to: '#' },
+      { label: 'นักศึกษาในความดูแล', icon: 'i-lucide-users', to: '/mentor/students' },
       { label: 'ตารางเวลาไม่สะดวก', icon: 'i-lucide-calendar', to: '/mentor/unavailable' },
       { label: 'รายงานรายสัปดาห์', icon: 'i-lucide-file-text', to: '/mentor/reports' },
       { label: 'ตั้งค่าบัญชี', icon: 'i-lucide-settings', to: '/settings' },

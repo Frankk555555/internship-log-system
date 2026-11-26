@@ -9,20 +9,24 @@ const api = useApi()
 const user = useSessionUser()
 const notify = useNotify()
 
-const filter = ref<ReviewFilter>('pending')
+// เปิดจากหน้านักศึกษาในความดูแล: กรองรายคน และเลือกแท็บเริ่มต้นได้
+const route = useRoute()
+const studentId = computed(() => route.query.student ? String(route.query.student) : undefined)
+const filter = ref<ReviewFilter>(route.query.tab === 'all' ? 'all' : 'pending')
 const limit = ref(pageSize)
 
 const { data, status, error, refresh } = await useLazyAsyncData(
   'review-queue',
   async () => {
     const requested = filter.value
-    return { filter: requested, queue: await api.getReviewQueue(requested, limit.value) }
+    const student = studentId.value
+    return { filter: requested, student, queue: await api.getReviewQueue(requested, limit.value, student) }
   },
-  { watch: [filter, limit] },
+  { watch: [filter, limit, studentId] },
 )
 
-// แสดงเฉพาะข้อมูลของแท็บที่เลือกอยู่
-const queue = computed(() => data.value?.filter === filter.value ? data.value.queue : undefined)
+// แสดงเฉพาะข้อมูลของแท็บและนักศึกษาที่เลือกอยู่
+const queue = computed(() => data.value?.filter === filter.value && data.value.student === studentId.value ? data.value.queue : undefined)
 const tabs = computed(() => [
   { key: 'pending' as const, label: data.value ? `รอตรวจ (${data.value.queue.pendingCount})` : 'รอตรวจ' },
   { key: 'all' as const, label: 'ทั้งหมด' },
@@ -37,6 +41,12 @@ function toggle(item: ReviewItem) {
     ? selected.value.filter(other => other.worklog.id !== item.worklog.id)
     : [...selected.value, item]
 }
+
+// เปลี่ยนนักศึกษาแล้วต้องเลือกรายการใหม่
+watch(studentId, () => {
+  limit.value = pageSize
+  selected.value = []
+})
 
 function selectTab(next: ReviewFilter) {
   if (filter.value === next) return
@@ -133,6 +143,7 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
   <div>
     <header class="flex items-start justify-between gap-4 border-b border-slate-200 pb-5">
       <div>
+        <BackButton v-if="studentId" fallback="/mentor/students" class="mb-3" />
         <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-400" aria-label="breadcrumb">
           <span>พื้นที่พี่เลี้ยง</span>
           <span>/</span>
@@ -159,6 +170,11 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
       </button>
     </div>
 
+    <p v-if="studentId" class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+      <span>แสดงเฉพาะ <strong class="font-semibold text-slate-900">{{ queue?.student ? `${queue.student.name} (${queue.student.studentId})` : studentId }}</strong></span>
+      <NuxtLink to="/mentor/reviews" class="font-semibold text-indigo-600 underline underline-offset-2">ดูนักศึกษาทุกคน</NuxtLink>
+    </p>
+
     <p class="mt-5 rounded-lg bg-indigo-50 px-4 py-3.5 text-xs font-semibold text-indigo-600" role="status">
       เลือกแล้ว {{ selected.length }} รายการ
     </p>
@@ -166,7 +182,7 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
     <div class="mt-4">
       <AsyncState :loading="!queue && status !== 'error'" :error="error" @retry="refresh()">
         <template v-if="queue">
-          <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <div class="relative overflow-x-auto rounded-lg border border-slate-200 bg-white">
             <table class="w-full min-w-[860px] table-fixed border-collapse text-left">
               <thead>
                 <tr class="bg-slate-100 text-[11px] font-semibold text-slate-500">

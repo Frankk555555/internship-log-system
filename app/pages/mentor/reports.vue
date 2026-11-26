@@ -7,7 +7,10 @@ const { data: students, error: studentsError, refresh: refreshStudents } = await
 
 // ตัวเลือกสัปดาห์และนักศึกษา (ขอบเขตงานข้อ 12.1)
 const allStudents = 'all'
-const pickedStudent = ref<string>()
+// เปิดจากหน้านักศึกษาในความดูแลจะเลือกคนนั้นไว้ให้
+const route = useRoute()
+const linkedStudent = route.query.student ? String(route.query.student) : undefined
+const pickedStudent = ref(linkedStudent)
 const selectedStudent = computed({
   get: () => pickedStudent.value ?? students.value?.[0]?.studentId ?? allStudents,
   set: value => pickedStudent.value = value,
@@ -64,6 +67,7 @@ function downloadExcel() {
     <header class="mb-4 border-b border-slate-200 pb-3 print:hidden">
       <div class="flex items-start justify-between gap-4">
         <div>
+          <BackButton v-if="linkedStudent" fallback="/mentor/students" class="mb-3" />
           <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-400" aria-label="breadcrumb">
             <span>พื้นที่พี่เลี้ยง</span>
             <span>/</span>

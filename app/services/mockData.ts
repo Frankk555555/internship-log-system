@@ -124,6 +124,11 @@ export const otherStudents = [
   {
     studentId: '66011233467',
     name: 'นภา สุขสันต์',
+    email: 'napha.s@university.ac.th',
+    company: internship.company,
+    position: 'UX/UI designer',
+    startDate: internship.startDate,
+    endDate: internship.endDate,
     worklogs: [
       entry(301, earlier('2026-09-14'), 'ออกแบบฐานข้อมูลผู้ใช้', '09:00', '12:00', 'approved'),
       entry(303, earlier('2026-09-18'), 'ร่างคู่มือการใช้งาน', '13:00', '15:00', 'draft'),
@@ -134,6 +139,11 @@ export const otherStudents = [
   {
     studentId: '66011233468',
     name: 'ธนา มั่นคง',
+    email: 'thana.m@university.ac.th',
+    company: internship.company,
+    position: 'Data analyst',
+    startDate: internship.startDate,
+    endDate: internship.endDate,
     worklogs: [
       pending(401, daysAgo(2), 'เตรียมข้อมูลสำหรับรายงาน', '10:00', '12:30', '13:20', 'ตรวจความครบถ้วนและจัดรูปแบบข้อมูลสำหรับรายงาน', [['report-data.pdf', 520 * 1024]]),
       pending(402, daysAgo(2), 'อบรมการใช้งานระบบ', '15:00', '16:30', '16:40', 'อบรมการใช้งานระบบบันทึกงานให้ผู้ใช้ใหม่', [['training-photo.jpg', 1.1 * MB]]),
