@@ -1,5 +1,6 @@
 // กฎการบันทึกเวลา ใช้ร่วมกันระหว่างหน้าจอและข้อมูลจำลอง (backend ต้องบังคับซ้ำ)
 import type { WorkHours, WorkLog } from '~/types/worklog'
+import { addDays, toThaiTimeParts } from './date'
 import { toMinutes } from './time'
 
 /** เลยเวลาเลิกงานแล้ว (เวลาเลิกงานพอดียังบันทึกเสร็จได้) */
@@ -69,6 +70,18 @@ export function timePolicy(log: WorkLog | undefined, today: string, afterWork = 
   if (log.timeSource === 'timer_manual_end') return locked
   if (log.timeSource !== 'timer') return editable
   return { ...locked, end: !log.endTime && (log.date < today || (log.date === today && afterWork)) }
+}
+
+/** วันสุดท้ายที่ยังแก้ไขและส่งตรวจได้: รายการที่ถูกส่งกลับนับจากวันที่ถูกส่งกลับ ฉบับร่างนับจากวันที่ทำงาน */
+export function editDeadline(log: WorkLog, limitDays: number) {
+  const from = log.reviewStatus === 'returned' && log.reviewedAt ? toThaiTimeParts(log.reviewedAt).date : log.date
+  return addDays(from, limitDays)
+}
+
+/** วันเก่าสุดที่บันทึกได้ รายการที่ถูกส่งกลับคงวันเดิมได้แม้เก่ากว่าช่วงย้อนหลัง */
+export function earliestEntryDate(log: WorkLog | undefined, today: string, limitDays: number) {
+  const earliest = addDays(today, -limitDays)
+  return log?.reviewStatus === 'returned' && log.date < earliest ? log.date : earliest
 }
 
 export function overlapMessage(log: WorkLog) {

@@ -4,7 +4,7 @@ import type { Attachment, HistoryEvent, SaveWorklogInput, UserRole, WeeklyReport
 import { addDays, formatThaiDate, toThaiTimeParts } from '~/utils/date'
 import { fileError } from '~/utils/attachments'
 import { toMinutes } from '~/utils/time'
-import { findOverlaps, futureTimeError, isAfterWork, overlapMessage, startTimeError, timePolicy, timerFinishError, timerStartError, timeRangeError } from '~/utils/worklogRules'
+import { earliestEntryDate, editDeadline, findOverlaps, futureTimeError, isAfterWork, overlapMessage, startTimeError, timePolicy, timerFinishError, timerStartError, timeRangeError } from '~/utils/worklogRules'
 import { ApiError, type Api } from './api'
 import { createMockAuth, currentAccount, requireRole } from './mockAuth'
 import type { MockSession } from './mockSession'
@@ -40,9 +40,9 @@ function isAfterWorkNow() {
   return isAfterWork(toThaiTimeParts(serverNow()).time, db.internship.workEndTime)
 }
 
-/** ฉบับร่างและรายการที่ถูกส่งกลับ แก้ไขได้เฉพาะภายในช่วงย้อนหลัง (นับทุกวัน) */
+/** ฉบับร่างและรายการที่ถูกส่งกลับ เลยกำหนดแก้ไขแล้วหรือยัง (นับทุกวัน) */
 function isOutsideEditWindow(worklog: WorkLog) {
-  return worklog.date < addDays(db.TODAY, -db.BACKDATE_LIMIT_DAYS)
+  return db.TODAY > editDeadline(worklog, db.BACKDATE_LIMIT_DAYS)
 }
 
 function withPermissions(worklogs: WorkLog[]) {
@@ -111,7 +111,9 @@ function validate(input: SaveWorklogInput) {
   }
   assertSingleTimer(input)
   if (input.date < db.internship.startDate || input.date > db.internship.endDate) throw new ApiError('วันที่อยู่นอกช่วงฝึกงาน', 422)
-  if (input.mode === 'backdate' && (input.date < addDays(db.TODAY, -db.BACKDATE_LIMIT_DAYS) || input.date > db.TODAY)) {
+  const existing = db.studentWorklogs.find(log => log.id === input.id)
+  const earliest = earliestEntryDate(existing, db.TODAY, db.BACKDATE_LIMIT_DAYS)
+  if (input.mode === 'backdate' && (input.date < earliest || input.date > db.TODAY)) {
     throw new ApiError('วันที่อยู่นอกช่วงย้อนหลังที่อนุญาต', 422)
   }
   const invalid = input.newFiles.map(fileError).find(Boolean)
@@ -301,7 +303,7 @@ const dataApi: Omit<Api, keyof AuthApi> = {
     const existing = input.id ? findWorklog(input.id) : undefined
     if (existing) {
       assertEditable(existing)
-      if (isOutsideEditWindow(existing)) throw new ApiError('รายการนี้เกินช่วงย้อนหลังแล้ว แก้ไขและส่งตรวจไม่ได้', 409)
+      if (isOutsideEditWindow(existing)) throw new ApiError('รายการนี้เลยกำหนดแก้ไขแล้ว แก้ไขและส่งตรวจไม่ได้', 409)
     }
     assertTimeRules(input, existing)
 

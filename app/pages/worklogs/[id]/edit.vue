@@ -20,12 +20,15 @@ watch(error, async (failure) => {
 const isReturned = computed(() => data.value?.worklog.reviewStatus === 'returned')
 const heading = computed(() => isReturned.value ? 'แก้ไขและส่งตรวจใหม่' : 'แก้ไขฉบับร่าง')
 
-// แก้ไขได้เฉพาะฉบับร่างหรือถูกส่งกลับ ที่ยังอยู่ในช่วงย้อนหลัง (ขอบเขตงานข้อ 5.6, 8.4)
+// แก้ไขได้เฉพาะฉบับร่างหรือถูกส่งกลับ ที่ยังไม่เลยกำหนดแก้ไข (ขอบเขตงานข้อ 5.6, 8.4)
 const blockedReason = computed(() => {
   const worklog = data.value?.worklog
   if (!worklog) return undefined
   if (worklog.reviewStatus !== 'draft' && worklog.reviewStatus !== 'returned') return 'รายการที่ส่งตรวจหรืออนุมัติแล้ว แก้ไขไม่ได้'
-  if (worklog.canEdit === false) return 'รายการนี้เกินช่วงย้อนหลังแล้ว แก้ไขและส่งตรวจไม่ได้'
+  if (worklog.canEdit === false) {
+    const reason = worklog.reviewStatus === 'returned' ? 'เลยกำหนดแก้ไขหลังถูกส่งกลับแล้ว' : 'รายการนี้เกินช่วงย้อนหลังแล้ว'
+    return `${reason} แก้ไขและส่งตรวจไม่ได้`
+  }
   return undefined
 })
 
@@ -98,9 +101,10 @@ async function deleteLog(reason: string) {
         </div>
 
         <template v-else>
-          <blockquote v-if="isReturned" class="mb-4 whitespace-pre-line rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-xs text-slate-700">
+          <blockquote v-if="isReturned" class="mb-4 rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-xs text-slate-700">
             <span class="font-semibold text-pink-700">ความคิดเห็นของพี่เลี้ยง:</span>
-            {{ data.worklog.reviewComment ?? 'ไม่ได้ระบุ' }}
+            <span class="whitespace-pre-line">{{ data.worklog.reviewComment ?? 'ไม่ได้ระบุ' }}</span>
+            <span class="mt-1 block text-[11px] text-slate-500">แก้ไขและส่งตรวจใหม่ได้ถึง {{ formatThaiDate(editDeadline(data.worklog, data.context.backdateLimitDays)) }}</span>
           </blockquote>
 
           <BackdateWorklogForm :context="data.context" :worklog="data.worklog">

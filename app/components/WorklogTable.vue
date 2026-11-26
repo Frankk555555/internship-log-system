@@ -124,7 +124,7 @@ function endLabel(log: WorkLog) {
                   v-else-if="log.reviewStatus === 'returned'"
                   type="button"
                   disabled
-                  title="เกินช่วงย้อนหลังแล้ว แก้ไขและส่งใหม่ไม่ได้"
+                  title="เลยกำหนดแก้ไขหลังถูกส่งกลับแล้ว แก้ไขและส่งใหม่ไม่ได้"
                   class="cursor-not-allowed rounded-lg bg-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-400"
                 >
                   แก้ไข &amp; ส่งตรวจใหม่

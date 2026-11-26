@@ -32,8 +32,9 @@ const notice = ref<{ tone: 'error' | 'success', text: string }>()
 const isLocked = computed(() => isSubmitted.value || Boolean(pending.value))
 
 // ช่วงวันที่บันทึกย้อนหลังได้ ต้องอยู่ในช่วงฝึกงานด้วย (ขอบเขตงานข้อ 5.6)
-const earliestBackdate = addDays(today, -backdateLimitDays)
-const allowedFrom = earliestBackdate > internshipStart ? earliestBackdate : internshipStart
+const windowStart = addDays(today, -backdateLimitDays)
+const earliestDate = computed(() => earliestEntryDate(current.value, today, backdateLimitDays))
+const allowedFrom = computed(() => earliestDate.value > internshipStart ? earliestDate.value : internshipStart)
 const allowedTo = today < internshipEnd ? today : internshipEnd
 
 const clock = useServerClock()
@@ -76,6 +77,8 @@ function requiredError(value: string, label: string) {
 }
 
 const dateError = computed(() => {
+  // ส่งตรวจสำเร็จแล้ว ไม่ต้องตรวจช่วงวันซ้ำ
+  if (isSubmitted.value) return undefined
   if (!date.value.trim()) return requiredError(date.value, 'วันที่ทำงาน')
 
   const value = workDate.value
@@ -84,7 +87,7 @@ const dateError = computed(() => {
 
   const reasons = [
     value < internshipStart || value > internshipEnd ? 'อยู่นอกช่วงฝึกงาน' : undefined,
-    value < earliestBackdate ? 'เกินช่วงย้อนหลังที่อนุญาต' : undefined,
+    value < earliestDate.value ? 'เกินช่วงย้อนหลังที่อนุญาต' : undefined,
   ].filter(Boolean)
 
   return reasons.length ? reasons.join(' และ') : undefined
@@ -318,7 +321,7 @@ async function save(mode: 'draft' | 'submit') {
           </div>
           <div v-if="policy.date">
             <dt class="text-[11px] text-slate-400">ช่วงวันย้อนหลัง</dt>
-            <dd class="mt-1 text-xs font-semibold text-slate-800">{{ formatThaiDateRange(allowedFrom, allowedTo) }} (ย้อนหลัง {{ backdateLimitDays }} วัน)</dd>
+            <dd class="mt-1 text-xs font-semibold text-slate-800">{{ formatThaiDateRange(allowedFrom, allowedTo) }} ({{ earliestDate < windowStart ? 'รวมวันเดิมของรายการ' : `ย้อนหลัง ${backdateLimitDays} วัน` }})</dd>
           </div>
         </dl>
 

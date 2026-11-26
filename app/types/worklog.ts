@@ -80,7 +80,7 @@ export interface WorkLog {
   /** ชื่อผู้ตรวจและเวลาที่ตรวจครั้งล่าสุด */
   reviewedBy?: string
   reviewedAt?: string
-  /** false = แก้ไขไม่ได้แล้ว เช่น ถูกส่งกลับแต่เกินช่วงย้อนหลัง */
+  /** false = แก้ไขไม่ได้แล้ว เช่น เลยกำหนดแก้ไขหลังถูกส่งกลับ */
   canEdit?: boolean
   /** มีค่า = ถูกลบแล้ว ไม่อยู่ในรายการใด ดูได้จากประวัติ */
   deletion?: { deletedAt: string, deletedBy: string, reason: string }
