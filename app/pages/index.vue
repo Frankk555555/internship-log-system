@@ -1,28 +1,36 @@
 <script setup lang="ts">
-const { internship, summary, worklogs } = useWorklogs()
+definePageMeta({ role: 'student' })
+
+const api = useApi()
+const user = useSessionUser()
+const { data, status, error, refresh } = await useLazyAsyncData('dashboard', () => api.getDashboard())
 </script>
 
 <template>
   <div>
-    <AppHeader />
+    <AppHeader :unread="user?.unreadNotifications" />
 
-    <div class="dashboard-summary-grid grid gap-4">
-      <InternshipProgressCard :internship="internship" />
-      <SummaryStatCard
-        title="ผ่านการอนุมัติแล้ว"
-        :value="summary.approvedCount"
-        meta="รายการ"
-        tone="green"
-      />
-      <SummaryStatCard
-        title="รอตรวจ / ส่งกลับแก้ไข"
-        :value="summary.waitingReview"
-        :secondary-value="summary.returned"
-        meta="ส่งตรวจ / ส่งกลับแก้ไข"
-        tone="orange"
-      />
-    </div>
+    <AsyncState :loading="!data && status !== 'error'" :error="error" @retry="refresh()">
+      <template v-if="data">
+        <div class="dashboard-summary-grid grid gap-4">
+          <InternshipProgressCard :internship="data.internship" />
+          <SummaryStatCard
+            title="ผ่านการอนุมัติแล้ว"
+            :value="data.summary.approvedCount"
+            meta="รายการ"
+            tone="green"
+          />
+          <SummaryStatCard
+            title="รอตรวจ / ส่งกลับแก้ไข"
+            :value="data.summary.waitingReviewCount"
+            :secondary-value="data.summary.returnedCount"
+            meta="ส่งตรวจ / ส่งกลับแก้ไข"
+            tone="orange"
+          />
+        </div>
 
-    <WorklogTable :logs="worklogs" class="mt-5" />
+        <WorklogTable :logs="data.recentWorklogs" class="mt-5" />
+      </template>
+    </AsyncState>
   </div>
 </template>

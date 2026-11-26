@@ -1,4 +1,8 @@
 <script setup lang="ts">
+defineProps<{
+  unread?: number
+}>()
+
 const now = ref<Date | null>(null)
 let timer: ReturnType<typeof setInterval> | undefined
 
@@ -51,14 +55,11 @@ const formattedDateTime = computed(() => {
         <span v-if="formattedDateTime" class="text-slate-700">{{ formattedDateTime }}</span>
         <span v-else class="text-slate-400">กำลังโหลด...</span>
       </div>
-      <button type="button" class="flex items-center gap-2 rounded-lg bg-[linear-gradient(90deg,#7048f5_0%,#3f5beb_100%)] px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-indigo-200 transition hover:brightness-110">
+      <NuxtLink to="/worklogs/new" class="flex items-center gap-2 rounded-lg bg-[linear-gradient(90deg,#7048f5_0%,#3f5beb_100%)] px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-indigo-200 transition hover:brightness-110">
         <UIcon name="i-lucide-plus" class="size-4" />
         สร้างรายการงานใหม่
-      </button>
-      <button type="button" class="relative flex size-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="การแจ้งเตือน">
-        <UIcon name="i-lucide-bell" class="size-4" />
-        <span class="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">3</span>
-      </button>
+      </NuxtLink>
+      <NotificationButton :count="unread" />
     </div>
   </header>
 </template>

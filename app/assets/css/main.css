@@ -45,6 +45,15 @@ body {
   background: #f8fafc;
 }
 
+/* ให้สีพื้นของป้ายสถานะติดไปกับ PDF/งานพิมพ์ */
+@media print {
+  body {
+    background: #fff;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
 @media (min-width: 64rem) {
   .dashboard-summary-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));

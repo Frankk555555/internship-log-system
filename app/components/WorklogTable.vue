@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import type { ReviewStatus, WorkLog, WorkStatus } from '~/types/worklog'
+import type { WorkLog } from '~/types/worklog'
 
-type BadgeTone = 'slate' | 'blue' | 'green' | 'pink'
 type FilterKey = 'all' | 'in_progress' | 'returned' | 'approved'
 
 const props = defineProps<{
@@ -9,18 +8,6 @@ const props = defineProps<{
 }>()
 
 const activeFilter = ref<FilterKey>('all')
-
-const workStatusMeta: Record<WorkStatus, { label: string, tone: BadgeTone }> = {
-  not_started: { label: 'รอดำเนินการ', tone: 'slate' },
-  in_progress: { label: 'กำลังดำเนินการ', tone: 'blue' },
-  completed: { label: 'เสร็จสิ้น', tone: 'green' },
-}
-
-const reviewStatusMeta: Record<ReviewStatus, { label: string, tone: BadgeTone }> = {
-  draft: { label: 'ฉบับร่าง', tone: 'slate' },
-  returned: { label: 'ส่งกลับแก้ไข', tone: 'pink' },
-  approved: { label: 'อนุมัติ', tone: 'green' },
-}
 
 const filters = computed(() => [
   { key: 'all' as const, label: 'ทั้งหมด', count: props.logs.length },
@@ -36,11 +23,11 @@ const filteredLogs = computed(() => {
 })
 
 function startLabel(log: WorkLog) {
-  return log.startTime ?? 'ยังไม่เริ่ม'
+  return log.startTime ? `${log.startTime} น.` : 'ยังไม่เริ่ม'
 }
 
 function endLabel(log: WorkLog) {
-  if (log.endTime) return log.endTime
+  if (log.endTime) return `${log.endTime} น.`
   return log.workStatus === 'in_progress' ? 'กำลังทำ...' : 'ยังไม่เริ่ม'
 }
 </script>
@@ -50,7 +37,7 @@ function endLabel(log: WorkLog) {
     <div class="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
       <div>
         <h3 class="text-sm font-semibold text-slate-800">รายการปฏิบัติงาน</h3>
-        <p class="mt-0.5 text-[11px] text-slate-400">รายการงานล่าสุดที่ได้รับไป</p>
+        <p class="mt-0.5 text-[11px] text-slate-400">รายการงานล่าสุดที่ได้ทำไป</p>
       </div>
 
       <div class="flex flex-wrap gap-2">
@@ -81,10 +68,13 @@ function endLabel(log: WorkLog) {
         </thead>
         <tbody>
           <tr v-for="log in filteredLogs" :key="log.id" class="border-b border-slate-100 align-top last:border-0">
-            <td class="px-4 py-4 text-xs font-semibold text-slate-600">{{ log.date }}</td>
+            <td class="px-4 py-4 text-xs font-semibold text-slate-600">{{ formatThaiDate(log.date) }}</td>
             <td class="px-3 py-4">
               <p class="max-w-[290px] text-[13px] font-semibold leading-snug text-slate-700">{{ log.title }}</p>
-              <p class="mt-1 max-w-[290px] text-[11px] leading-snug text-slate-400">{{ log.description }}</p>
+              <p v-if="log.description" class="mt-1 max-w-[290px] text-[11px] leading-snug text-slate-400">{{ log.description }}</p>
+              <p v-if="log.reviewStatus === 'returned' && log.reviewComment" class="mt-1 max-w-[290px] text-[11px] leading-snug text-slate-400">
+                ความเห็นพี่เลี้ยง: “{{ log.reviewComment }}”
+              </p>
             </td>
             <td class="px-2 py-4 text-xs font-medium" :class="log.startTime ? 'text-slate-600' : 'text-slate-300'">{{ startLabel(log) }}</td>
             <td class="px-2 py-4 text-xs font-medium" :class="log.endTime || log.workStatus === 'in_progress' ? 'text-slate-600' : 'text-slate-300'">{{ endLabel(log) }}</td>
@@ -96,7 +86,7 @@ function endLabel(log: WorkLog) {
             </td>
             <td class="px-3 py-4">
               <div class="flex flex-col items-end gap-1.5">
-                <button v-if="log.workStatus === 'not_started'" type="button" class="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700">
+                <button v-if="log.workStatus === 'pending'" type="button" class="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700">
                   <UIcon name="i-lucide-play" class="size-3.5" />
                   เริ่มทำงาน (บันทึกเวลาเข้างาน)
                 </button>
@@ -109,7 +99,21 @@ function endLabel(log: WorkLog) {
                   <button type="button" class="rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-400">ส่งตรวจ (เลือก)</button>
                 </template>
 
-                <button v-else-if="log.reviewStatus === 'returned'" type="button" class="rounded-lg bg-amber-500 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-amber-600">
+                <NuxtLink
+                  v-else-if="log.reviewStatus === 'returned' && log.canEdit !== false"
+                  :to="`/worklogs/${log.id}/edit`"
+                  class="rounded-lg bg-amber-500 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-amber-600"
+                >
+                  แก้ไข &amp; ส่งตรวจใหม่
+                </NuxtLink>
+
+                <button
+                  v-else-if="log.reviewStatus === 'returned'"
+                  type="button"
+                  disabled
+                  title="เกินช่วงย้อนหลังแล้ว แก้ไขและส่งใหม่ไม่ได้"
+                  class="cursor-not-allowed rounded-lg bg-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-400"
+                >
                   แก้ไข &amp; ส่งตรวจใหม่
                 </button>
 

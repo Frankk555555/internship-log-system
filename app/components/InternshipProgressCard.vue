@@ -23,8 +23,8 @@ defineProps<{
     </div>
 
     <div class="mt-1 flex flex-col gap-1 text-[11px] font-medium text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-      <span>วันที่เริ่มการฝึกงาน: {{ internship.startDate }}</span>
-      <span>วันที่จบการฝึกงาน: {{ internship.endDate }}</span>
+      <span>วันที่เริ่มการฝึกงาน: {{ formatThaiDate(internship.startDate) }}</span>
+      <span>วันที่จบการฝึกงาน: {{ formatThaiDate(internship.endDate) }}</span>
     </div>
   </section>
 </template>
