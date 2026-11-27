@@ -1,5 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ role: 'student' })
+useHead({ title: 'ปฏิทินการทำงาน' })
 
 type CalendarView = 'week' | 'day'
 
@@ -110,7 +111,7 @@ const tabs: { view: CalendarView, label: string }[] = [
             type="button"
             :aria-pressed="view === tab.view"
             class="min-w-24 rounded-md border px-4 py-1.5 text-xs font-semibold"
-            :class="view === tab.view ? 'border-slate-200 bg-white text-slate-900 shadow-sm' : 'border-transparent text-slate-500 hover:text-slate-800'"
+            :class="view === tab.view ? 'border-slate-200 bg-white text-slate-900 shadow-sm' : 'border-transparent text-slate-600 hover:text-slate-800'"
             @click="show({ view: tab.view })"
           >
             {{ tab.label }}
@@ -156,7 +157,8 @@ const tabs: { view: CalendarView, label: string }[] = [
     </AsyncState>
 
     <ul class="mt-4 flex flex-wrap gap-2" aria-label="ความหมายของสี">
-      <li v-for="(meta, key) in calendarStatusMeta" :key="key" class="rounded-full px-4 py-1.5 text-[11px] font-semibold" :class="[meta.chip, meta.text]">
+      <li v-for="(meta, key) in calendarStatusMeta" :key="key" class="flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-semibold" :class="[meta.chip, meta.text]">
+        <UIcon :name="meta.icon" class="size-3.5" />
         {{ meta.label }}
       </li>
     </ul>

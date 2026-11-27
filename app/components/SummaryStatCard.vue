@@ -27,11 +27,11 @@ const valueClasses = {
       <div class="flex items-baseline gap-1.5">
         <span class="font-semibold leading-none" :class="[valueClasses[tone], compact ? 'text-xl' : 'text-3xl']">{{ value }}</span>
         <template v-if="secondaryValue !== undefined">
-          <span class="text-xl font-medium text-slate-300">/</span>
+          <span class="text-xl font-medium text-slate-500">/</span>
           <span class="text-2xl font-semibold leading-none text-rose-700">{{ secondaryValue }}</span>
         </template>
       </div>
-      <span v-if="meta" class="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">{{ meta }}</span>
+      <span v-if="meta" class="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">{{ meta }}</span>
     </div>
   </section>
 </template>

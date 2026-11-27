@@ -90,7 +90,7 @@ function onToggleAll(event: Event) {
           <td class="break-words px-2 py-3 font-medium">{{ item.worklog.title }}</td>
           <td class="px-2 py-3">
             <span class="whitespace-nowrap">{{ item.worklog.startTime }}–{{ item.worklog.endTime }} น.</span>
-            <span class="mt-0.5 block text-[11px] text-slate-500 xl:hidden">{{ hoursOf(item) }} ชม.</span>
+            <span class="mt-0.5 block text-[11px] text-slate-600 xl:hidden">{{ hoursOf(item) }} ชม.</span>
             <TimeFlagBadges :worklog="item.worklog" class="mt-1" />
           </td>
           <td class="hidden px-2 py-3 text-right xl:table-cell">{{ hoursOf(item) }}</td>
@@ -98,7 +98,7 @@ function onToggleAll(event: Event) {
           <td class="px-2 py-3">
             <StatusBadge v-if="item.isOverdue" :label="`ค้างตรวจ ${item.pendingDays} วัน`" tone="rose" />
             <StatusBadge v-else v-bind="reviewStatusMeta[item.worklog.reviewStatus]" />
-            <span class="mt-1 block text-[10px] text-slate-500 xl:hidden">ส่ง {{ submittedLabel(item) }}</span>
+            <span class="mt-1 block text-[10px] text-slate-600 xl:hidden">ส่ง {{ submittedLabel(item) }}</span>
           </td>
           <td class="px-3 py-3 text-right">
             <button type="button" :disabled="disabled" class="btn btn-secondary min-w-12 px-3 py-1.5 text-[11px]" :aria-label="`${actionLabel(item)} ${item.studentName} ${item.worklog.title}`" @click="emit('open', item)">
@@ -138,7 +138,7 @@ function onToggleAll(event: Event) {
           <p class="mt-1 text-[11px] tabular-nums text-slate-600">
             {{ formatThaiDate(item.worklog.date) }} • {{ item.worklog.startTime }}–{{ item.worklog.endTime }} น. • {{ hoursOf(item) }} ชม.
           </p>
-          <p class="text-[11px] tabular-nums text-slate-500">ส่งเมื่อ {{ submittedLabel(item) }}</p>
+          <p class="text-[11px] tabular-nums text-slate-600">ส่งเมื่อ {{ submittedLabel(item) }}</p>
 
           <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
             <div class="flex flex-wrap items-center gap-1">

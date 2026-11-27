@@ -3,6 +3,7 @@ import { errorMessage } from '~/services/api'
 import type { WorkLog } from '~/types/worklog'
 
 definePageMeta({ role: 'student' })
+useHead({ title: 'บันทึกงานประจำวัน' })
 
 const api = useApi()
 const notify = useNotify()

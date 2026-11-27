@@ -2,6 +2,7 @@
 import { errorMessage } from '~/services/api'
 
 definePageMeta({ layout: 'mentor', role: 'supervisor' })
+useHead({ title: 'ตารางเวลาไม่สะดวก' })
 
 const api = useApi()
 const notify = useNotify()

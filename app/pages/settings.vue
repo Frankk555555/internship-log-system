@@ -8,6 +8,8 @@ definePageMeta({
   }],
 })
 
+useHead({ title: 'ตั้งค่าบัญชี' })
+
 const api = useApi()
 const user = useSessionUser()
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'mentor', role: 'supervisor' })
+useHead({ title: 'นักศึกษาในความดูแล' })
 
 const api = useApi()
 const user = useSessionUser()
@@ -68,7 +69,7 @@ function submittedLabel(value: string) {
             <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div class="flex items-center justify-between gap-2">
                 <p class="text-[11px] font-medium text-slate-500">ระยะเวลาฝึกงาน</p>
-                <span class="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">วว-เดือน-ปปปป</span>
+                <span class="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">วว-เดือน-ปปปป</span>
               </div>
               <p v-if="period" class="mt-2 text-lg font-semibold text-slate-900">
                 {{ formatThaiDate(period.start) }} <span class="mx-1 text-sm">ถึง</span> {{ formatThaiDate(period.end) }}
@@ -91,7 +92,7 @@ function submittedLabel(value: string) {
               <label class="relative block">
                 <span class="sr-only">ค้นหาชื่อหรือรหัสนักศึกษา</span>
                 <UIcon name="i-lucide-search" class="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-500" />
-                <input v-model="search" type="search" placeholder="ค้นหาชื่อหรือรหัสนักศึกษา" class="h-9 w-64 rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs text-slate-800 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100">
+                <input v-model="search" type="search" placeholder="ค้นหาชื่อหรือรหัสนักศึกษา" class="h-9 w-64 rounded-lg border border-control bg-white pl-9 pr-3 text-xs text-slate-800 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100">
               </label>
             </div>
 
@@ -128,7 +129,7 @@ function submittedLabel(value: string) {
                     <td class="px-2 py-3.5">
                       <div class="flex flex-wrap gap-1.5">
                         <NuxtLink v-if="student.pendingCount" :to="{ path: '/mentor/reviews', query: { student: student.studentId } }" :aria-label="`ตรวจรายการรอตรวจของ ${student.name}`">
-                          <StatusBadge :label="`รอตรวจ ${student.pendingCount}`" tone="amber" class="hover:brightness-95" />
+                          <StatusBadge :label="`รอตรวจ ${student.pendingCount}`" tone="amber" class="hover:border-amber-700" />
                         </NuxtLink>
                         <StatusBadge v-if="student.overdueCount" :label="`ค้างตรวจ ${student.overdueCount}`" tone="rose" />
                         <StatusBadge v-if="student.returnedCount" :label="`ส่งกลับแก้ไข ${student.returnedCount}`" tone="rose" />

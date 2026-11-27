@@ -60,8 +60,8 @@ const statuses = computed(() => (Object.keys(calendarStatusMeta) as ReviewStatus
       <ul class="mt-2 space-y-2">
         <li v-for="log in untimed" :key="log.id">
           <NuxtLink :to="calendarLink(log)" class="block rounded-md border-l-4 px-2.5 py-2 hover:brightness-95" :class="calendarStatusMeta[log.reviewStatus].block">
-            <span class="block text-[11px] font-semibold" :class="calendarStatusMeta[log.reviewStatus].text">{{ log.title }}</span>
-            <span class="block text-[10px] text-slate-500">{{ workStatusMeta[log.workStatus].label }} · {{ calendarStatusMeta[log.reviewStatus].label }}</span>
+            <span class="block text-[11px] font-semibold" :class="calendarStatusMeta[log.reviewStatus].blockText">{{ log.title }}</span>
+            <span class="block text-[10px]" :class="calendarStatusMeta[log.reviewStatus].blockText">{{ workStatusMeta[log.workStatus].label }} · {{ calendarStatusMeta[log.reviewStatus].label }}</span>
           </NuxtLink>
         </li>
       </ul>

@@ -3,12 +3,16 @@ import { formatThaiDayMonth } from './date'
 import { toMinutes } from './time'
 import { reviewStatusMeta } from './worklogStatus'
 
-/** สีบล็อกบนปฏิทิน ชื่อสถานะใช้ชุดเดียวกับป้าย (docs/design-pattern.md ข้อ 4) */
-export const calendarStatusMeta: Record<ReviewStatus, { label: string, block: string, chip: string, text: string }> = {
-  draft: { label: reviewStatusMeta.draft.label, block: 'border-slate-600 bg-slate-100', chip: 'bg-slate-100', text: 'text-slate-600' },
-  submitted: { label: reviewStatusMeta.submitted.label, block: 'border-amber-700 bg-amber-100', chip: 'bg-amber-100', text: 'text-amber-700' },
-  approved: { label: reviewStatusMeta.approved.label, block: 'border-done bg-emerald-100', chip: 'bg-emerald-100', text: 'text-emerald-700' },
-  returned: { label: reviewStatusMeta.returned.label, block: 'border-rose-700 bg-rose-100', chip: 'bg-rose-100', text: 'text-rose-700' },
+/**
+ * สีบล็อกบนปฏิทิน ชื่อสถานะใช้ชุดเดียวกับป้าย (docs/design-pattern.md ข้อ 4)
+ * ไอคอนใช้คู่กับสี ให้แยกสถานะได้โดยไม่ต้องเห็นสี (WCAG 1.4.1)
+ * text ใช้กับป้ายคำอธิบายสี ส่วน blockText เข้มกว่า ให้ตัวอักษรเล็กในช่องยังอ่านได้ตอนชี้เมาส์
+ */
+export const calendarStatusMeta: Record<ReviewStatus, { label: string, icon: string, block: string, chip: string, text: string, blockText: string }> = {
+  draft: { label: reviewStatusMeta.draft.label, icon: 'i-lucide-pencil-line', block: 'border-slate-600 bg-slate-100', chip: 'bg-slate-100', text: 'text-slate-600', blockText: 'text-slate-700' },
+  submitted: { label: reviewStatusMeta.submitted.label, icon: 'i-lucide-clock', block: 'border-amber-700 bg-amber-100', chip: 'bg-amber-100', text: 'text-amber-700', blockText: 'text-amber-800' },
+  approved: { label: reviewStatusMeta.approved.label, icon: 'i-lucide-check', block: 'border-done bg-emerald-100', chip: 'bg-emerald-100', text: 'text-emerald-700', blockText: 'text-emerald-800' },
+  returned: { label: reviewStatusMeta.returned.label, icon: 'i-lucide-rotate-ccw', block: 'border-rose-700 bg-rose-100', chip: 'bg-rose-100', text: 'text-rose-700', blockText: 'text-rose-800' },
 }
 
 const weekdays = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.']

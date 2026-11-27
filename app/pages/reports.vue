@@ -28,8 +28,11 @@ const current = computed(() => data.value?.week === weekStart.value ? data.value
 // ฉบับร่างเป็นงานของตนเอง จึงแสดงได้ แต่ไม่นับในชั่วโมงรวม
 const report = computed(() => current.value && buildWeeklyReport(current.value, weekStart.value))
 
-// ชื่อหน้าใช้เป็นชื่อไฟล์เริ่มต้นเวลาบันทึกเป็น PDF
-useHead({ title: () => `รายงานประจำสัปดาห์ ${current.value?.name ?? ''} ${formatThaiDate(weekStart.value)}` })
+// ชื่อหน้าใช้เป็นชื่อไฟล์เริ่มต้นเวลาบันทึกเป็น PDF จึงไม่ต่อท้ายด้วยชื่อระบบ
+useHead({
+  title: () => `รายงานประจำสัปดาห์ ${current.value?.name ?? ''} ${formatThaiDate(weekStart.value)}`,
+  titleTemplate: '%s',
+})
 
 function downloadExcel() {
   if (!report.value || !current.value) return

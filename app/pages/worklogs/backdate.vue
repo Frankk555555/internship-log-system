@@ -1,5 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ role: 'student' })
+useHead({ title: 'บันทึกงานย้อนหลัง' })
 
 const api = useApi()
 const { data: context, status, error, refresh } = await useLazyAsyncData('worklog-form-backdate', () => api.getWorklogFormContext('backdate'))

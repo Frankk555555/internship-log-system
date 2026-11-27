@@ -64,7 +64,7 @@ function blockStyle({ start, end, lane, lanes }: CalendarBlock) {
           :key="column.date"
           type="button"
           class="border-l border-slate-200 py-3 text-center text-xs font-semibold hover:text-indigo-600"
-          :class="[column.isWeekend ? 'bg-slate-100 text-slate-500' : 'text-slate-900', column.date === today ? '!text-indigo-600 underline decoration-2 underline-offset-4' : '']"
+          :class="[column.isWeekend ? 'bg-slate-100 text-slate-600' : 'text-slate-900', column.date === today ? '!text-indigo-600 underline decoration-2 underline-offset-4' : '']"
           :aria-label="`ดูรายวัน ${formatCalendarDay(column.date)}${column.date === today ? ' (วันนี้)' : ''}`"
           @click="$emit('selectDate', column.date)"
         >
@@ -80,10 +80,12 @@ function blockStyle({ start, end, lane, lanes }: CalendarBlock) {
             :key="log.id"
             :to="calendarLink(log)"
             :title="`${log.title} · ${calendarStatusMeta[log.reviewStatus].label}`"
-            class="block truncate rounded border-l-4 px-1.5 py-1 text-[10px] font-semibold hover:brightness-95"
-            :class="[calendarStatusMeta[log.reviewStatus].block, calendarStatusMeta[log.reviewStatus].text]"
+            class="relative flex items-center gap-1 rounded border-l-4 px-1.5 py-1 text-[10px] font-semibold hover:brightness-95"
+            :class="[calendarStatusMeta[log.reviewStatus].block, calendarStatusMeta[log.reviewStatus].blockText]"
           >
-            {{ log.title }}
+            <UIcon :name="calendarStatusMeta[log.reviewStatus].icon" class="size-3 shrink-0" />
+            <span class="truncate">{{ log.title }}</span>
+            <span class="sr-only">{{ calendarStatusMeta[log.reviewStatus].label }}</span>
           </NuxtLink>
         </div>
       </div>
@@ -107,18 +109,17 @@ function blockStyle({ start, end, lane, lanes }: CalendarBlock) {
             class="absolute flex flex-col overflow-hidden rounded-md border-l-4 px-2 py-1 hover:brightness-95"
             :class="[calendarStatusMeta[block.log.reviewStatus].block, block.log.endTime ? '' : 'border-dashed']"
           >
-            <span class="shrink-0 text-[11px] font-semibold leading-tight" :class="[calendarStatusMeta[block.log.reviewStatus].text, block.end - block.start < 75 ? 'truncate' : 'line-clamp-2']">
+            <span class="shrink-0 text-[11px] font-semibold leading-tight" :class="[calendarStatusMeta[block.log.reviewStatus].blockText, block.end - block.start < 75 ? 'truncate' : 'line-clamp-2']">
+              <UIcon :name="calendarStatusMeta[block.log.reviewStatus].icon" class="mr-0.5 inline-block size-3 align-[-2px]" />
               {{ block.log.title }}
             </span>
-            <span class="shrink-0 text-[10px] text-slate-500">
+            <!-- เวลาอยู่หน้าชื่อสถานะ คอลัมน์แคบจะตัดชื่อสถานะก่อน ไอคอนยังบอกสถานะได้ -->
+            <span class="shrink-0 truncate text-[10px]" :class="calendarStatusMeta[block.log.reviewStatus].blockText">
               {{ calendarTimeLabel(block.log, today) }}
               <template v-if="detailed && block.log.endTime"> · {{ formatDuration(toMinutes(block.log.endTime) - toMinutes(block.log.startTime!)) }}</template>
+              · <span class="font-semibold">{{ calendarStatusMeta[block.log.reviewStatus].label }}</span>
             </span>
-            <template v-if="detailed">
-              <span class="sr-only">{{ calendarStatusMeta[block.log.reviewStatus].label }}</span>
-              <span v-if="block.log.description" class="mt-1 whitespace-pre-line text-[11px] leading-snug text-slate-600">{{ block.log.description }}</span>
-            </template>
-            <span v-else class="sr-only">{{ calendarStatusMeta[block.log.reviewStatus].label }}</span>
+            <span v-if="detailed && block.log.description" class="mt-1 whitespace-pre-line text-[11px] leading-snug text-slate-600">{{ block.log.description }}</span>
           </NuxtLink>
         </div>
       </div>

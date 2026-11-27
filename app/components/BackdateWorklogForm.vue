@@ -216,12 +216,15 @@ async function finishWork() {
   }
 }
 
+const root = useTemplateRef<HTMLElement>('root')
+
 async function save(mode: 'draft' | 'submit') {
   if (isLocked.value) return
 
   checked.value = mode
   if (Object.values(errors.value).some(Boolean)) {
     fail(errors.value.overlap ? 'บันทึกไม่ได้ เวลาซ้อนทับกับรายการอื่นในวันเดียวกัน' : 'กรุณาตรวจสอบข้อมูลให้ครบและถูกต้อง', mode === 'submit' ? 'ยังส่งตรวจไม่ได้' : 'ยังบันทึกไม่ได้')
+    await focusFirstInvalid(root.value)
     return
   }
   if (start.value && others.value === undefined) {
@@ -266,7 +269,7 @@ async function save(mode: 'draft' | 'submit') {
 </script>
 
 <template>
-  <div class="grid gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+  <div ref="root" class="grid gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
     <form class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm" novalidate @submit.prevent>
       <h3 class="text-base font-bold text-slate-900">{{ isEditing ? 'แก้ไขรายการ' : 'รายการย้อนหลัง' }}</h3>
 
@@ -288,9 +291,10 @@ async function save(mode: 'draft' | 'submit') {
           required
           :readonly="isLocked"
           :aria-invalid="Boolean(errors.title)"
-          class="mt-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 read-only:bg-slate-50 aria-invalid:border-red-400"
+          :aria-describedby="errors.title ? 'backdate-title-error' : undefined"
+          class="mt-1.5 rounded-lg border border-control px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 read-only:bg-slate-50 aria-invalid:border-danger"
         >
-        <p v-if="errors.title" class="mt-1 text-[11px] font-medium text-red-600">{{ errors.title }}</p>
+        <p v-if="errors.title" id="backdate-title-error" class="mt-1 text-[11px] font-medium text-red-600">{{ errors.title }}</p>
       </div>
 
       <div class="flex flex-col">
@@ -302,9 +306,10 @@ async function save(mode: 'draft' | 'submit') {
           required
           :readonly="isLocked"
           :aria-invalid="Boolean(errors.description)"
-          class="mt-1.5 resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs leading-relaxed text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 read-only:bg-slate-50 aria-invalid:border-red-400"
+          :aria-describedby="errors.description ? 'backdate-description-error' : undefined"
+          class="mt-1.5 resize-y rounded-lg border border-control px-3 py-2 text-xs leading-relaxed text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 read-only:bg-slate-50 aria-invalid:border-danger"
         />
-        <p v-if="errors.description" class="mt-1 text-[11px] font-medium text-red-600">{{ errors.description }}</p>
+        <p v-if="errors.description" id="backdate-description-error" class="mt-1 text-[11px] font-medium text-red-600">{{ errors.description }}</p>
       </div>
 
       <section v-if="hours" class="mt-1">

@@ -50,6 +50,8 @@
   --color-sendback-hover: #9a3412;
   --color-line: #e2e8f0;
   --color-page: #f8fafc;
+  /* ขอบช่องกรอก ต้องต่างจากพื้นอย่างน้อย 3:1 (WCAG 1.4.11) เส้นคั่นและการ์ดยังใช้ line */
+  --color-control: #828fa3;
 
   /* ค่าสีของเฉดให้ตรงกับไฟล์ design pattern */
   --color-slate-50: #f8fafc;
@@ -149,6 +151,13 @@
   --color-rose-950: #4c0519;
 }
 
+/* ข้อความตัวอย่างในช่องกรอกต้องอ่านได้ ค่าเริ่มต้นของ Tailwind จางเกินเกณฑ์ */
+@layer base {
+  ::placeholder {
+    color: var(--color-slate-500);
+  }
+}
+
 /* ปุ่มตาม docs/design-pattern.md ข้อ 5: สีและสถานะอยู่ที่นี่ ขนาดกำหนดที่จุดใช้งาน */
 @layer components {
   .btn {
@@ -180,7 +189,7 @@
   }
 
   .btn-danger-outline {
-    @apply border-red-200 bg-white text-danger hover:bg-red-50;
+    @apply border-red-200 bg-white text-danger hover:bg-red-50 hover:text-danger-hover;
   }
 
   /* ปุ่มที่กดไม่ได้ใช้สีเดียวกันทุกชนิด ต้องอยู่ท้ายสุดเพื่อชนะสีตอนชี้เมาส์ */

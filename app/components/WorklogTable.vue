@@ -63,11 +63,12 @@ function endLabel(log: WorkLog) {
         <p class="mt-0.5 text-[11px] text-slate-500">รายการงานล่าสุดที่ได้ทำไป</p>
       </div>
 
-      <div class="flex flex-wrap gap-2">
+      <div class="flex flex-wrap gap-2" role="group" aria-label="กรองรายการตามสถานะ">
         <button
           v-for="filter in filters"
           :key="filter.key"
           type="button"
+          :aria-pressed="activeFilter === filter.key"
           class="rounded-lg px-3 py-2 text-[11px] font-semibold transition"
           :class="activeFilter === filter.key ? 'bg-brand text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
           @click="activeFilter = filter.key"
@@ -102,8 +103,8 @@ function endLabel(log: WorkLog) {
                 ความเห็นพี่เลี้ยง: “{{ log.reviewComment }}”
               </p>
             </td>
-            <td class="px-2 py-4 text-xs font-medium" :class="log.startTime ? 'text-slate-600' : 'text-slate-300'">{{ startLabel(log) }}</td>
-            <td class="px-2 py-4 text-xs font-medium" :class="log.endTime || log.workStatus === 'in_progress' ? 'text-slate-600' : 'text-slate-300'">{{ endLabel(log) }}</td>
+            <td class="px-2 py-4 text-xs font-medium" :class="log.startTime ? 'text-slate-600' : 'text-slate-500'">{{ startLabel(log) }}</td>
+            <td class="px-2 py-4 text-xs font-medium" :class="log.endTime || log.workStatus === 'in_progress' ? 'text-slate-600' : 'text-slate-500'">{{ endLabel(log) }}</td>
             <td class="px-2 py-4">
               <div class="flex flex-wrap gap-1.5">
                 <StatusBadge :label="workStatusMeta[log.workStatus].label" :tone="workStatusMeta[log.workStatus].tone" />

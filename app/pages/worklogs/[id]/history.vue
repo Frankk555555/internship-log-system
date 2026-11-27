@@ -9,6 +9,8 @@ definePageMeta({
   }],
 })
 
+useHead({ title: 'ประวัติงานและการแก้ไข' })
+
 const route = useRoute()
 const api = useApi()
 const worklogId = Number(route.params.id)

@@ -19,6 +19,7 @@ watch(error, async (failure) => {
 
 const isReturned = computed(() => data.value?.worklog.reviewStatus === 'returned')
 const heading = computed(() => isReturned.value ? 'แก้ไขและส่งตรวจใหม่' : 'แก้ไขฉบับร่าง')
+useHead({ title: () => data.value ? heading.value : 'แก้ไขรายการ' })
 
 // แก้ไขได้เฉพาะฉบับร่างหรือถูกส่งกลับ ที่ยังไม่เลยกำหนดแก้ไข (ขอบเขตงานข้อ 5.6, 8.4)
 const blockedReason = computed(() => {
@@ -105,7 +106,7 @@ async function deleteLog(reason: string) {
           <blockquote v-if="isReturned" class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-slate-700">
             <span class="font-semibold text-rose-700">ความคิดเห็นของพี่เลี้ยง:</span>
             <span class="ml-1 whitespace-pre-line">{{ data.worklog.reviewComment ?? 'ไม่ได้ระบุ' }}</span>
-            <span class="mt-1 block text-[11px] text-slate-500">แก้ไขและส่งตรวจใหม่ได้ถึง {{ formatThaiDate(editDeadline(data.worklog, data.context.backdateLimitDays)) }}</span>
+            <span class="mt-1 block text-[11px] text-slate-600">แก้ไขและส่งตรวจใหม่ได้ถึง {{ formatThaiDate(editDeadline(data.worklog, data.context.backdateLimitDays)) }}</span>
           </blockquote>
 
           <BackdateWorklogForm :context="data.context" :worklog="data.worklog">

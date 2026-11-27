@@ -46,7 +46,7 @@ function onPick(event: Event) {
     <div
       class="relative mt-1.5 flex items-center rounded-lg border focus-within:ring-2"
       :class="[
-        error ? 'border-red-400 focus-within:ring-red-100' : 'border-slate-200 focus-within:border-indigo-600 focus-within:ring-indigo-100',
+        error ? 'border-danger focus-within:ring-red-100' : 'border-control focus-within:border-indigo-600 focus-within:ring-indigo-100',
         readonly ? 'bg-slate-50' : 'bg-white',
       ]"
     >

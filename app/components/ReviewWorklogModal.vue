@@ -104,7 +104,7 @@ function sendBack() {
               <a v-if="extensionOf(file.name) !== 'docx'" :href="file.url" target="_blank" rel="noopener" class="text-[11px] font-semibold text-indigo-600 underline underline-offset-2">ดูตัวอย่าง</a>
               <a :href="file.url" :download="file.name" class="text-[11px] font-semibold text-indigo-600 underline underline-offset-2">ดาวน์โหลด</a>
             </template>
-            <span v-else class="text-[11px] font-semibold text-slate-300" title="ไฟล์ตัวอย่าง ยังไม่มีเนื้อหา">ดูตัวอย่าง ดาวน์โหลด</span>
+            <span v-else class="text-[11px] font-semibold text-slate-500" title="ไฟล์ตัวอย่าง ยังไม่มีเนื้อหา">ดูตัวอย่าง ดาวน์โหลด</span>
           </li>
           <li v-if="!attachments.length" class="text-[11px] text-slate-500">ไม่มีไฟล์แนบ</li>
         </ul>
@@ -124,7 +124,7 @@ function sendBack() {
             :readonly="Boolean(pending)"
             :aria-invalid="Boolean(commentError)"
             :aria-describedby="commentError ? 'review-comment-error' : undefined"
-            class="mt-1.5 block w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none placeholder:text-slate-500 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-red-400"
+            class="mt-1.5 block w-full resize-y rounded-lg border border-control px-3 py-2 text-xs text-slate-700 outline-none placeholder:text-slate-500 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-danger"
           />
           <p v-if="commentError" id="review-comment-error" class="mt-1 text-[11px] font-medium text-red-600">{{ commentError }}</p>
           <label class="mt-2 flex items-start gap-2 text-[11px] text-slate-600">

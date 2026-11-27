@@ -12,7 +12,7 @@ defineEmits<{
 
 <template>
   <div v-if="error" class="rounded-xl border border-red-200 bg-red-50 px-5 py-8 text-center" role="alert">
-    <p class="text-sm font-medium text-red-600">{{ error.message }}</p>
+    <p class="text-sm font-medium text-red-700">{{ error.message }}</p>
     <button type="button" class="btn btn-secondary mt-3 px-4 py-2 text-xs" @click="$emit('retry')">
       ลองอีกครั้ง
     </button>

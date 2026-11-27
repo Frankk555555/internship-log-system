@@ -77,7 +77,7 @@ function confirm() {
         placeholder="ระบุเหตุผล..."
         :aria-invalid="Boolean(error)"
         :aria-describedby="error ? 'delete-reason-error' : undefined"
-        class="mt-2 mb-1 block w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-red-400"
+        class="mt-2 mb-1 block w-full resize-y rounded-lg border border-control px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-danger"
       />
       <p v-if="error" id="delete-reason-error" class="text-[11px] font-medium text-red-600">{{ error }}</p>
       <p v-if="serverError" class="mt-1 text-[11px] font-medium text-red-600" role="alert">{{ serverError }}</p>

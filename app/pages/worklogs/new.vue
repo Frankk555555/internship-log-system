@@ -1,5 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ role: 'student' })
+useHead({ title: 'สร้างรายการงานใหม่' })
 
 const api = useApi()
 const { data: context, status, error, refresh } = await useLazyAsyncData('worklog-form-new', () => api.getWorklogFormContext('new'))

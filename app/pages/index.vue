@@ -3,6 +3,7 @@ import { errorMessage } from '~/services/api'
 import type { WorkLog } from '~/types/worklog'
 
 definePageMeta({ role: 'student' })
+useHead({ title: 'หน้าหลัก' })
 
 const api = useApi()
 const user = useSessionUser()

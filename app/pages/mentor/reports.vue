@@ -44,8 +44,11 @@ const isAll = computed(() => selectedStudent.value === allStudents)
 const allApprovedMinutes = computed(() => reports.value?.reduce((total, report) => total + report.approvedMinutes, 0) ?? 0)
 const reportName = computed(() => isAll.value ? 'นักศึกษาทั้งหมด' : reports.value?.[0]?.name ?? '')
 
-// ชื่อหน้าใช้เป็นชื่อไฟล์เริ่มต้นเวลาบันทึกเป็น PDF
-useHead({ title: () => `รายงานประจำสัปดาห์ ${reportName.value} ${formatThaiDate(weekStart.value)}` })
+// ชื่อหน้าใช้เป็นชื่อไฟล์เริ่มต้นเวลาบันทึกเป็น PDF จึงไม่ต่อท้ายด้วยชื่อระบบ
+useHead({
+  title: () => `รายงานประจำสัปดาห์ ${reportName.value} ${formatThaiDate(weekStart.value)}`,
+  titleTemplate: '%s',
+})
 
 function retry() {
   refreshStudents()
@@ -89,7 +92,7 @@ function downloadExcel() {
         <div class="flex flex-wrap items-end gap-3">
           <label class="flex flex-col gap-1 text-[11px] font-semibold text-slate-600">
             นักศึกษา
-            <select v-model="selectedStudent" :disabled="!students" class="h-9 min-w-56 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 disabled:text-slate-400">
+            <select v-model="selectedStudent" :disabled="!students" class="h-9 min-w-56 rounded-lg border border-control bg-white px-3 text-xs font-medium text-slate-800 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 disabled:text-slate-400">
               <option :value="allStudents">นักศึกษาทั้งหมด{{ students ? ` (${students.length} คน)` : '' }}</option>
               <option v-for="student in students" :key="student.studentId" :value="student.studentId">
                 {{ student.name }} ({{ student.studentId }})
