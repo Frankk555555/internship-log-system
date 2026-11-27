@@ -58,39 +58,40 @@ function submittedLabel(value: string) {
         <template v-if="data">
           <div class="grid gap-4 md:grid-cols-[1fr_1.4fr_1.2fr]">
             <!-- ค่าอยู่กึ่งกลางพื้นที่ใต้ชื่อการ์ด -->
-            <section class="card flex flex-col p-4">
-              <p class="text-2xs font-medium text-ink-muted">นักศึกษาที่อยู่ในความดูแล</p>
-              <div class="flex flex-1 flex-col justify-center pt-3">
-                <p class="text-xs font-semibold text-ink"><span class="text-2xl">{{ students.length }}</span> คน</p>
+            <section class="card flex flex-col p-4 text-center">
+              <p class="text-xs font-semibold text-slate-600">นักศึกษาที่อยู่ในความดูแล</p>
+              <div class="flex flex-1 items-center justify-center">
+                <p class="flex items-baseline gap-2 text-lg font-semibold text-ink"><span class="text-[2rem] font-bold leading-none tabular-nums">{{ students.length }}</span> คน</p>
               </div>
             </section>
 
-            <section class="card flex flex-col p-4">
-              <p class="text-2xs font-medium text-ink-muted">ระยะเวลาฝึกงาน</p>
-              <div class="flex flex-1 flex-col justify-center pt-3">
-                <p v-if="period" class="text-lg font-semibold text-ink">
+            <!-- ขนาดวันที่ปรับตามความกว้างการ์ด (หน่วย cqi) การ์ดแคบเรียงวันที่ลงมาเป็นแนวตั้ง -->
+            <section class="card @container flex flex-col p-4 text-center">
+              <p class="text-xs font-semibold text-slate-600">ระยะเวลาฝึกงาน</p>
+              <div class="flex flex-1 flex-col items-center justify-center">
+                <p v-if="period" class="flex flex-col items-center text-2xl font-bold leading-snug tabular-nums text-ink @sm:flex-row @sm:flex-wrap @sm:items-baseline @sm:justify-center @sm:gap-x-2 @sm:text-[clamp(1.25rem,6.5cqi,2rem)]">
                   <span class="whitespace-nowrap">{{ formatThaiDate(period.start) }}</span>
-                  <span class="mx-1 text-sm">ถึง</span>
+                  <span class="text-sm font-semibold text-slate-600">ถึง</span>
                   <span class="whitespace-nowrap">{{ formatThaiDate(period.end) }}</span>
                 </p>
-                <p v-else class="text-lg font-semibold text-ink-muted">–</p>
-                <p v-if="period?.isMixed" class="mt-1 text-2xs text-ink-muted">ช่วงฝึกงานต่างกันรายคน ดูในตาราง</p>
+                <p v-else class="text-4xl font-bold text-ink-muted">–</p>
+                <p v-if="period?.isMixed" class="mt-1 text-2xs text-slate-600">ช่วงฝึกงานต่างกันรายคน ดูในตาราง</p>
               </div>
             </section>
 
             <section class="card p-4" aria-labelledby="pending-title">
-              <p id="pending-title" class="text-2xs font-medium text-ink-muted">รายการรอตรวจ</p>
-              <div class="mt-2 flex flex-wrap items-center justify-between gap-3">
+              <p id="pending-title" class="text-xs font-semibold text-slate-600">รายการรอตรวจ</p>
+              <div class="mt-1 flex flex-wrap items-center justify-between gap-3">
                 <p class="text-xs font-semibold text-ink"><span class="text-3xl font-bold tabular-nums" :class="totals.pending ? 'text-amber-700' : ''">{{ totals.pending }}</span> รายการ</p>
                 <NuxtLink v-if="totals.pending" to="/mentor/reviews" class="btn btn-primary min-h-9 px-4 text-xs">ไปตรวจงาน</NuxtLink>
               </div>
               <!-- สองแถวรวมกันเท่ากับจำนวนรอตรวจด้านบน -->
-              <dl v-if="totals.pending" class="mt-3 space-y-1 text-xs">
-                <div class="flex items-center justify-between gap-3 rounded-lg px-3 py-1.5" :class="totals.overdue ? 'bg-rose-100 font-bold text-rose-700' : 'bg-page text-slate-600'">
+              <dl v-if="totals.pending" class="mt-2 space-y-1 text-xs">
+                <div class="flex items-center justify-between gap-3 rounded-lg px-3 py-1" :class="totals.overdue ? 'bg-rose-100 font-bold text-rose-700' : 'bg-page text-slate-600'">
                   <dt>ค้างตรวจเกิน {{ data.overdueDays }} วัน</dt>
                   <dd class="whitespace-nowrap tabular-nums">{{ totals.overdue }} รายการ</dd>
                 </div>
-                <div class="flex items-center justify-between gap-3 rounded-lg bg-page px-3 py-1.5 text-slate-600">
+                <div class="flex items-center justify-between gap-3 rounded-lg bg-page px-3 py-1 text-slate-600">
                   <dt>รอตรวจไม่เกิน {{ data.overdueDays }} วัน</dt>
                   <dd class="whitespace-nowrap tabular-nums">{{ totals.pending - totals.overdue }} รายการ</dd>
                 </div>
@@ -158,7 +159,7 @@ function submittedLabel(value: string) {
                       <span v-if="count" class="inline-flex min-h-8 min-w-10 items-center justify-center rounded-full bg-rose-100 px-3 text-sm font-bold tabular-nums text-rose-700">{{ count }}</span>
                       <span v-else class="text-sm tabular-nums text-slate-600">0</span>
                     </td>
-                    <td class="px-1 py-4 text-center text-sm font-bold tabular-nums text-ink">{{ formatHours(student.approvedMinutes) }}</td>
+                    <td class="whitespace-nowrap px-1 py-4 text-center text-sm font-bold tabular-nums text-ink">{{ formatHours(student.approvedMinutes) }} <span class="text-xs font-semibold text-slate-600">ชม.</span></td>
                     <td class="px-3 py-4">
                       <!-- ปุ่มแบบเดียวกับปุ่ม "ตรวจ" ในหน้าตรวจงาน สองปุ่มกว้างเท่ากัน -->
                       <div class="ml-auto flex w-fit flex-col gap-1.5">
