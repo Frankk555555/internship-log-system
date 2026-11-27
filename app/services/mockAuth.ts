@@ -1,8 +1,9 @@
 import type { AuthApi } from '~/types/auth'
 import type { UserRole } from '~/types/worklog'
-import { newPasswordError } from '~/utils/auth'
+import { nameError, newPasswordError } from '~/utils/auth'
 import { ApiError } from './api'
 import { mockAccounts } from './mockAccounts'
+import { renameUser } from './mockData'
 import type { MockSession } from './mockSession'
 
 // ล็อกบัญชีเมื่อกรอกผิด 5 ครั้ง เป็นเวลา 15 นาที (ขอบเขตงานข้อ 1.2)
@@ -115,6 +116,17 @@ export function createMockAuth(session: MockSession): AuthApi {
       if (problem) throw new ApiError(problem, 422)
       if (newPassword === currentPassword) throw new ApiError('รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านปัจจุบัน', 422)
       account.password = newPassword
+    },
+
+    async updateProfile(input) {
+      await wait()
+      const account = currentAccount(session)
+      const firstName = input.firstName.trim()
+      const lastName = input.lastName.trim()
+      const problem = nameError(firstName, 'ชื่อ') ?? nameError(lastName, 'นามสกุล')
+      if (problem) throw new ApiError(problem, 422)
+      renameUser(account.profile, firstName, lastName)
+      return structuredClone(account.profile)
     },
   }
 }

@@ -9,6 +9,22 @@ export function newPasswordError(password: string) {
   return undefined
 }
 
+// ขอบเขตงานไม่ได้กำหนดความยาวชื่อ ใช้ค่านี้จนกว่าจะตกลงกัน (backend ต้องตรวจซ้ำ)
+export const maxNameLength = 50
+
+export function nameError(value: string, label: 'ชื่อ' | 'นามสกุล') {
+  if (!value.trim()) return `กรุณากรอก${label}`
+  if (value.trim().length > maxNameLength) return `${label}ยาวได้ไม่เกิน ${maxNameLength} ตัวอักษร`
+  return undefined
+}
+
+/** อักษรย่อสำหรับรูปแทนตัว ข้ามสระหน้าของภาษาไทย เช่น "เอก ใจดี" -> "อจ" */
+export function initialsOf(firstName: string, lastName: string) {
+  return [firstName, lastName]
+    .map(part => part.trim().replace(/^[เ-ไ]+/, '').charAt(0).toUpperCase())
+    .join('')
+}
+
 export function isEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
 }

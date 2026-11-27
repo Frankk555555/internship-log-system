@@ -11,7 +11,10 @@ export type ReviewStatus = 'draft' | 'submitted' | 'returned' | 'approved'
 export type BadgeTone = 'slate' | 'draft' | 'blue' | 'green' | 'amber' | 'rose'
 
 export interface UserProfile {
+  /** ชื่อและนามสกุลต่อกัน สำหรับแสดงผล */
   name: string
+  firstName: string
+  lastName: string
   email: string
   initials: string
   studentId?: string

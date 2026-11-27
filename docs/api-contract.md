@@ -32,6 +32,7 @@ NUXT_PUBLIC_API_BASE=http://localhost:4000/api
 | Method | Path | Body | คืนค่า |
 |---|---|---|---|
 | GET | `/me` | | `UserProfile` หรือ 401 |
+| PATCH | `/me` | `{ firstName, lastName }` | `UserProfile` ล่าสุด |
 | POST | `/auth/login` | `{ email, password, remember }` | `UserProfile` และตั้ง session cookie |
 | POST | `/auth/logout` | | ไม่มี และลบ session |
 | POST | `/auth/forgot-password` | `{ email }` | `{ resendAfterSeconds, expiresInMinutes }` |
@@ -59,6 +60,9 @@ backend ต้องทำเอง
 - ตอบ `account_suspended` หลังตรวจรหัสผ่านถูกแล้วเท่านั้น และตัด session ทันทีเมื่อระงับบัญชี (4.1)
 - session cookie เป็น `HttpOnly`, `Secure`, `SameSite` และป้องกัน CSRF
 - ตัด session อื่นเมื่อเปลี่ยนหรือรีเซ็ตรหัสผ่าน
+- `PATCH /me` แก้ได้เฉพาะชื่อและนามสกุลของผู้ใช้ใน session ตัดช่องว่างหัวท้าย ห้ามว่างและยาวไม่เกิน 50 ตัวอักษร ผิดตอบ 422
+- `UserProfile` มี `firstName`, `lastName` และ `name` (สองค่าต่อกันด้วยช่องว่าง) เซิร์ฟเวอร์กำหนด `name` และ `initials` เอง
+- ชื่อที่แสดงในรายการ ประวัติ และรายงาน ต้องอ้างอิงจากผู้ใช้ ไม่คัดลอกเก็บแยก
 
 ## รูปแบบข้อมูล
 

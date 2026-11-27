@@ -12,8 +12,9 @@ export function createHttpApi(baseURL: string, headers?: Record<string, string>,
     }
     catch (error) {
       const { statusCode, data } = error as { statusCode?: number, data?: { message?: string, code?: string, lockedUntil?: string } }
-      // 401 จากเส้นทางข้อมูล = session หมดอายุ (เส้นทาง /auth และ /me ให้ผู้เรียกจัดการเอง)
-      if (statusCode === 401 && path !== '/me' && !path.startsWith('/auth/')) onSessionExpired?.()
+      // 401 จากเส้นทางข้อมูล = session หมดอายุ (เส้นทาง /auth และการอ่าน /me ให้ผู้เรียกจัดการเอง)
+      const isSessionCheck = path === '/me' && !options.method
+      if (statusCode === 401 && !isSessionCheck && !path.startsWith('/auth/')) onSessionExpired?.()
       throw new ApiError(data?.message ?? 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่', statusCode ?? 503, data)
     }
   }
@@ -31,6 +32,7 @@ export function createHttpApi(baseURL: string, headers?: Record<string, string>,
     changePassword: async (body) => {
       await request('/auth/change-password', { method: 'POST', body })
     },
+    updateProfile: body => request('/me', { method: 'PATCH', body }),
     getNotifications: () => request('/notifications'),
     markNotificationsRead: async (ids) => {
       await request('/notifications/read', { method: 'POST', body: { ids } })

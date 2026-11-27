@@ -1,5 +1,6 @@
 import type { DeletedWorklog, UnavailabilityInput } from '~/types/review'
 import type { Attachment, HistoryEvent, InternshipInfo, ReviewStatus, UserProfile, WorkLog } from '~/types/worklog'
+import { initialsOf } from '~/utils/auth'
 import { addDays, toThaiTimeParts } from '~/utils/date'
 
 // ข้อมูลตัวอย่างตามภาพออกแบบ ใช้จนกว่าจะเชื่อม backend
@@ -27,6 +28,8 @@ const MB = 1024 * 1024
 
 export const student: UserProfile = {
   name: 'สมชาย ใจดี',
+  firstName: 'สมชาย',
+  lastName: 'ใจดี',
   email: 'somchai.k@university.ac.th',
   initials: 'สช',
   studentId: '66011233466',
@@ -36,6 +39,8 @@ export const student: UserProfile = {
 
 export const mentor: UserProfile = {
   name: 'วิชัย พัฒนาการ',
+  firstName: 'วิชัย',
+  lastName: 'พัฒนาการ',
   email: 'wichai.p@university.ac.th',
   initials: 'วพ',
   role: 'supervisor',
@@ -183,5 +188,23 @@ for (const { name, worklogs } of [{ name: student.name, worklogs: studentWorklog
   for (const log of worklogs) {
     if (!log.submittedAt || histories[log.id]) continue
     histories[log.id] = [{ id: log.id * 10, type: 'status', changedAt: log.submittedAt, title: 'ส่งตรวจ', actorName: name, before: 'ฉบับร่าง', after: 'รอตรวจ' }]
+  }
+}
+
+/** เปลี่ยนชื่อผู้ใช้ รวมชื่อที่ข้อมูลจำลองคัดลอกไว้ในรายการต่าง ๆ (backend จริงอ้างอิงด้วย user id) */
+export function renameUser(profile: UserProfile, firstName: string, lastName: string) {
+  const previous = profile.name
+  const name = `${firstName} ${lastName}`
+  const renamed = (value?: string) => value === previous ? name : value
+
+  Object.assign(profile, { firstName, lastName, name, initials: initialsOf(firstName, lastName) })
+  internship.mentorName = renamed(internship.mentorName)!
+  for (const log of [studentWorklogs, ...otherStudents.map(other => other.worklogs)].flat()) {
+    log.reviewedBy = renamed(log.reviewedBy)
+  }
+  for (const event of Object.values(histories).flat()) event.actorName = renamed(event.actorName)!
+  for (const item of deletedWorklogs) {
+    item.studentName = renamed(item.studentName)!
+    if (item.worklog.deletion) item.worklog.deletion.deletedBy = renamed(item.worklog.deletion.deletedBy)!
   }
 }

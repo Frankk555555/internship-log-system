@@ -14,6 +14,6 @@ export const mockAccounts: MockAccount[] = [
   {
     password: 'Suspended#2569',
     suspended: true,
-    profile: { ...student, name: 'บัญชี ทดสอบระงับ', email: 'suspended@university.ac.th', studentId: '66011233499' },
+    profile: { ...student, name: 'บัญชี ทดสอบระงับ', firstName: 'บัญชี', lastName: 'ทดสอบระงับ', email: 'suspended@university.ac.th', studentId: '66011233499' },
   },
 ]
