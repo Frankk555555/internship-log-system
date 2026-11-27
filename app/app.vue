@@ -1,5 +1,5 @@
 <template>
-  <UApp :toaster="{ position: 'top-right' }">
+  <UApp :toaster="{ position: 'top-right', ui: { viewport: 'print:hidden' } }">
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>

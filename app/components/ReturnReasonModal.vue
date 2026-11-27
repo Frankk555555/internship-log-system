@@ -24,8 +24,11 @@ watch(open, (isOpen) => {
   allowTimeEdit.value = false
 })
 
+const notify = useNotify()
+
 function confirm(pending?: boolean) {
   showError.value = true
+  if (!comment.value.trim()) notify('error', 'ยังส่งกลับไม่ได้', 'กรุณาระบุความคิดเห็น')
   if (!pending && comment.value.trim()) emit('confirm', comment.value.trim(), allowTimeEdit.value)
 }
 </script>

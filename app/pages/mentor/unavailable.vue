@@ -52,7 +52,10 @@ async function save() {
   if (pending.value) return
   checked.value = true
   failure.value = undefined
-  if (Object.values(errors.value).some(Boolean)) return
+  if (Object.values(errors.value).some(Boolean)) {
+    notify('error', 'ยังบันทึกไม่ได้', 'กรุณาตรวจสอบข้อมูลให้ครบและถูกต้อง')
+    return
+  }
 
   pending.value = true
   try {
@@ -65,6 +68,7 @@ async function save() {
   }
   catch (problem) {
     failure.value = errorMessage(problem)
+    notify('error', 'บันทึกไม่สำเร็จ', failure.value)
   }
   finally {
     pending.value = false

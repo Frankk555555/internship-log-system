@@ -2,6 +2,7 @@
 definePageMeta({ layout: 'mentor', role: 'supervisor' })
 
 const api = useApi()
+const notify = useNotify()
 const user = useSessionUser()
 const { data: students, error: studentsError, refresh: refreshStudents } = await useLazyAsyncData('mentor-students', () => api.getMentorStudents())
 
@@ -53,12 +54,18 @@ function retry() {
 
 function downloadExcel() {
   if (!reports.value) return
-  downloadWeeklyReportExcel({
-    reports: reports.value,
-    weekStart: weekStart.value,
-    fileKey: selectedStudent.value,
-    showOverallTotal: isAll.value,
-  })
+  try {
+    downloadWeeklyReportExcel({
+      reports: reports.value,
+      weekStart: weekStart.value,
+      fileKey: selectedStudent.value,
+      showOverallTotal: isAll.value,
+    })
+    notify('success', 'ดาวน์โหลด Excel แล้ว', `${reportName.value}\nสัปดาห์ ${weekLabel.value}`)
+  }
+  catch {
+    notify('error', 'ดาวน์โหลดไม่สำเร็จ', 'กรุณาลองอีกครั้ง')
+  }
 }
 </script>
 

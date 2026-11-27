@@ -6,7 +6,7 @@ defineProps<{
   tone: BadgeTone
 }>()
 
-// สีตาม docs/design-pattern.md ข้อ 4 มีเฉพาะ "อนุมัติแล้ว" ที่พื้นทึบ
+// สีตาม docs/design-pattern.md ข้อ 4
 const toneClasses: Record<BadgeTone, string> = {
   slate: 'bg-slate-200 text-slate-600',
   draft: 'border-line bg-slate-100 text-slate-600',
@@ -14,7 +14,6 @@ const toneClasses: Record<BadgeTone, string> = {
   green: 'bg-emerald-100 text-emerald-700',
   amber: 'bg-amber-100 text-amber-700',
   rose: 'bg-rose-100 text-rose-700',
-  approved: 'bg-done text-white',
 }
 </script>
 

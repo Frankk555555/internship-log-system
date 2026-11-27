@@ -8,9 +8,13 @@ defineEmits<{
   excel: []
 }>()
 
+const notify = useNotify()
+
 // บันทึกเป็น PDF ผ่านหน้าต่างพิมพ์ของเบราว์เซอร์
 function downloadPdf() {
-  window.print()
+  notify('info', 'สร้างเอกสาร PDF', 'เลือก “บันทึกเป็น PDF” ในหน้าต่างพิมพ์')
+  // หน้าต่างพิมพ์หยุดหน้าเว็บ รอให้ข้อความแสดงก่อน
+  setTimeout(() => window.print(), 300)
 }
 </script>
 

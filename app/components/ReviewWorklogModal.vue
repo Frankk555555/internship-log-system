@@ -42,8 +42,11 @@ function approve() {
 }
 
 // ส่งกลับต้องมีความเห็นทุกครั้ง (ขอบเขตงานข้อ 10.5)
+const notify = useNotify()
+
 function sendBack() {
   needsComment.value = true
+  if (!comment.value.trim()) notify('error', 'ยังส่งกลับไม่ได้', 'กรุณาระบุความคิดเห็นเมื่อส่งกลับแก้ไข')
   if (!props.pending && comment.value.trim()) emit('return', comment.value.trim(), allowTimeEdit.value)
 }
 </script>

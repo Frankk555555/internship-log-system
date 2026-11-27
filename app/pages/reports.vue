@@ -2,6 +2,7 @@
 definePageMeta({ role: 'student' })
 
 const api = useApi()
+const notify = useNotify()
 const user = useSessionUser()
 
 // เริ่มที่สัปดาห์ปัจจุบัน จนกว่าผู้ใช้จะเลือกสัปดาห์เอง
@@ -32,11 +33,17 @@ useHead({ title: () => `รายงานประจำสัปดาห์ $
 
 function downloadExcel() {
   if (!report.value || !current.value) return
-  downloadWeeklyReportExcel({
-    reports: [report.value],
-    weekStart: weekStart.value,
-    fileKey: current.value.studentId,
-  })
+  try {
+    downloadWeeklyReportExcel({
+      reports: [report.value],
+      weekStart: weekStart.value,
+      fileKey: current.value.studentId,
+    })
+    notify('success', 'ดาวน์โหลด Excel แล้ว', `รายงานสัปดาห์ ${weekLabel.value}`)
+  }
+  catch {
+    notify('error', 'ดาวน์โหลดไม่สำเร็จ', 'กรุณาลองอีกครั้ง')
+  }
 }
 </script>
 

@@ -25,25 +25,22 @@ async function redirectAfterWork(action: 'start' | 'finish', log: WorkLog) {
   return true
 }
 
-async function start(log: WorkLog) {
-  if (await redirectAfterWork('start', log)) return
-  await recordTime('start', log)
+// เริ่มและจบงานแล้วเวลาถูกล็อก จึงถามยืนยันก่อน
+const confirmAction = ref<'start' | 'finish'>('start')
+const confirmTarget = ref<WorkLog>()
+const isConfirmOpen = ref(false)
+
+async function ask(action: 'start' | 'finish', log: WorkLog) {
+  if (await redirectAfterWork(action, log)) return
+  confirmAction.value = action
+  confirmTarget.value = log
+  isConfirmOpen.value = true
 }
 
-// จบงานแล้วเวลาถูกล็อก จึงถามยืนยันก่อน
-const finishTarget = ref<WorkLog>()
-const isFinishOpen = ref(false)
-
-async function askFinish(log: WorkLog) {
-  if (await redirectAfterWork('finish', log)) return
-  finishTarget.value = log
-  isFinishOpen.value = true
-}
-
-async function confirmFinish() {
-  if (!finishTarget.value) return
-  await recordTime('finish', finishTarget.value)
-  isFinishOpen.value = false
+async function confirmRecord() {
+  if (!confirmTarget.value) return
+  await recordTime(confirmAction.value, confirmTarget.value)
+  isConfirmOpen.value = false
 }
 
 // เซิร์ฟเวอร์เป็นผู้บันทึกเวลา หน้าจอแสดงผลที่ได้กลับมา
@@ -99,12 +96,19 @@ async function recordTime(action: 'start' | 'finish', log: WorkLog) {
           :today="data.today"
           :busy-id="busyId"
           class="mt-5"
-          @start="start"
-          @finish="askFinish"
+          @start="log => ask('start', log)"
+          @finish="log => ask('finish', log)"
         />
       </template>
     </AsyncState>
 
-    <FinishWorkModal v-model:open="isFinishOpen" :log="finishTarget" :pending="busyId !== undefined" @confirm="confirmFinish" />
+    <WorkTimeModal
+      v-model:open="isConfirmOpen"
+      :action="confirmAction"
+      :log="confirmTarget"
+      :today="data?.today"
+      :pending="busyId !== undefined"
+      @confirm="confirmRecord"
+    />
   </div>
 </template>

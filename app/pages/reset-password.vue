@@ -14,7 +14,8 @@ const password = ref('')
 const confirmation = ref('')
 const checked = ref(false)
 const pending = ref(false)
-const failure = ref<string>()
+const notify = useNotify()
+const { error: failure, clear, fail } = useFormNotice()
 const isInvalidLink = ref(!token)
 
 const passwordError = computed(() => checked.value ? newPasswordError(password.value) : undefined)
@@ -23,17 +24,26 @@ const confirmationError = computed(() => checked.value && confirmation.value !==
 async function submit() {
   if (pending.value) return
   checked.value = true
-  failure.value = undefined
-  if (passwordError.value || confirmationError.value) return
+  clear()
+  if (passwordError.value || confirmationError.value) {
+    notify('error', 'ยังตั้งรหัสผ่านไม่ได้', 'กรุณาตรวจสอบข้อมูลในช่องที่มีข้อความเตือน')
+    return
+  }
 
   pending.value = true
   try {
     await api.resetPassword(token, password.value)
     await navigateTo({ path: '/login', query: { reset: 'done' } }, { replace: true })
+    notify('success', 'ตั้งรหัสผ่านใหม่แล้ว', 'เข้าสู่ระบบด้วยรหัสผ่านใหม่ได้เลย')
   }
   catch (error) {
-    if (error instanceof ApiError && error.code === 'invalid_token') isInvalidLink.value = true
-    else failure.value = errorMessage(error)
+    if (error instanceof ApiError && error.code === 'invalid_token') {
+      isInvalidLink.value = true
+      notify('error', 'ลิงก์ใช้ไม่ได้', error.message)
+    }
+    else {
+      fail(errorMessage(error), 'ตั้งรหัสผ่านไม่สำเร็จ')
+    }
   }
   finally {
     pending.value = false

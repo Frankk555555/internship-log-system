@@ -5,6 +5,7 @@ export function useNotify() {
   const kinds = {
     success: { icon: 'i-lucide-check', color: 'success' as const, circle: 'bg-emerald-100', mark: 'text-emerald-700' },
     returned: { icon: 'i-lucide-rotate-ccw', color: 'warning' as const, circle: 'bg-sendback', mark: 'text-white' },
+    info: { icon: 'i-lucide-info', color: 'primary' as const, circle: 'bg-indigo-100', mark: 'text-indigo-600' },
     error: { icon: 'i-lucide-triangle-alert', color: 'error' as const, circle: 'bg-red-100', mark: 'text-red-600' },
   }
 

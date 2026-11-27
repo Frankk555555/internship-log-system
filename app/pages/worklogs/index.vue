@@ -5,6 +5,7 @@ import type { WorkLog } from '~/types/worklog'
 definePageMeta({ role: 'student' })
 
 const api = useApi()
+const notify = useNotify()
 const { data, status, error, refresh } = await useLazyAsyncData('daily-worklogs', () => api.getDailyWorklogs())
 
 const logs = computed(() => data.value?.worklogs ?? [])
@@ -12,7 +13,6 @@ const logToDelete = ref<WorkLog>()
 const isDeleteOpen = ref(false)
 const isDeleting = ref(false)
 const deleteError = ref<string>()
-const deletedTitle = ref<string>()
 
 function askDelete(log: WorkLog) {
   logToDelete.value = log
@@ -29,11 +29,12 @@ async function deleteLog(reason: string) {
   try {
     await api.deleteWorklog(target.id, reason)
     isDeleteOpen.value = false
-    deletedTitle.value = target.title
+    notify('success', 'ลบรายการแล้ว', target.title)
     await refresh()
   }
   catch (failure) {
     deleteError.value = errorMessage(failure)
+    notify('error', 'ลบรายการไม่สำเร็จ', deleteError.value)
   }
   finally {
     isDeleting.value = false
@@ -104,10 +105,6 @@ const unavailable = computed(() => {
         <DailyWorklogTable :date="formatThaiDate(data.date)" :logs="logs" class="mt-3" @delete="askDelete" />
       </template>
     </AsyncState>
-
-    <p v-if="deletedTitle" class="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-medium text-emerald-700" role="status">
-      ลบรายการ “{{ deletedTitle }}” แล้ว
-    </p>
 
     <DeleteWorklogModal
       v-model:open="isDeleteOpen"

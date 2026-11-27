@@ -17,6 +17,7 @@ defineEmits<{
 const workspace = computed(() => workspaces[props.role])
 
 const { logout } = useSession()
+const notify = useNotify()
 const isLoggingOut = ref(false)
 const logoutFailed = ref(false)
 
@@ -26,9 +27,11 @@ async function onLogout() {
   try {
     await logout()
     await navigateTo('/login')
+    notify('success', 'ออกจากระบบแล้ว', 'เข้าสู่ระบบอีกครั้งเพื่อใช้งานต่อ')
   }
   catch {
     logoutFailed.value = true
+    notify('error', 'ออกจากระบบไม่สำเร็จ', 'กรุณาลองอีกครั้ง')
   }
   finally {
     isLoggingOut.value = false

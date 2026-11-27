@@ -131,7 +131,7 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
   }
   catch (problem) {
     failure.value = errorMessage(problem)
-    if (!isReviewOpen.value && !isReturnOpen.value) notify('error', 'ทำรายการไม่สำเร็จ', failure.value)
+    notify('error', 'ทำรายการไม่สำเร็จ', failure.value)
   }
   finally {
     pending.value = undefined

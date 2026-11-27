@@ -9,6 +9,7 @@ const props = defineProps<{
 }>()
 
 const api = useApi()
+const submitDone = useSubmitDone()
 const { today, backdateLimitDays, workEndTime, internshipStart, internshipEnd } = props.context
 const isEditing = Boolean(props.worklog)
 const isResubmit = props.worklog?.reviewStatus === 'returned'
@@ -28,7 +29,7 @@ const attachments = ref<Attachment[]>((initial.attachments ?? []).map(file => ({
 const checked = ref<'draft' | 'submit'>()
 const pending = ref<'finish' | 'draft' | 'submit'>()
 const isSubmitted = ref(false)
-const notice = ref<{ tone: 'error' | 'success', text: string }>()
+const { error: formError, clear, fail, done } = useFormNotice()
 const isLocked = computed(() => isSubmitted.value || Boolean(pending.value))
 
 // ช่วงวันที่บันทึกย้อนหลังได้ ต้องอยู่ในช่วงฝึกงานด้วย (ขอบเขตงานข้อ 5.6)
@@ -163,7 +164,7 @@ const errors = computed(() => ({
 }))
 
 watch([date, startTime, endTime, title, description, attachments], () => {
-  if (!pending.value) notice.value = undefined
+  if (!pending.value) clear()
 })
 
 // ฉบับร่างที่ยังไม่มีเวลาสิ้นสุด กดบันทึกเวลาปัจจุบันได้ (ขอบเขตงานข้อ 7.3)
@@ -182,7 +183,7 @@ async function finishWork() {
   if (isLocked.value || finishBlock.value) return
 
   pending.value = 'finish'
-  notice.value = undefined
+  clear()
   try {
     const now = toThaiTimeParts(await api.getServerTime())
     // ให้การตรวจเวลาในฟอร์มใช้เวลาล่าสุดเดียวกับเวลาที่กำลังใส่
@@ -195,21 +196,20 @@ async function finishWork() {
       ? 'ข้ามวันแล้ว กรุณาโหลดหน้านี้ใหม่เพื่อกรอกเวลาสิ้นสุดเอง'
       : timerFinishError(now.time, props.context) ?? timeRangeError(from, now.time, props.context)
     if (failure) {
-      notice.value = { tone: 'error', text: failure }
+      fail(failure, 'บันทึกเวลาสิ้นสุดไม่ได้')
       return
     }
     const overlap = findOverlaps(await api.listWorklogs(day, day), from, now.time, worklogId.value)[0]
     if (overlap) {
-      notice.value = { tone: 'error', text: `บันทึกไม่ได้ ${overlapMessage(overlap)}` }
+      fail(`บันทึกไม่ได้ ${overlapMessage(overlap)}`, 'บันทึกเวลาสิ้นสุดไม่ได้')
       return
     }
 
     endTime.value = `${now.time} น.`
-    await nextTick()
-    notice.value = { tone: 'success', text: `ใส่เวลาสิ้นสุด ${now.time} น. แล้ว กดบันทึกฉบับร่างหรือส่งตรวจเพื่อเก็บไว้` }
+    done('ใส่เวลาสิ้นสุดแล้ว', `${now.time} น. กดบันทึกฉบับร่างหรือส่งตรวจเพื่อเก็บไว้`)
   }
   catch (error) {
-    notice.value = { tone: 'error', text: errorMessage(error) }
+    fail(errorMessage(error))
   }
   finally {
     pending.value = undefined
@@ -221,16 +221,16 @@ async function save(mode: 'draft' | 'submit') {
 
   checked.value = mode
   if (Object.values(errors.value).some(Boolean)) {
-    notice.value = { tone: 'error', text: errors.value.overlap ? 'บันทึกไม่ได้ เวลาซ้อนทับกับรายการอื่นในวันเดียวกัน' : 'กรุณาตรวจสอบข้อมูลให้ครบและถูกต้อง' }
+    fail(errors.value.overlap ? 'บันทึกไม่ได้ เวลาซ้อนทับกับรายการอื่นในวันเดียวกัน' : 'กรุณาตรวจสอบข้อมูลให้ครบและถูกต้อง', mode === 'submit' ? 'ยังส่งตรวจไม่ได้' : 'ยังบันทึกไม่ได้')
     return
   }
   if (start.value && others.value === undefined) {
-    notice.value = { tone: 'error', text: 'ยังตรวจเวลาซ้อนทับไม่เสร็จ กรุณารอสักครู่แล้วลองอีกครั้ง' }
+    fail('ยังตรวจเวลาซ้อนทับไม่เสร็จ กรุณารอสักครู่แล้วลองอีกครั้ง')
     return
   }
 
   pending.value = mode
-  notice.value = undefined
+  clear()
   try {
     const saved = await api.saveWorklog({
       id: worklogId.value,
@@ -249,12 +249,15 @@ async function save(mode: 'draft' | 'submit') {
     current.value = saved
     isSubmitted.value = saved.reviewStatus === 'submitted'
     attachments.value = saved.attachments ?? []
+    if (mode === 'submit') {
+      await submitDone(saved, isResubmit ? 'ส่งตรวจใหม่แล้ว' : 'ส่งตรวจแล้ว')
+      return
+    }
     await refreshSameDay()
-    const savedText = isResubmit ? 'บันทึกการแก้ไขแล้ว (ยังไม่ได้ส่งตรวจ)' : 'บันทึกฉบับร่างแล้ว'
-    notice.value = { tone: 'success', text: mode === 'draft' ? savedText : isResubmit ? 'ส่งตรวจใหม่แล้ว' : 'ส่งตรวจแล้ว' }
+    done(isResubmit ? 'บันทึกการแก้ไขแล้ว' : 'บันทึกฉบับร่างแล้ว', isResubmit ? `${saved.title}\nยังไม่ได้ส่งตรวจ` : saved.title)
   }
   catch (error) {
-    notice.value = { tone: 'error', text: errorMessage(error) }
+    fail(errorMessage(error))
   }
   finally {
     pending.value = undefined
@@ -348,13 +351,8 @@ async function save(mode: 'draft' | 'submit') {
         <li>บันทึกไม่ได้ กรุณาแก้ไขเวลา</li>
       </ul>
 
-      <p
-        v-if="notice"
-        class="rounded-lg px-3 py-2 text-[11px] font-medium"
-        :class="notice.tone === 'error' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'"
-        role="status"
-      >
-        {{ notice.text }}
+      <p v-if="formError" class="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-medium text-red-700">
+        {{ formError }}
       </p>
 
       <p v-if="canShowFinish && finishBlock" id="finish-hint" class="text-[11px] font-medium text-amber-700">{{ finishBlock }}</p>

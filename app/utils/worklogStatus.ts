@@ -11,5 +11,5 @@ export const reviewStatusMeta: Record<ReviewStatus, { label: string, tone: Badge
   draft: { label: 'ฉบับร่าง', tone: 'draft' },
   submitted: { label: 'รอตรวจ', tone: 'amber' },
   returned: { label: 'ส่งกลับแก้ไข', tone: 'rose' },
-  approved: { label: 'อนุมัติแล้ว', tone: 'approved' },
+  approved: { label: 'อนุมัติแล้ว', tone: 'green' },
 }

@@ -8,7 +8,7 @@ useHead({ title: 'ลืมรหัสผ่าน' })
 const api = useApi()
 const email = ref('')
 const pending = ref(false)
-const failure = ref<string>()
+const { error: failure, clear, fail, done } = useFormNotice()
 const ticket = ref<PasswordResetTicket>()
 const sentTo = ref('')
 const { remaining, startUntil } = useCountdown()
@@ -16,14 +16,15 @@ const { remaining, startUntil } = useCountdown()
 async function send(address: string) {
   if (pending.value) return
   pending.value = true
-  failure.value = undefined
+  clear()
   try {
     ticket.value = await api.requestPasswordReset(address)
     sentTo.value = address
     startUntil(Date.now() + ticket.value.resendAfterSeconds * 1000)
+    done('ส่งคำขอแล้ว', `ตรวจสอบอีเมล ${address} เพื่อตั้งรหัสผ่านใหม่`)
   }
   catch (error) {
-    failure.value = errorMessage(error)
+    fail(errorMessage(error), 'ส่งลิงก์ไม่สำเร็จ')
   }
   finally {
     pending.value = false
@@ -32,7 +33,7 @@ async function send(address: string) {
 
 function submit() {
   if (!isEmail(email.value)) {
-    failure.value = email.value.trim() ? 'รูปแบบอีเมลไม่ถูกต้อง' : 'กรุณากรอกอีเมล'
+    fail(email.value.trim() ? 'รูปแบบอีเมลไม่ถูกต้อง' : 'กรุณากรอกอีเมล', 'ยังส่งลิงก์ไม่ได้')
     return
   }
   send(email.value.trim())

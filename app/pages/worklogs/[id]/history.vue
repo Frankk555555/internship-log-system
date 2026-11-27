@@ -63,6 +63,7 @@ async function deleteLog(reason: string) {
   }
   catch (failure) {
     deleteError.value = errorMessage(failure)
+    notify('error', 'ลบรายการไม่สำเร็จ', deleteError.value)
   }
   finally {
     isDeleting.value = false

@@ -7,6 +7,7 @@ const props = defineProps<{
 }>()
 
 const api = useApi()
+const submitDone = useSubmitDone()
 const defaults = props.context.defaults
 const startTime = defaults.startTime!
 const { workEndTime } = props.context
@@ -25,7 +26,7 @@ const endTime = ref(defaults.endTime)
 const reviewStatus = ref<ReviewStatus>('draft')
 const checked = ref<'draft' | 'submit'>()
 const pending = ref<'finish' | 'draft' | 'submit'>()
-const notice = ref<{ tone: 'error' | 'success', text: string }>()
+const { error: formError, clear, fail, done } = useFormNotice()
 
 const workStatus = computed<WorkStatus>(() => endTime.value ? 'done' : 'in_progress')
 const isSubmitted = computed(() => reviewStatus.value === 'submitted')
@@ -71,7 +72,7 @@ const hint = computed(() => {
 })
 
 watch([title, description, attachments], () => {
-  if (!pending.value) notice.value = undefined
+  if (!pending.value) clear()
 })
 
 /** ตรวจเวลาซ้อนกับรายการอื่นของวันเดียวกัน (ดึงข้อมูลล่าสุดทุกครั้ง) */
@@ -84,7 +85,7 @@ async function overlapError(until?: string) {
 // ใช้เวลาของเซิร์ฟเวอร์ ไม่ใช่นาฬิกาเครื่องผู้ใช้
 async function finishWork() {
   pending.value = 'finish'
-  notice.value = undefined
+  clear()
   try {
     const now = toThaiTimeParts(await api.getServerTime())
 
@@ -93,13 +94,14 @@ async function finishWork() {
     const failure = dateError ?? timerFinishError(now.time, props.context)
       ?? timeRangeError(startTime, now.time, props.context) ?? await overlapError(now.time)
     if (failure) {
-      notice.value = { tone: 'error', text: failure }
+      fail(failure, 'บันทึกเวลาสิ้นสุดไม่ได้')
       return
     }
     endTime.value = now.time
+    done('ใส่เวลาสิ้นสุดแล้ว', `${now.time} น. กดบันทึกฉบับร่างหรือส่งตรวจเพื่อเก็บไว้`)
   }
   catch (error) {
-    notice.value = { tone: 'error', text: errorMessage(error) }
+    fail(errorMessage(error))
   }
   finally {
     pending.value = undefined
@@ -113,16 +115,16 @@ async function save(mode: 'draft' | 'submit') {
 
   checked.value = mode
   if (Object.values(errors.value).some(Boolean)) {
-    notice.value = { tone: 'error', text: 'กรุณาตรวจสอบข้อมูลให้ครบและถูกต้อง' }
+    fail('กรุณาตรวจสอบข้อมูลให้ครบและถูกต้อง', mode === 'submit' ? 'ยังส่งตรวจไม่ได้' : 'ยังบันทึกไม่ได้')
     return
   }
 
   pending.value = mode
-  notice.value = undefined
+  clear()
   try {
     const overlap = await overlapError(endTime.value)
     if (overlap) {
-      notice.value = { tone: 'error', text: overlap }
+      fail(overlap)
       return
     }
 
@@ -143,11 +145,14 @@ async function save(mode: 'draft' | 'submit') {
     worklogId.value = saved.id
     reviewStatus.value = saved.reviewStatus
     attachments.value = saved.attachments ?? []
-    await nextTick()
-    notice.value = { tone: 'success', text: mode === 'submit' ? 'ส่งตรวจแล้ว' : 'บันทึกฉบับร่างแล้ว' }
+    if (mode === 'submit') {
+      await submitDone(saved, 'ส่งตรวจแล้ว')
+      return
+    }
+    done('บันทึกฉบับร่างแล้ว', saved.title)
   }
   catch (error) {
-    notice.value = { tone: 'error', text: errorMessage(error) }
+    fail(errorMessage(error))
   }
   finally {
     pending.value = undefined
@@ -207,13 +212,8 @@ async function save(mode: 'draft' | 'submit') {
           </div>
         </dl>
 
-        <p
-          v-if="notice"
-          class="mt-4 rounded-lg px-3 py-2 text-[11px] font-medium"
-          :class="notice.tone === 'error' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'"
-          role="status"
-        >
-          {{ notice.text }}
+        <p v-if="formError" class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-[11px] font-medium text-red-700">
+          {{ formError }}
         </p>
 
         <div class="mt-auto flex flex-wrap justify-end gap-3 pt-10">

@@ -27,8 +27,11 @@ watch(open, (isOpen) => {
 })
 
 // หน้าที่เรียกใช้เป็นผู้ปิดหน้าต่างเมื่อลบสำเร็จ
+const notify = useNotify()
+
 function confirm() {
   showError.value = true
+  if (!reason.value.trim()) notify('error', 'ยังลบไม่ได้', 'กรุณาระบุเหตุผล')
   if (props.pending || !reason.value.trim()) return
   emit('confirm', reason.value.trim())
 }

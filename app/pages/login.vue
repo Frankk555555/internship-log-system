@@ -6,13 +6,14 @@ useHead({ title: 'เข้าสู่ระบบ' })
 
 const route = useRoute()
 const { login } = useSession()
+const notify = useNotify()
+const { error: failure, clear, fail } = useFormNotice()
 
 const view = ref<'form' | 'locked' | 'suspended'>('form')
 const email = ref('')
 const password = ref('')
 const remember = ref(true)
 const pending = ref(false)
-const failure = ref<string>()
 const lockedUntil = ref<Date>()
 const { remaining, startUntil } = useCountdown()
 
@@ -28,19 +29,20 @@ function redirectTarget() {
 async function submit() {
   if (pending.value) return
   if (!email.value.trim() || !password.value) {
-    failure.value = 'กรุณากรอกอีเมลและรหัสผ่าน'
+    fail('กรุณากรอกอีเมลและรหัสผ่าน', 'เข้าสู่ระบบไม่สำเร็จ')
     return
   }
   if (!isEmail(email.value)) {
-    failure.value = 'รูปแบบอีเมลไม่ถูกต้อง'
+    fail('รูปแบบอีเมลไม่ถูกต้อง', 'เข้าสู่ระบบไม่สำเร็จ')
     return
   }
 
   pending.value = true
-  failure.value = undefined
+  clear()
   try {
     const user = await login({ email: email.value.trim(), password: password.value, remember: remember.value })
     await navigateTo(redirectTarget() ?? homePathFor(user.role))
+    notify('success', 'เข้าสู่ระบบแล้ว', user.name)
   }
   catch (error) {
     if (error instanceof ApiError && error.code === 'account_locked' && error.lockedUntil) {
@@ -48,13 +50,15 @@ async function submit() {
       startUntil(lockedUntil.value.getTime())
       password.value = ''
       view.value = 'locked'
+      notify('error', 'บัญชีถูกล็อกชั่วคราว', error.message)
     }
     else if (error instanceof ApiError && error.code === 'account_suspended') {
       password.value = ''
       view.value = 'suspended'
+      notify('error', 'บัญชีถูกระงับ', error.message)
     }
     else {
-      failure.value = errorMessage(error)
+      fail(errorMessage(error), 'เข้าสู่ระบบไม่สำเร็จ')
     }
   }
   finally {
@@ -64,7 +68,7 @@ async function submit() {
 
 function backToForm() {
   view.value = 'form'
-  failure.value = undefined
+  clear()
 }
 </script>
 

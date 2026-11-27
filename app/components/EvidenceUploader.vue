@@ -7,6 +7,7 @@ const props = defineProps<{
 }>()
 
 const attachments = defineModel<Attachment[]>({ required: true })
+const notify = useNotify()
 
 const rejected = ref<string[]>([])
 const isDragging = ref(false)
@@ -42,6 +43,11 @@ function addFiles(files: FileList | null | undefined) {
   }
 
   attachments.value = [...attachments.value, ...accepted]
+
+  const problems = [...rejected.value, ...accepted.flatMap(file => file.error ? [`${file.name}: ${file.error}`] : [])]
+  const added = accepted.filter(file => !file.error)
+  if (problems.length) notify('error', 'แนบไฟล์ไม่ได้', problems.join('\n'))
+  if (added.length) notify('info', `เพิ่มไฟล์แล้ว ${added.length} ไฟล์`, 'กดบันทึกหรือส่งตรวจเพื่อเก็บไว้')
 }
 
 function onSelect(event: Event) {
@@ -58,6 +64,7 @@ function onDrop(event: DragEvent) {
 function remove(target: Attachment) {
   if (target.url && localUrls.delete(target.url)) URL.revokeObjectURL(target.url)
   attachments.value = attachments.value.filter(file => file.id !== target.id)
+  notify('info', 'นำไฟล์ออกแล้ว', target.name)
 }
 
 onBeforeUnmount(() => {
