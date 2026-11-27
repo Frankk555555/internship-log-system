@@ -120,13 +120,21 @@ export interface StudentDashboard {
   recentWorklogs: WorkLog[]
 }
 
+export interface MentorAway {
+  type: 'absent' | 'unavailable'
+  startTime: string
+  endTime: string
+  /** ครอบคลุมเวลางานทั้งวัน */
+  allDay: boolean
+}
+
 export interface DailyWorklogs {
   hasMentor: boolean
   date: string
   semester: string
   worklogs: WorkLog[]
-  /** ช่วงเวลาที่พี่เลี้ยงไม่สะดวกตรวจงานในวันนั้น */
-  mentorUnavailable?: { startTime: string, endTime: string }
+  /** ช่วงที่พี่เลี้ยงไม่อยู่หรือไม่สะดวกตรวจงานในวันนั้น ไม่ส่งเหตุผลให้นักศึกษา */
+  mentorUnavailable?: MentorAway
 }
 
 export type WorklogFormMode = 'new' | 'backdate'

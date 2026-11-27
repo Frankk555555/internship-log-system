@@ -1,5 +1,5 @@
-import type { SystemSettings } from '~/types/admin'
-import type { DeletedWorklog, UnavailabilityInput } from '~/types/review'
+import type { AbsenceType, SystemSettings } from '~/types/admin'
+import type { DeletedWorklog } from '~/types/review'
 import type { Attachment, HistoryEvent, ReviewStatus, UserProfile, UserRole, WorkHoursPeriod, WorkLog } from '~/types/worklog'
 import { initialsOf } from '~/utils/auth'
 import { addDays, toThaiTimeParts } from '~/utils/date'
@@ -230,10 +230,27 @@ export const recordOf = (profile: UserProfile) => students.find(item => item.pro
 /** รายการที่ลบแล้ว เก็บไว้ตรวจสอบย้อนหลัง ใหม่สุดก่อน (backend ใช้ soft delete) */
 export const deletedWorklogs: DeletedWorklog[] = []
 
-/** ช่วงที่พี่เลี้ยงแจ้งว่าไม่สะดวกตรวจงาน */
-export const unavailabilities: (UnavailabilityInput & { mentor: UserProfile })[] = [
-  { mentor, date: TODAY, startTime: '09:00', endTime: '12:00', reason: 'ประชุมแผน Sprint กับลูกค้า' },
+export interface MockAbsence {
+  id: number
+  type: AbsenceType
+  mentor: UserProfile
+  startAt: string
+  endAt: string
+  reason: string
+  createdBy: UserProfile
+}
+
+/** ช่วงที่พี่เลี้ยงไม่อยู่ (แอดมินบันทึก) และไม่สะดวกตรวจ (พี่เลี้ยงแจ้ง) ตัวเลขติดลบใน seedTime คือวันข้างหน้า */
+export const absences: MockAbsence[] = [
+  { id: 1, type: 'absent', mentor, startAt: seedTime(0, '08:00'), endAt: seedTime(-1, '17:00'), reason: 'ลาป่วย', createdBy: admin },
+  { id: 2, type: 'unavailable', mentor, startAt: seedTime(0, '09:00'), endAt: seedTime(0, '12:00'), reason: 'ประชุมแผน Sprint กับลูกค้า', createdBy: mentor },
+  { id: 3, type: 'absent', mentor: supaporn, startAt: seedTime(-5, '08:00'), endAt: seedTime(-7, '17:00'), reason: 'อบรมนอกสถานที่', createdBy: admin },
+  { id: 4, type: 'unavailable', mentor: prasert, startAt: seedTime(-8, '13:00'), endAt: seedTime(-8, '16:00'), reason: 'ติดภารกิจ', createdBy: prasert },
+  { id: 5, type: 'absent', mentor, startAt: seedTime(17, '08:00'), endAt: seedTime(16, '17:00'), reason: 'ลากิจ', createdBy: admin },
 ]
+
+/** งานที่แอดมินอนุมัติแทน อ้างอิงช่วงที่พี่เลี้ยงไม่อยู่ */
+export const proxyApprovals: { absenceId: number, worklogId: number }[] = []
 
 const at = (time: string) => thaiTime(daysAgo(1), time)
 

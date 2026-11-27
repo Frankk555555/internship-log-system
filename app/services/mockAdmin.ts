@@ -1,5 +1,5 @@
 // ข้อมูลจำลองของแอดมิน โหลดพร้อม mockApi เมื่อใช้ข้อมูลจำลองเท่านั้น
-import type { AdminApi, AdminUser, InternshipDetail, InternshipRow, UserInput } from '~/types/admin'
+import type { AdminApi, AdminUser, InternshipDetail, InternshipRow, MentorAbsence, UserInput } from '~/types/admin'
 import { internshipErrors, settingDayError, userInputErrors } from '~/utils/adminRules'
 import { workHoursOn } from '~/utils/worklogRules'
 import { ApiError } from './api'
@@ -100,8 +100,32 @@ function nextHours(history: db.MockInternship['hours'], startDate: string, workS
   return same(earlier.at(-1)) ? earlier : [...earlier, { effectiveFrom: db.TODAY, workStartTime, workEndTime }]
 }
 
+function toAbsence(item: db.MockAbsence, now: number): MentorAbsence {
+  return {
+    id: item.id,
+    type: item.type,
+    mentorName: item.mentor.name,
+    startAt: item.startAt,
+    endAt: item.endAt,
+    reason: item.reason,
+    status: Date.parse(item.endAt) <= now ? 'ended' : Date.parse(item.startAt) <= now ? 'now' : 'upcoming',
+    proxyApprovalCount: db.proxyApprovals.filter(approval => approval.absenceId === item.id).length,
+  }
+}
+
+/** ช่วงไม่อยู่ของพี่เลี้ยงคนเดียวกันต้องไม่ซ้อนกัน */
+function assertNoAbsenceOverlap(mentor: db.MockAbsence['mentor'], startAt: string, endAt: string, ignoreId?: number) {
+  const overlaps = db.absences.some(item => item.id !== ignoreId && item.mentor === mentor && item.type === 'absent'
+    && Date.parse(startAt) < Date.parse(item.endAt) && Date.parse(item.startAt) < Date.parse(endAt))
+  if (overlaps) throw new ApiError('ช่วงเวลานี้ซ้อนกับช่วงไม่อยู่ที่บันทึกไว้ของพี่เลี้ยงคนนี้', 409)
+}
+
+const isDateTime = (value: string) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value) && !Number.isNaN(Date.parse(value))
+
 /** now: เวลาเซิร์ฟเวอร์จำลอง ใช้บันทึกว่าแก้เมื่อไร */
 export function createMockAdmin(session: MockSession, now: () => string): AdminApi {
+  let nextAbsenceId = 500
+
   /** ทุกคำขอต้องเป็นแอดมิน คืนข้อมูลผู้ที่ทำรายการ */
   async function authorise() {
     await wait()
@@ -197,6 +221,50 @@ export function createMockAdmin(session: MockSession, now: () => string): AdminA
       const account = findUser(id)
       clearFailures(account.profile.email)
       return toAdminUser(account)
+    },
+
+    async getMentorAbsences(type) {
+      await authorise()
+      const current = Date.parse(now())
+      const all = db.absences.map(item => toAbsence(item, current))
+      const open = all.filter(item => item.status !== 'ended').sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))
+      const ended = all.filter(item => item.status === 'ended').sort((a, b) => Date.parse(b.endAt) - Date.parse(a.endAt))
+      const items = [...open, ...ended]
+      return structuredClone({
+        items: type === 'all' ? items : items.filter(item => item.type === type),
+        counts: { all: items.length, absent: items.filter(item => item.type === 'absent').length, unavailable: items.filter(item => item.type === 'unavailable').length },
+        mentors: mockAccounts.filter(account => account.profile.role === 'supervisor' && !account.suspended).map(({ id, profile }) => ({ id, name: profile.name })),
+        today: db.TODAY,
+      })
+    },
+
+    async createMentorAbsence({ mentorId, startAt, endAt, reason }) {
+      const actor = await authorise()
+      const account = mockAccounts.find(item => item.id === mentorId && item.profile.role === 'supervisor' && !item.suspended)
+      if (!account) throw new ApiError('เลือกพี่เลี้ยงที่ใช้งานอยู่', 422)
+      if (!reason.trim()) throw new ApiError('กรุณาระบุเหตุผล', 422)
+      if (!isDateTime(startAt) || !isDateTime(endAt)) throw new ApiError('รูปแบบวันที่หรือเวลาไม่ถูกต้อง', 422)
+      if (Date.parse(endAt) <= Date.parse(startAt)) throw new ApiError('เวลาสิ้นสุดต้องหลังเวลาเริ่ม', 422)
+      if (Date.parse(endAt) <= Date.parse(now())) throw new ApiError('ช่วงนี้สิ้นสุดไปแล้ว บันทึกได้เฉพาะช่วงที่ยังไม่สิ้นสุด', 422)
+      assertNoAbsenceOverlap(account.profile, startAt, endAt)
+      // เลขของช่วงใหม่ต้องไม่ชนกับของเดิม แม้สร้าง API จำลองใหม่
+      const id = Math.max(nextAbsenceId++, ...db.absences.map(item => item.id + 1))
+      const item: db.MockAbsence = { id, type: 'absent', mentor: account.profile, startAt, endAt, reason: reason.trim(), createdBy: actor }
+      db.absences.push(item)
+      return toAbsence(item, Date.parse(now()))
+    },
+
+    async updateAbsenceEnd(id, endAt) {
+      await authorise()
+      const item = db.absences.find(entry => entry.id === id)
+      if (!item) throw new ApiError('ไม่พบช่วงเวลานี้', 404)
+      if (item.type !== 'absent') throw new ApiError('ช่วงที่พี่เลี้ยงแจ้งเองปรับจากหน้านี้ไม่ได้', 422)
+      if (Date.parse(item.endAt) <= Date.parse(now())) throw new ApiError('ช่วงที่สิ้นสุดแล้วปรับไม่ได้', 409)
+      if (!isDateTime(endAt)) throw new ApiError('รูปแบบวันที่หรือเวลาไม่ถูกต้อง', 422)
+      if (Date.parse(endAt) <= Date.parse(item.startAt)) throw new ApiError('เวลาสิ้นสุดต้องหลังเวลาเริ่ม', 422)
+      assertNoAbsenceOverlap(item.mentor, item.startAt, endAt, id)
+      item.endAt = endAt
+      return toAbsence(item, Date.parse(now()))
     },
 
     async getInternships({ filter, q, page }) {

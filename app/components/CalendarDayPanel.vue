@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { ReviewStatus, WorkLog } from '~/types/worklog'
+import type { MentorAway, ReviewStatus, WorkLog } from '~/types/worklog'
 
 const props = defineProps<{
   date: string
   today: string
   logs: WorkLog[]
-  /** ช่วงเวลาที่พี่เลี้ยงไม่สะดวกตรวจงานในวันนั้น */
-  unavailable?: { startTime: string, endTime: string }
+  /** ช่วงที่พี่เลี้ยงไม่อยู่หรือไม่สะดวกตรวจงานในวันนั้น */
+  unavailable?: MentorAway
 }>()
 
 const minutesOf = (logs: WorkLog[]) => logs.reduce(
@@ -70,9 +70,9 @@ const statuses = computed(() => (Object.keys(calendarStatusMeta) as ReviewStatus
     <section v-if="unavailable" class="rounded-xl border border-amber-200 bg-amber-50 p-4">
       <h2 class="flex items-center gap-1.5 text-xs font-semibold text-amber-800">
         <UIcon name="i-lucide-clock" class="size-3.5" />
-        พี่เลี้ยงไม่สะดวกตรวจงาน
+        {{ mentorAwayLabel(unavailable).title }}
       </h2>
-      <p class="mt-1 text-xs text-amber-800">{{ unavailable.startTime }}–{{ unavailable.endTime }} น.</p>
+      <p class="mt-1 text-xs text-amber-800">{{ mentorAwayLabel(unavailable).time }}</p>
     </section>
   </aside>
 </template>

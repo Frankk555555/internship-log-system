@@ -57,7 +57,7 @@ const returnedCount = computed(() => logs.value.filter(log => log.reviewStatus =
 
 const unavailable = computed(() => {
   const range = data.value?.mentorUnavailable
-  return range ? `${range.startTime}–${range.endTime}` : '–'
+  return range ? mentorAwayLabel(range) : { title: 'พี่เลี้ยงไม่สะดวกตรวจงาน', time: '–' }
 })
 </script>
 
@@ -92,9 +92,8 @@ const unavailable = computed(() => {
             tone="orange"
           />
           <SummaryStatCard
-            title="พี่เลี้ยงไม่สะดวกตรวจงาน"
-            :value="unavailable"
-            meta="น."
+            :title="unavailable.title"
+            :value="unavailable.time"
             tone="amber"
             compact
           />

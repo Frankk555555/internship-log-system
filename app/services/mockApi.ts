@@ -1,5 +1,5 @@
 import type { ReviewItem, ReviewResult, ReviewTarget } from '~/types/review'
-import type { Attachment, HistoryEvent, InternshipInfo, SaveWorklogInput, UserProfile, WeeklyReportData, WorkLog } from '~/types/worklog'
+import type { Attachment, HistoryEvent, InternshipInfo, MentorAway, SaveWorklogInput, UserProfile, WeeklyReportData, WorkLog } from '~/types/worklog'
 import { addDays, formatThaiDate, toThaiTimeParts } from '~/utils/date'
 import { fileError } from '~/utils/attachments'
 import { toMinutes } from '~/utils/time'
@@ -283,6 +283,28 @@ function describeChange(before: WorkLog, after: WorkLog) {
   }
 }
 
+/**
+ * ช่วงที่พี่เลี้ยงของนักศึกษาไม่อยู่ในวันนั้น ส่งช่วงเดียว: ช่วงที่ยังไม่สิ้นสุดก่อน
+ * แล้ว "ไม่อยู่" ก่อน "ไม่สะดวกตรวจ" ไม่ส่งเหตุผล
+ */
+function mentorAway(intern: Intern, date: string): MentorAway | undefined {
+  const dayStart = Date.parse(`${date}T00:00:00+07:00`)
+  const dayEnd = Date.parse(`${date}T23:59:00+07:00`)
+  const now = Date.parse(serverNow())
+  const isOver = (item: db.MockAbsence) => Number(Date.parse(item.endAt) <= now)
+  const found = db.absences
+    .filter(item => item.mentor === intern.mentor && Date.parse(item.startAt) <= dayEnd && Date.parse(item.endAt) > dayStart)
+    .sort((a, b) => isOver(a) - isOver(b) || a.type.localeCompare(b.type) || Date.parse(a.startAt) - Date.parse(b.startAt))[0]
+  if (!found) return undefined
+
+  const start = toThaiTimeParts(found.startAt)
+  const end = toThaiTimeParts(found.endAt)
+  const startTime = start.date < date ? '00:00' : start.time
+  const endTime = end.date > date ? '23:59' : end.time
+  const hours = workHoursOn(date, todayHours(intern), intern.internship.hours)
+  return { type: found.type, startTime, endTime, allDay: startTime <= hours.workStartTime && endTime >= hours.workEndTime }
+}
+
 function runningSummary(intern: Intern) {
   const running = findRunning(intern)
   return running && { id: running.id, title: running.title, startTime: running.startTime! }
@@ -316,7 +338,7 @@ function studentApi(intern: Intern): StudentApi {
       date,
       semester: internship.semester,
       worklogs: withPermissions(worklogs.filter(log => log.date === date)),
-      mentorUnavailable: db.unavailabilities.find(range => range.mentor === intern.mentor && range.date === date),
+      mentorUnavailable: mentorAway(intern, date),
     }),
 
     listWorklogs: (from, to) => respond(withPermissions(worklogs.filter(log => log.date >= from && log.date <= to))),
@@ -538,10 +560,12 @@ function mentorApi(mentor: UserProfile): MentorApi {
       if (!input.reason.trim()) throw new ApiError('กรุณาระบุเหตุผล', 422)
       if (input.date < db.TODAY) throw new ApiError('ไม่สามารถแจ้งวันที่ผ่านมาแล้ว', 422)
       if (toMinutes(input.endTime) <= toMinutes(input.startTime)) throw new ApiError('เวลาสิ้นสุดต้องมากกว่าเวลาเริ่ม', 422)
-      const overlaps = db.unavailabilities.some(range => range.mentor === mentor && range.date === input.date
-        && toMinutes(input.startTime) < toMinutes(range.endTime) && toMinutes(range.startTime) < toMinutes(input.endTime))
+      const startAt = `${input.date}T${input.startTime}:00+07:00`
+      const endAt = `${input.date}T${input.endTime}:00+07:00`
+      const overlaps = db.absences.some(item => item.mentor === mentor && item.type === 'unavailable'
+        && Date.parse(startAt) < Date.parse(item.endAt) && Date.parse(item.startAt) < Date.parse(endAt))
       if (overlaps) throw new ApiError('ช่วงเวลานี้ซ้อนกับที่แจ้งไว้แล้ว', 409)
-      db.unavailabilities.push({ ...input, mentor, reason: input.reason.trim() })
+      db.absences.push({ id: nextId++, type: 'unavailable', mentor, startAt, endAt, reason: input.reason.trim(), createdBy: mentor })
       await respond(null)
     },
 

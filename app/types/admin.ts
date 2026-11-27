@@ -105,6 +105,41 @@ export interface InternshipInput {
   mentorId: number
 }
 
+/** absent = ไม่อยู่ในระบบ (แอดมินบันทึก อนุมัติแทนได้) unavailable = ไม่สะดวกตรวจ (พี่เลี้ยงแจ้ง) */
+export type AbsenceType = 'absent' | 'unavailable'
+
+export type AbsenceStatus = 'now' | 'upcoming' | 'ended'
+
+export interface MentorAbsence {
+  id: number
+  type: AbsenceType
+  mentorName: string
+  startAt: string
+  endAt: string
+  reason: string
+  /** คำนวณจากเวลาเซิร์ฟเวอร์ */
+  status: AbsenceStatus
+  /** งานที่แอดมินอนุมัติแทนในช่วงนี้ */
+  proxyApprovalCount: number
+}
+
+export interface AbsenceList {
+  /** ช่วงที่ยังไม่สิ้นสุดก่อน เรียงตามเวลาเริ่ม แล้วช่วงที่สิ้นสุดแล้ว ใหม่สุดก่อน */
+  items: MentorAbsence[]
+  counts: Record<AbsenceType | 'all', number>
+  /** พี่เลี้ยงที่บันทึกช่วงไม่อยู่ได้ */
+  mentors: { id: number, name: string }[]
+  /** วันที่ของเซิร์ฟเวอร์ */
+  today: string
+}
+
+export interface AbsenceInput {
+  mentorId: number
+  startAt: string
+  endAt: string
+  reason: string
+}
+
 export interface SystemSettings {
   /** บันทึกและแก้ไขย้อนหลังได้กี่วัน (5.6) */
   backdateLimitDays: number
@@ -136,4 +171,9 @@ export interface AdminApi {
   getInternshipDetail(studentId: string): Promise<InternshipDetail>
   /** เวลางานใหม่มีผลกับรายการตั้งแต่วันที่บันทึก */
   saveInternship(studentId: string, input: InternshipInput): Promise<InternshipDetail>
+  getMentorAbsences(type: AbsenceType | 'all'): Promise<AbsenceList>
+  /** ประเภท absent เสมอ ช่วงซ้อนของพี่เลี้ยงคนเดียวกัน: ApiError 409 */
+  createMentorAbsence(input: AbsenceInput): Promise<MentorAbsence>
+  /** ปรับได้เฉพาะเวลาสิ้นสุดของช่วง absent ที่ยังไม่สิ้นสุด ไม่มีการลบ */
+  updateAbsenceEnd(id: number, endAt: string): Promise<MentorAbsence>
 }

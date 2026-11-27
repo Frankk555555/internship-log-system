@@ -46,6 +46,21 @@ export function internshipErrors({ company, position, startDate, endDate, workSt
   }
 }
 
+/** วันที่เป็น YYYY-MM-DD เวลาเป็น HH:MM ช่องที่ยังไม่มีค่าส่งสตริงว่าง */
+export function absenceErrors({ mentorId, startDate, startTime, endDate, endTime, reason }: { mentorId?: number, startDate: string, startTime: string, endDate: string, endTime: string, reason: string }) {
+  const complete = startDate && startTime && endDate && endTime
+  return {
+    mentorId: mentorId ? undefined : 'กรุณาเลือกพี่เลี้ยง',
+    startDate: startDate ? undefined : 'กรุณากรอกวันที่เริ่ม',
+    startTime: startTime ? undefined : 'กรุณากรอกเวลาเริ่ม',
+    endDate: endDate ? undefined : 'กรุณากรอกวันที่สิ้นสุด',
+    endTime: !endTime
+      ? 'กรุณากรอกเวลาสิ้นสุด'
+      : complete && `${endDate}T${endTime}` <= `${startDate}T${startTime}` ? 'เวลาสิ้นสุดต้องหลังเวลาเริ่ม' : undefined,
+    reason: reason.trim() ? undefined : 'กรุณาระบุเหตุผล',
+  }
+}
+
 export function settingDayError(value: string) {
   const text = value.trim()
   if (!text) return 'กรุณากรอกจำนวนวัน'
