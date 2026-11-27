@@ -31,6 +31,8 @@
 |---|---|---|---|
 | `users` | failed_login_count, locked_until | ล็อก 15 นาทีเมื่อผิด 5 ครั้ง | 1.2 |
 | `users` | updated_at | ติดตามการแก้ไขบัญชี | 4.1 |
+| `users` | must_change_password | บังคับตั้งรหัสผ่านใหม่เมื่อเข้าครั้งแรก | 1.1 |
+| `internships` หรือตารางเวลางานแยก | work_start_time, work_end_time, effective_from | ตรวจรายการเดิมตามเวลางาน ณ วันที่ทำงาน | 5.4 |
 | `work_lists` | completed_at | เวลาที่งานเสร็จจริง | 7.3 |
 | `work_lists` | time_source (ENUM timer, manual, timer_manual_end), time_edit_allowed, time_edited (BOOLEAN) | ล็อกเวลาและแสดงป้ายให้พี่เลี้ยง | 8.4 |
 | `work_list_reviews` | allow_time_edit (BOOLEAN) | บันทึกว่าพี่เลี้ยงเปิดให้แก้เวลาครั้งใด | 10.5 |
