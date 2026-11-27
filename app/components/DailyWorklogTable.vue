@@ -38,7 +38,7 @@ function timeRange(log: WorkLog) {
         <tbody class="[&>tr]:border-b [&>tr]:border-slate-100">
           <tr v-for="log in logs" :key="log.id">
             <td class="px-5 py-3.5 text-[13px] font-semibold text-slate-800">{{ log.title }}</td>
-            <td class="px-3 py-3.5 text-xs font-medium text-slate-500">{{ timeRange(log) }}</td>
+            <td class="px-3 py-3.5 font-medium text-slate-500" :class="log.startTime ? 'text-xs' : 'text-[11px]'">{{ timeRange(log) }}</td>
             <td class="px-3 py-3.5">
               <StatusBadge v-bind="workStatusMeta[log.workStatus]" />
             </td>

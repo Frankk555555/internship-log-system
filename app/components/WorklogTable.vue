@@ -103,8 +103,8 @@ function endLabel(log: WorkLog) {
                 ความเห็นพี่เลี้ยง: “{{ log.reviewComment }}”
               </p>
             </td>
-            <td class="px-2 py-4 text-xs font-medium" :class="log.startTime ? 'text-slate-600' : 'text-slate-500'">{{ startLabel(log) }}</td>
-            <td class="px-2 py-4 text-xs font-medium" :class="log.endTime || log.workStatus === 'in_progress' ? 'text-slate-600' : 'text-slate-500'">{{ endLabel(log) }}</td>
+            <td class="px-2 py-4 font-medium" :class="log.startTime ? 'text-xs text-slate-600' : 'text-[11px] text-slate-500'">{{ startLabel(log) }}</td>
+            <td class="px-2 py-4 font-medium" :class="log.endTime || log.workStatus === 'in_progress' ? 'text-xs text-slate-600' : 'text-[11px] text-slate-500'">{{ endLabel(log) }}</td>
             <td class="px-2 py-4">
               <div class="flex flex-wrap gap-1.5">
                 <StatusBadge :label="workStatusMeta[log.workStatus].label" :tone="workStatusMeta[log.workStatus].tone" />
