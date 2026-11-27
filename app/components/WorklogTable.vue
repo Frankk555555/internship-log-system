@@ -179,6 +179,16 @@ function endLabel(log: WorkLog) {
                 <NuxtLink v-else :to="`/worklogs/${log.id}/history`" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-500 shadow-sm hover:bg-slate-50">
                   ดูรายละเอียด (เลือก)
                 </NuxtLink>
+
+                <!-- ปุ่มด้านบนกดไม่ได้เมื่อเลยกำหนดแก้ไข ต้องมีทางไปดูและลบรายการ -->
+                <NuxtLink
+                  v-if="log.canEdit === false && (log.reviewStatus === 'returned' || (log.reviewStatus === 'draft' && log.workStatus !== 'done'))"
+                  :to="`/worklogs/${log.id}/history`"
+                  :aria-label="`ดูประวัติ ${log.title}`"
+                  class="text-[11px] font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
+                >
+                  ดูประวัติ
+                </NuxtLink>
               </div>
             </td>
           </tr>

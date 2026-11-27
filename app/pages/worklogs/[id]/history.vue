@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { errorMessage } from '~/services/api'
+
 // นักศึกษาและพี่เลี้ยงใช้หน้านี้ เลือกเมนูข้างตามบทบาท
 definePageMeta({
   role: ['student', 'supervisor'],
@@ -32,6 +34,40 @@ const selected = computed(() => events.value.find(event => event.id === pickedId
 const reviewStatus = computed(() => data.value?.worklog.reviewStatus)
 const isApproved = computed(() => reviewStatus.value === 'approved')
 const deletion = computed(() => data.value?.worklog.deletion)
+
+// รายการที่เลยกำหนดแก้ไขเปิดหน้าแก้ไขจากเมนูไม่ได้ จึงต้องลบจากหน้านี้ได้ (ขอบเขตงานข้อ 8.4)
+const canDelete = computed(() => !isMentor.value && !deletion.value && ['draft', 'returned'].includes(reviewStatus.value ?? ''))
+const notify = useNotify()
+const isDeleteOpen = ref(false)
+const isDeleting = ref(false)
+const deleteError = ref<string>()
+
+function askDelete() {
+  deleteError.value = undefined
+  isDeleteOpen.value = true
+}
+
+async function deleteLog(reason: string) {
+  const target = data.value?.worklog
+  if (!target || isDeleting.value) return
+
+  isDeleting.value = true
+  deleteError.value = undefined
+  try {
+    await api.deleteWorklog(target.id, reason)
+    isDeleteOpen.value = false
+    notify('success', 'ลบรายการแล้ว', target.title)
+    // อยู่หน้าเดิม ให้เห็นผู้ลบ เวลา และเหตุผลที่บันทึกไว้
+    pickedId.value = undefined
+    await refresh()
+  }
+  catch (failure) {
+    deleteError.value = errorMessage(failure)
+  }
+  finally {
+    isDeleting.value = false
+  }
+}
 </script>
 
 <template>
@@ -122,8 +158,22 @@ const deletion = computed(() => data.value?.worklog.deletion)
           </template>
 
           <p v-if="isApproved" class="mt-5 border-t border-slate-100 pt-5 text-xs text-slate-500">รายการที่อนุมัติแล้วเปิดดูได้อย่างเดียว</p>
+
+          <div v-if="canDelete" class="mt-5 flex justify-end border-t border-slate-100 pt-5">
+            <button type="button" class="rounded-lg border border-red-200 bg-white px-3 py-2 text-[11px] font-semibold text-red-600 hover:bg-red-50" @click="askDelete">
+              ลบรายการ
+            </button>
+          </div>
         </section>
       </div>
     </AsyncState>
+
+    <DeleteWorklogModal
+      v-model:open="isDeleteOpen"
+      :log="data?.worklog"
+      :pending="isDeleting"
+      :server-error="deleteError"
+      @confirm="deleteLog"
+    />
   </div>
 </template>
