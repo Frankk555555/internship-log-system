@@ -33,6 +33,8 @@ export function createHttpApi(baseURL: string, headers?: Record<string, string>,
       await request('/auth/change-password', { method: 'POST', body })
     },
     updateProfile: body => request('/me', { method: 'PATCH', body }),
+    getSystemSettings: () => request('/admin/settings'),
+    saveSystemSettings: body => request('/admin/settings', { method: 'PUT', body }),
     getNotifications: () => request('/notifications'),
     markNotificationsRead: async (ids) => {
       await request('/notifications/read', { method: 'POST', body: { ids } })

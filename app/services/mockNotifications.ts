@@ -24,7 +24,7 @@ const titles: Record<NotificationType, string> = {
 
 function message(type: NotificationType, owner: Owner, worklog: WorkLog) {
   if (type === 'new_submission') return `${owner.name} ส่ง “${worklog.title}”`
-  if (type === 'overdue_review') return `“${worklog.title}” ของ${owner.name} รอตรวจเกิน ${db.REVIEW_OVERDUE_DAYS} วัน`
+  if (type === 'overdue_review') return `“${worklog.title}” ของ${owner.name} รอตรวจเกิน ${db.settings.reviewOverdueDays} วัน`
   const comment = worklog.reviewComment ? `\nความเห็น: ${worklog.reviewComment}` : ''
   return `“${worklog.title}”${comment}`
 }
@@ -47,7 +47,7 @@ export function addNotification(type: NotificationType, owner: Owner, worklog: W
 export function addOverdueNotifications(waiting: ReviewItem[]) {
   for (const item of waiting) {
     if (!item.isOverdue || stored.some(entry => entry.type === 'overdue_review' && entry.worklogId === item.worklog.id)) continue
-    const day = addDays(toThaiTimeParts(item.submittedAt).date, db.REVIEW_OVERDUE_DAYS + 1)
+    const day = addDays(toThaiTimeParts(item.submittedAt).date, db.settings.reviewOverdueDays + 1)
     addNotification('overdue_review', { studentId: item.studentId, name: item.studentName }, item.worklog, `${day}T08:00:00+07:00`)
   }
 }

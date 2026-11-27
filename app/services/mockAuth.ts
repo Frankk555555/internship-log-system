@@ -3,12 +3,9 @@ import type { UserRole } from '~/types/worklog'
 import { nameError, newPasswordError } from '~/utils/auth'
 import { ApiError } from './api'
 import { mockAccounts } from './mockAccounts'
-import { renameUser } from './mockData'
+import { renameUser, settings } from './mockData'
 import type { MockSession } from './mockSession'
 
-// ล็อกบัญชีเมื่อกรอกผิด 5 ครั้ง เป็นเวลา 15 นาที (ขอบเขตงานข้อ 1.2)
-const maxFailedLogins = 5
-const lockMinutes = 15
 const resetLinkMinutes = 30
 const resendSeconds = 60
 
@@ -57,7 +54,8 @@ export function createMockAuth(session: MockSession): AuthApi {
       if (!account || account.password !== password) {
         // นับทุกอีเมล เพื่อไม่ให้รู้ว่ามีบัญชีนี้หรือไม่
         const count = (record?.count ?? 0) + 1
-        const lockedUntil = count >= maxFailedLogins ? Date.now() + lockMinutes * 60_000 : undefined
+        // ล็อกบัญชีเมื่อกรอกผิดครบจำนวนครั้ง (ขอบเขตงานข้อ 1.2)
+        const lockedUntil = count >= settings.maxFailedLogins ? Date.now() + settings.lockMinutes * 60_000 : undefined
         failures.set(key, { count, lockedUntil })
         if (lockedUntil) throw locked(lockedUntil)
         throw new ApiError('อีเมลหรือรหัสผ่านไม่ถูกต้อง', 401, { code: 'invalid_credentials' })

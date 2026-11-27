@@ -9,7 +9,7 @@
 | `app/services/httpApi.ts` | เรียก REST จริง (แก้ไฟล์นี้เมื่อ backend กำหนดต่างจากนี้) |
 | `app/services/mockApi.ts`, `mockData.ts` | ข้อมูลจำลองในหน่วยความจำ |
 | `app/composables/useApi.ts` | จุดเลือกว่าจะใช้ตัวไหน |
-| `app/types/worklog.ts` | ชนิดข้อมูลที่รับและส่ง |
+| `app/types/worklog.ts`, `admin.ts` | ชนิดข้อมูลที่รับและส่ง (`admin.ts` = พื้นที่แอดมิน) |
 
 Backend ใช้ **Elysia** กติกาที่ยืนยันแล้วอยู่ใน [business-rules.md](business-rules.md)
 Elysia ให้บริการ REST ตามตารางด้านล่างได้โดยตรง ถ้า backend export ชนิดของแอป (`export type App`)
@@ -168,6 +168,23 @@ backend ต้องทำเอง
 - ตอนแอดมินอนุมัติ ตรวจจากเวลาเซิร์ฟเวอร์ว่ามีช่วง `absent` ของพี่เลี้ยงที่ครอบคลุมเวลานั้น ถ้าไม่มีตอบ 403
 - แอดมินส่งกลับแก้ไขแทนพี่เลี้ยงไม่ได้
 - `DailyWorklogs.mentorUnavailable` ยังไม่มีประเภทและวันที่ จะกำหนดพร้อมหน้าตารางเวลาไม่สะดวก
+
+## แอดมิน
+
+ทุก endpoint ใต้ `/admin` เรียกได้เฉพาะแอดมิน บทบาทอื่นตอบ 403
+
+### ตั้งค่าระบบ
+
+| Method | Path | Body | คืนค่า |
+|---|---|---|---|
+| GET | `/admin/settings` | | `SystemSettings` |
+| PUT | `/admin/settings` | `{ backdateLimitDays, reviewOverdueDays }` | `SystemSettings` ล่าสุด |
+
+- สองค่าที่แก้ได้เป็นจำนวนเต็ม 1–30 ผิดตอบ 422
+- `maxFailedLogins` และ `lockMinutes` อ่านได้อย่างเดียว
+- เซิร์ฟเวอร์กำหนด `updatedAt`, `updatedBy`
+- ค่าใหม่มีผลทันทีกับ `backdateLimitDays` ใน `WorklogFormContext`, `canEdit`, การตรวจตอนบันทึก,
+  `overdueDays`, `isOverdue` และการแจ้งเตือนค้างตรวจ การแจ้งเตือนที่ส่งไปแล้วไม่ถอนคืน
 
 ## ยังไม่มีในสัญญานี้
 

@@ -1,3 +1,4 @@
+import type { AdminApi } from '~/types/admin'
 import type { AuthApi } from '~/types/auth'
 import type { AppNotification } from '~/types/notification'
 import type { ReviewFilter, ReviewQueue, ReviewResult, ReviewTarget, SupervisedStudents, UnavailabilityInput } from '~/types/review'
@@ -18,7 +19,7 @@ import type {
  * สัญญาระหว่างหน้าจอกับ backend ทุกหน้าเรียกข้อมูลผ่าน interface นี้เท่านั้น
  * ปัจจุบันมี 2 ตัว: mockApi (ข้อมูลจำลอง) และ createHttpApi (เรียก REST จริง)
  */
-export interface Api extends AuthApi {
+export interface Api extends AuthApi, AdminApi {
   // ทุกบทบาท
   /** การแจ้งเตือนของผู้ใช้ที่เข้าสู่ระบบ ใหม่สุดก่อน */
   getNotifications(): Promise<AppNotification[]>

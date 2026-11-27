@@ -1,3 +1,4 @@
+import type { SystemSettings } from '~/types/admin'
 import type { DeletedWorklog, UnavailabilityInput } from '~/types/review'
 import type { Attachment, HistoryEvent, InternshipInfo, ReviewStatus, UserProfile, WorkLog } from '~/types/worklog'
 import { initialsOf } from '~/utils/auth'
@@ -22,8 +23,6 @@ const daysAgo = (days: number) => addDays(TODAY, -days)
 const weekShift = Math.floor((Date.parse(TODAY) - Date.parse('2026-11-24')) / (7 * 86_400_000)) * 7
 const earlier = (date: string) => addDays(date, weekShift)
 
-export const BACKDATE_LIMIT_DAYS = 3
-export const REVIEW_OVERDUE_DAYS = 3
 const MB = 1024 * 1024
 
 export const student: UserProfile = {
@@ -70,6 +69,16 @@ export const internship: InternshipInfo = {
 }
 
 const thaiTime = (date: string, time: string) => `${date}T${time}:00+07:00`
+
+/** ค่าที่แอดมินปรับได้ อ่านจากที่นี่ทุกครั้งเพื่อให้ได้ค่าล่าสุด */
+export const settings: SystemSettings = {
+  backdateLimitDays: 3,
+  reviewOverdueDays: 3,
+  maxFailedLogins: 5,
+  lockMinutes: 15,
+  updatedAt: thaiTime(daysAgo(7), '09:10'),
+  updatedBy: admin.name,
+}
 
 function entry(id: number, date: string, title: string, startTime: string, endTime: string, reviewStatus: ReviewStatus, extra: Partial<WorkLog> = {}): WorkLog {
   return {
@@ -209,6 +218,7 @@ export function renameUser(profile: UserProfile, firstName: string, lastName: st
 
   Object.assign(profile, { firstName, lastName, name, initials: initialsOf(firstName, lastName) })
   internship.mentorName = renamed(internship.mentorName)!
+  settings.updatedBy = renamed(settings.updatedBy)
   for (const log of [studentWorklogs, ...otherStudents.map(other => other.worklogs)].flat()) {
     log.reviewedBy = renamed(log.reviewedBy)
   }

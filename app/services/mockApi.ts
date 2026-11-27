@@ -1,3 +1,4 @@
+import type { AdminApi } from '~/types/admin'
 import type { AuthApi } from '~/types/auth'
 import type { ReviewItem, ReviewResult, ReviewTarget } from '~/types/review'
 import type { Attachment, HistoryEvent, SaveWorklogInput, UserRole, WeeklyReportData, WorkLog } from '~/types/worklog'
@@ -6,6 +7,7 @@ import { fileError } from '~/utils/attachments'
 import { toMinutes } from '~/utils/time'
 import { earliestEntryDate, editDeadline, findOverlaps, futureTimeError, isAfterWork, overlapMessage, startTimeError, timePolicy, timerFinishError, timerStartError, timeRangeError } from '~/utils/worklogRules'
 import { ApiError, type Api } from './api'
+import { createMockAdmin } from './mockAdmin'
 import { createMockAuth, currentAccount, requireRole } from './mockAuth'
 import type { MockSession } from './mockSession'
 import { addNotification, addOverdueNotifications, markRead, notificationsFor } from './mockNotifications'
@@ -43,7 +45,7 @@ function isAfterWorkNow() {
 
 /** ฉบับร่างและรายการที่ถูกส่งกลับ เลยกำหนดแก้ไขแล้วหรือยัง (นับทุกวัน) */
 function isOutsideEditWindow(worklog: WorkLog) {
-  return db.TODAY > editDeadline(worklog, db.BACKDATE_LIMIT_DAYS)
+  return db.TODAY > editDeadline(worklog, db.settings.backdateLimitDays)
 }
 
 function withPermissions(worklogs: WorkLog[]) {
@@ -113,7 +115,7 @@ function validate(input: SaveWorklogInput) {
   assertSingleTimer(input)
   if (input.date < db.internship.startDate || input.date > db.internship.endDate) throw new ApiError('วันที่อยู่นอกช่วงฝึกงาน', 422)
   const existing = db.studentWorklogs.find(log => log.id === input.id)
-  const earliest = earliestEntryDate(existing, db.TODAY, db.BACKDATE_LIMIT_DAYS)
+  const earliest = earliestEntryDate(existing, db.TODAY, db.settings.backdateLimitDays)
   if (input.mode === 'backdate' && (input.date < earliest || input.date > db.TODAY)) {
     throw new ApiError('วันที่อยู่นอกช่วงย้อนหลังที่อนุญาต', 422)
   }
@@ -192,7 +194,7 @@ function toReviewItem(studentId: string, studentName: string, worklog: WorkLog):
     ? Math.max(0, Math.round((Date.parse(db.TODAY) - Date.parse(toThaiTimeParts(submittedAt).date)) / 86_400_000))
     : undefined
 
-  return { worklog, studentId, studentName, submittedAt, pendingDays, isOverdue: (pendingDays ?? 0) > db.REVIEW_OVERDUE_DAYS }
+  return { worklog, studentId, studentName, submittedAt, pendingDays, isOverdue: (pendingDays ?? 0) > db.settings.reviewOverdueDays }
 }
 
 function addHistory(worklogId: number, event: Omit<HistoryEvent, 'id' | 'changedAt'>) {
@@ -253,7 +255,7 @@ function runningSummary() {
   return running && { id: running.id, title: running.title, startTime: running.startTime! }
 }
 
-const dataApi: Omit<Api, keyof AuthApi | 'getNotifications' | 'markNotificationsRead'> = {
+const dataApi: Omit<Api, keyof AuthApi | keyof AdminApi | 'getNotifications' | 'markNotificationsRead'> = {
   getDashboard: () => {
     const count = (status: WorkLog['reviewStatus']) => db.studentWorklogs.filter(log => log.reviewStatus === status).length
 
@@ -283,7 +285,7 @@ const dataApi: Omit<Api, keyof AuthApi | 'getNotifications' | 'markNotifications
   getWorklogFormContext: mode => respond({
     today: db.TODAY,
     runningWorklog: runningSummary(),
-    backdateLimitDays: db.BACKDATE_LIMIT_DAYS,
+    backdateLimitDays: db.settings.backdateLimitDays,
     workStartTime: db.internship.workStartTime,
     workEndTime: db.internship.workEndTime,
     internshipStart: db.internship.startDate,
@@ -431,7 +433,7 @@ const dataApi: Omit<Api, keyof AuthApi | 'getNotifications' | 'markNotifications
     .map(student => weekly(student, weekStart, false))),
 
   getSupervisedStudents: () => respond({
-    overdueDays: db.REVIEW_OVERDUE_DAYS,
+    overdueDays: db.settings.reviewOverdueDays,
     students: mentoredStudents().map(({ worklogs, ...profile }) => {
       const withStatus = (status: WorkLog['reviewStatus']) => worklogs.filter(log => log.reviewStatus === status)
       const waiting = withStatus('submitted').map(log => toReviewItem(profile.studentId, profile.name, log))
@@ -464,7 +466,7 @@ const dataApi: Omit<Api, keyof AuthApi | 'getNotifications' | 'markNotifications
       items: items.slice(0, limit),
       total: items.length,
       pendingCount: students.flatMap(student => student.worklogs).filter(log => log.reviewStatus === 'submitted').length,
-      overdueDays: db.REVIEW_OVERDUE_DAYS,
+      overdueDays: db.settings.reviewOverdueDays,
       deletedReturns: deletedReturns().filter(item => !studentId || item.studentId === studentId),
     })
   },
@@ -532,6 +534,7 @@ export function createMockApi(session: MockSession): Api {
 
   return {
     ...createMockAuth(session),
+    ...createMockAdmin(session, serverNow),
     getNotifications,
     markNotificationsRead,
 
