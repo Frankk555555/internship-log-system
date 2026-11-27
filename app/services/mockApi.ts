@@ -1,4 +1,4 @@
-import type { ReviewItem, ReviewResult, ReviewTarget } from '~/types/review'
+import type { ReviewResult, ReviewTarget } from '~/types/review'
 import type { Attachment, HistoryEvent, InternshipInfo, MentorAway, SaveWorklogInput, UserProfile, WeeklyReportData, WorkLog } from '~/types/worklog'
 import { addDays, formatThaiDate, toThaiTimeParts } from '~/utils/date'
 import { fileError } from '~/utils/attachments'
@@ -10,6 +10,7 @@ import { activeAccount, createMockAuth, requireRole } from './mockAuth'
 import type { MockSession } from './mockSession'
 import { addNotification, addOverdueNotifications, markRead, notificationsFor } from './mockNotifications'
 import * as db from './mockData'
+import { activeAbsences, appendHistory, reviewWorklogs, toReviewItem } from './mockReview'
 
 // ข้อมูลอยู่ในหน่วยความจำ การเปลี่ยนแปลงหายเมื่อโหลดหน้าเว็บใหม่
 let nextId = 1000
@@ -222,45 +223,12 @@ function deletedReturns(mentor: UserProfile) {
   return db.deletedWorklogs.filter(item => item.worklog.reviewStatus === 'returned' && ids.includes(item.studentId))
 }
 
-function toReviewItem(studentId: string, studentName: string, worklog: WorkLog): ReviewItem {
-  const submittedAt = worklog.submittedAt!
-  const pendingDays = worklog.reviewStatus === 'submitted'
-    ? Math.max(0, Math.round((Date.parse(db.TODAY) - Date.parse(toThaiTimeParts(submittedAt).date)) / 86_400_000))
-    : undefined
-
-  return { worklog, studentId, studentName, submittedAt, pendingDays, isOverdue: (pendingDays ?? 0) > db.settings.reviewOverdueDays }
-}
-
 function addHistory(worklogId: number, event: Omit<HistoryEvent, 'id' | 'changedAt'>) {
-  db.histories[worklogId] = [{ ...event, id: nextId++, changedAt: serverNow() }, ...db.histories[worklogId] ?? []]
+  appendHistory(worklogId, event, serverNow())
 }
 
-/** อนุมัติหรือส่งกลับทีละรายการ รายการที่ทำไม่ได้จะแจ้งเหตุผลกลับไป */
-async function review(mentor: UserProfile, targets: ReviewTarget[], decision: 'approved' | 'returned', comment?: string, allowTimeEdit?: boolean): Promise<ReviewResult> {
-  const result: ReviewResult = { succeededIds: [], failures: [] }
-
-  for (const { id, version } of targets) {
-    const found = findReviewable(mentor, id)
-    const problem = !found
-      ? 'ไม่มีสิทธิ์ตรวจรายการนี้'
-      : found.worklog.reviewStatus !== 'submitted'
-        ? 'รายการนี้ไม่ได้อยู่ในสถานะรอตรวจแล้ว'
-        : found.worklog.version !== version ? 'รายการถูกแก้ไขหลังจากที่เปิดดู กรุณาตรวจใหม่' : undefined
-
-    if (!found || problem) {
-      result.failures.push({ id, message: problem! })
-      continue
-    }
-
-    Object.assign(found.worklog, { reviewStatus: decision, reviewComment: comment, reviewedBy: mentor.name, reviewedAt: serverNow(), timeEditAllowed: allowTimeEdit || undefined, version: version + 1 })
-    addHistory(id, decision === 'approved'
-      ? { type: 'approval', title: comment ? `อนุมัติ: ${comment}` : 'ผู้อนุมัติ', actorName: mentor.name, before: 'รอตรวจ', after: 'อนุมัติแล้ว' }
-      : { type: 'return', title: `ส่งกลับ${allowTimeEdit ? ' (เปิดให้แก้เวลา)' : ''}: ${comment}`, actorName: mentor.name, before: 'รอตรวจ', after: 'ส่งกลับแก้ไข' })
-    addNotification(decision, found.student, found.worklog, serverNow())
-    result.succeededIds.push(id)
-  }
-
-  return respond(result)
+function review(mentor: UserProfile, targets: ReviewTarget[], decision: 'approved' | 'returned', comment?: string, allowTimeEdit?: boolean): Promise<ReviewResult> {
+  return respond(reviewWorklogs({ targets, decision, comment, allowTimeEdit, reviewer: mentor, at: serverNow(), find: id => findReviewable(mentor, id), denied: 'ไม่มีสิทธิ์ตรวจรายการนี้' }))
 }
 
 /** สรุปฟิลด์ที่เปลี่ยน สำหรับแสดงข้อมูลก่อนและหลังแก้ไข */
@@ -599,10 +567,24 @@ export function createMockApi(session: MockSession): Api {
   const mentor = <Key extends keyof MentorApi>(key: Key) =>
     (async (...args: unknown[]) => (mentorApi(currentMentor())[key] as (...values: unknown[]) => unknown)(...args)) as MentorApi[Key]
 
-  /** นักศึกษาดูของตนเอง พี่เลี้ยงดูของนักศึกษาในความดูแล (ขอบเขตงานข้อ 2.3) */
-  const getWorklogHistory = (id: number) => activeAccount(session).profile.role === 'supervisor'
-    ? mentor('getWorklogHistory')(id)
-    : student('getWorklogHistory')(id)
+  /** นักศึกษาดูของตนเอง พี่เลี้ยงดูของนักศึกษาในความดูแล (ขอบเขตงานข้อ 2.3) แอดมินดูตามสิทธิ์อนุมัติแทน */
+  const getWorklogHistory = (id: number) => {
+    const { role } = activeAccount(session).profile
+    if (role === 'admin') return adminWorklogHistory(id)
+    return role === 'supervisor' ? mentor('getWorklogHistory')(id) : student('getWorklogHistory')(id)
+  }
+
+  /** แอดมินดูได้เฉพาะรายการที่อนุมัติแทนได้ตอนนี้ หรือที่เคยอนุมัติแทน */
+  async function adminWorklogHistory(id: number) {
+    requireRole(session, 'admin')
+    db.refreshToday()
+    const owner = db.students.find(item => item.worklogs.some(log => log.id === id))
+    const worklog = owner?.worklogs.find(log => log.id === id)
+    const allowed = owner && (db.proxyApprovals.some(item => item.worklogId === id)
+      || (worklog?.reviewStatus === 'submitted' && activeAbsences(serverNow()).some(item => item.mentor === owner.mentor)))
+    if (!allowed) throw new ApiError('รายการที่ขออยู่นอกขอบเขตข้อมูลที่คุณมีสิทธิ์ดู', 403)
+    return respond({ worklog: worklog!, events: db.histories[id] ?? [] })
+  }
 
   /** นักศึกษาที่ผู้ใช้เกี่ยวข้อง ใช้เลือกการแจ้งเตือน: ตนเอง หรือผู้ที่ตนดูแล */
   function relatedStudents(profile: UserProfile) {

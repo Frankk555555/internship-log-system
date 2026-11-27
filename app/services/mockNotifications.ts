@@ -20,13 +20,16 @@ const titles: Record<NotificationType, string> = {
   overdue_review: 'ค้างตรวจ',
   returned: 'ส่งกลับแก้ไข',
   approved: 'อนุมัติแล้ว',
+  proxy_approved: 'แอดมินอนุมัติแทน',
 }
 
 function message(type: NotificationType, owner: Owner, worklog: WorkLog) {
   if (type === 'new_submission') return `${owner.name} ส่ง “${worklog.title}”`
   if (type === 'overdue_review') return `“${worklog.title}” ของ${owner.name} รอตรวจเกิน ${db.settings.reviewOverdueDays} วัน`
+  if (type === 'proxy_approved') return `${worklog.reviewedBy} อนุมัติ “${worklog.title}” ของ${owner.name} แทน${worklog.proxyFor}`
+  const proxy = worklog.proxyFor ? `\n${worklog.reviewedBy} อนุมัติแทน${worklog.proxyFor}` : ''
   const comment = worklog.reviewComment ? `\nความเห็น: ${worklog.reviewComment}` : ''
-  return `“${worklog.title}”${comment}`
+  return `“${worklog.title}”${proxy}${comment}`
 }
 
 export function addNotification(type: NotificationType, owner: Owner, worklog: WorkLog, createdAt: string, isRead = false) {

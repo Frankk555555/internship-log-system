@@ -2,9 +2,9 @@
 import { errorMessage } from '~/services/api'
 import type { HistoryEvent } from '~/types/worklog'
 
-// นักศึกษาและพี่เลี้ยงใช้หน้านี้ เลือกเมนูข้างตามบทบาท
+// ทุกบทบาทใช้หน้านี้ เลือกเมนูข้างตามบทบาท
 definePageMeta({
-  role: ['student', 'supervisor'],
+  role: ['student', 'supervisor', 'admin'],
   middleware: [() => {
     setPageLayout(layoutFor(useSessionUser().value?.role))
   }],
@@ -16,7 +16,15 @@ const route = useRoute()
 const api = useApi()
 const worklogId = Number(route.params.id)
 const user = useSessionUser()
-const isMentor = computed(() => user.value?.role === 'supervisor')
+const isStudent = computed(() => user.value?.role === 'student')
+
+// ทางกลับไปยังรายการต้นทางของแต่ละบทบาท
+const origins = {
+  student: { area: 'พื้นที่นักศึกษา', label: 'บันทึกงานประจำวัน', to: '/worklogs' },
+  supervisor: { area: 'พื้นที่พี่เลี้ยง', label: 'ตรวจงานนักศึกษา', to: '/mentor/reviews' },
+  admin: { area: 'พื้นที่แอดมิน', label: 'อนุมัติแทน', to: '/admin/proxy-reviews' },
+}
+const origin = computed(() => origins[user.value?.role ?? 'student'])
 
 const { data, status, error, refresh } = await useLazyAsyncData(`worklog-history-${worklogId}`, () => api.getWorklogHistory(worklogId))
 
@@ -87,7 +95,7 @@ function dateTimeLabel(value: string) {
 }
 
 // รายการที่เลยกำหนดแก้ไขเปิดหน้าแก้ไขจากเมนูไม่ได้ จึงต้องลบจากหน้านี้ได้ (ขอบเขตงานข้อ 8.4)
-const canDelete = computed(() => !isMentor.value && !deletion.value && ['draft', 'returned'].includes(reviewStatus.value ?? ''))
+const canDelete = computed(() => isStudent.value && !deletion.value && ['draft', 'returned'].includes(reviewStatus.value ?? ''))
 const notify = useNotify()
 const isDeleteOpen = ref(false)
 const isDeleting = ref(false)
@@ -128,14 +136,10 @@ async function deleteLog(reason: string) {
       class="mb-5"
       title="ประวัติงานและการแก้ไข"
       description="ตรวจสอบผู้แก้ไข เวลา และข้อมูลก่อน–หลัง"
-      :crumbs="[
-        { label: isMentor ? 'พื้นที่พี่เลี้ยง' : 'พื้นที่นักศึกษา' },
-        isMentor ? { label: 'ตรวจงานนักศึกษา', to: '/mentor/reviews' } : { label: 'บันทึกงานประจำวัน', to: '/worklogs' },
-        { label: 'ดูประวัติ' },
-      ]"
+      :crumbs="[{ label: origin.area }, { label: origin.label, to: origin.to }, { label: 'ดูประวัติ' }]"
     >
       <template #back>
-        <BackButton :fallback="isMentor ? '/mentor/reviews' : '/worklogs'" />
+        <BackButton :fallback="origin.to" />
       </template>
     </PageHeader>
 

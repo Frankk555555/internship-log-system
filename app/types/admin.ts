@@ -1,4 +1,5 @@
 // ข้อมูลของพื้นที่แอดมิน รูปแบบเดียวกับ worklog.ts (วันเวลา = ISO 8601)
+import type { ReviewItem, ReviewResult, ReviewTarget } from './review'
 import type { UserRole } from './worklog'
 
 export type AccountStatus = 'active' | 'locked' | 'suspended'
@@ -140,6 +141,25 @@ export interface AbsenceInput {
   reason: string
 }
 
+export interface ProxyQueue {
+  /** พี่เลี้ยงที่อยู่ในช่วงไม่อยู่ตอนนี้ */
+  mentors: { id: number, name: string }[]
+  /** พี่เลี้ยงที่กำลังดู ไม่มีค่าเมื่อไม่มีใครไม่อยู่ */
+  selected?: {
+    mentorId: number
+    mentorName: string
+    startAt: string
+    /** อนุมัติแทนได้ก่อนเวลานี้ */
+    endAt: string
+    reason: string
+  }
+  /** งานรอตรวจของนักศึกษาในความดูแล ส่งก่อนอยู่บน */
+  items: ReviewItem[]
+  total: number
+  overdueCount: number
+  overdueDays: number
+}
+
 export interface SystemSettings {
   /** บันทึกและแก้ไขย้อนหลังได้กี่วัน (5.6) */
   backdateLimitDays: number
@@ -176,4 +196,8 @@ export interface AdminApi {
   createMentorAbsence(input: AbsenceInput): Promise<MentorAbsence>
   /** ปรับได้เฉพาะเวลาสิ้นสุดของช่วง absent ที่ยังไม่สิ้นสุด ไม่มีการลบ */
   updateAbsenceEnd(id: number, endAt: string): Promise<MentorAbsence>
+  /** mentorId ที่ไม่ได้อยู่ในช่วงไม่อยู่ เซิร์ฟเวอร์เลือกคนแรกให้แทน */
+  getProxyQueue(limit: number, mentorId?: number): Promise<ProxyQueue>
+  /** นอกช่วงไม่อยู่ของพี่เลี้ยง: ApiError 403 ส่งกลับแก้ไขแทนไม่ได้ */
+  approveByProxy(mentorId: number, targets: ReviewTarget[], comment?: string): Promise<ReviewResult>
 }

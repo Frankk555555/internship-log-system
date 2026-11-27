@@ -90,6 +90,8 @@ export interface WorkLog {
   timeEdited?: boolean
   /** ชื่อผู้ตรวจและเวลาที่ตรวจครั้งล่าสุด */
   reviewedBy?: string
+  /** ชื่อพี่เลี้ยง มีค่าเมื่อแอดมิน (reviewedBy) อนุมัติแทน */
+  proxyFor?: string
   reviewedAt?: string
   /** false = แก้ไขไม่ได้แล้ว เช่น เลยกำหนดแก้ไขหลังถูกส่งกลับ */
   canEdit?: boolean

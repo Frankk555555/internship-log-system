@@ -6,6 +6,8 @@ const props = defineProps<{
   /** กำลังส่งผลการตรวจ */
   pending?: 'approve' | 'return'
   serverError?: string
+  /** แอดมินอนุมัติแทน: อนุมัติได้อย่างเดียว ส่งกลับแก้ไขเป็นของพี่เลี้ยง */
+  proxy?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -114,7 +116,7 @@ function sendBack() {
         </NuxtLink>
 
         <template v-if="canReview">
-          <label for="review-comment" class="mt-3 block text-2xs text-slate-600">ความคิดเห็น (จำเป็นเมื่อส่งกลับแก้ไข)</label>
+          <label for="review-comment" class="mt-3 block text-2xs text-slate-600">{{ proxy ? 'ความคิดเห็น (ไม่บังคับ)' : 'ความคิดเห็น (จำเป็นเมื่อส่งกลับแก้ไข)' }}</label>
           <textarea
             id="review-comment"
             ref="commentBox"
@@ -127,7 +129,8 @@ function sendBack() {
             class="field mt-1.5 block w-full resize-y px-3 py-2 text-xs placeholder:text-ink-muted"
           />
           <p v-if="commentError" id="review-comment-error" class="mt-1 field-error">{{ commentError }}</p>
-          <label class="mt-2 flex items-start gap-2 text-2xs text-slate-600">
+          <p v-if="proxy" class="mt-2 text-2xs text-slate-600">ส่งกลับแก้ไขได้เฉพาะพี่เลี้ยง ถ้างานต้องแก้ให้รอพี่เลี้ยงกลับมาตรวจ</p>
+          <label v-else class="mt-2 flex items-start gap-2 text-2xs text-slate-600">
             <input id="review-allow-time" v-model="allowTimeEdit" type="checkbox" class="mt-px size-3.5 accent-brand" :disabled="Boolean(pending)">
             เปิดให้นักศึกษาแก้วันที่และเวลา (ใช้เมื่อส่งกลับเพราะเวลาไม่ถูกต้อง)
           </label>
@@ -136,6 +139,7 @@ function sendBack() {
         <div v-else class="mt-3 flex flex-wrap items-center gap-2 text-2xs text-ink-muted">
           <span>สถานะ:</span>
           <StatusBadge v-bind="reviewStatusMeta[worklog.reviewStatus]" />
+          <span v-if="worklog.proxyFor">{{ worklog.reviewedBy }} อนุมัติแทน{{ worklog.proxyFor }}</span>
           <span v-if="worklog.reviewComment">ความคิดเห็น: {{ worklog.reviewComment }}</span>
         </div>
 
@@ -148,11 +152,11 @@ function sendBack() {
         {{ canReview ? 'ยกเลิก' : 'ปิด' }}
       </button>
       <template v-if="canReview">
-        <button type="button" :disabled="Boolean(pending)" class="btn btn-sendback px-3.5 py-2 text-2xs" @click="sendBack">
+        <button v-if="!proxy" type="button" :disabled="Boolean(pending)" class="btn btn-sendback px-3.5 py-2 text-2xs" @click="sendBack">
           {{ pending === 'return' ? 'กำลังส่งกลับ...' : 'ส่งกลับแก้ไข' }}
         </button>
         <button type="button" :disabled="Boolean(pending)" class="btn btn-primary px-3.5 py-2 text-2xs" @click="approve">
-          {{ pending === 'approve' ? 'กำลังอนุมัติ...' : 'อนุมัติ' }}
+          {{ pending === 'approve' ? 'กำลังอนุมัติ...' : proxy ? 'อนุมัติแทน' : 'อนุมัติ' }}
         </button>
       </template>
     </template>

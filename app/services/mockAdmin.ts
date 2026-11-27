@@ -1,11 +1,13 @@
 // ข้อมูลจำลองของแอดมิน โหลดพร้อม mockApi เมื่อใช้ข้อมูลจำลองเท่านั้น
 import type { AdminApi, AdminUser, InternshipDetail, InternshipRow, MentorAbsence, UserInput } from '~/types/admin'
 import { internshipErrors, settingDayError, userInputErrors } from '~/utils/adminRules'
+import { formatThaiDate, toThaiTimeParts } from '~/utils/date'
 import { workHoursOn } from '~/utils/worklogRules'
 import { ApiError } from './api'
 import { mockAccounts, type MockAccount } from './mockAccounts'
 import { clearFailures, currentAccount, lockedUntilFor, requireRole, sendResetLink } from './mockAuth'
 import * as db from './mockData'
+import { activeAbsences, reviewWorklogs, toReviewItem } from './mockReview'
 import { reassignStudent } from './mockNotifications'
 import type { MockSession } from './mockSession'
 
@@ -112,6 +114,11 @@ function toAbsence(item: db.MockAbsence, now: number): MentorAbsence {
     proxyApprovalCount: db.proxyApprovals.filter(approval => approval.absenceId === item.id).length,
   }
 }
+
+const accountIdOf = (profile: db.MockAbsence['mentor']) => mockAccounts.find(account => account.profile === profile)!.id
+
+/** นักศึกษาที่พี่เลี้ยงคนนี้ดูแลอยู่ตอนนี้ */
+const supervisedBy = (mentor: db.MockAbsence['mentor']) => db.students.filter(item => item.mentor === mentor && item.internship)
 
 /** ช่วงไม่อยู่ของพี่เลี้ยงคนเดียวกันต้องไม่ซ้อนกัน */
 function assertNoAbsenceOverlap(mentor: db.MockAbsence['mentor'], startAt: string, endAt: string, ignoreId?: number) {
@@ -262,9 +269,68 @@ export function createMockAdmin(session: MockSession, now: () => string): AdminA
       if (Date.parse(item.endAt) <= Date.parse(now())) throw new ApiError('ช่วงที่สิ้นสุดแล้วปรับไม่ได้', 409)
       if (!isDateTime(endAt)) throw new ApiError('รูปแบบวันที่หรือเวลาไม่ถูกต้อง', 422)
       if (Date.parse(endAt) <= Date.parse(item.startAt)) throw new ApiError('เวลาสิ้นสุดต้องหลังเวลาเริ่ม', 422)
+      // ช่วงต้องยังครอบคลุมเวลาที่อนุมัติแทนไปแล้ว ไม่เช่นนั้นการอนุมัตินั้นจะอยู่นอกช่วง
+      const lastApproval = db.proxyApprovals.filter(entry => entry.absenceId === id).map(entry => entry.approvedAt).sort().at(-1)
+      if (lastApproval && Date.parse(endAt) <= Date.parse(lastApproval)) {
+        const { date, time } = toThaiTimeParts(lastApproval)
+        throw new ApiError(`มีการอนุมัติแทนเมื่อ ${formatThaiDate(date)} ${time} น. เวลาสิ้นสุดต้องหลังจากนั้น`, 422)
+      }
       assertNoAbsenceOverlap(item.mentor, item.startAt, endAt, id)
       item.endAt = endAt
       return toAbsence(item, Date.parse(now()))
+    },
+
+    async getProxyQueue(limit, mentorId) {
+      await authorise()
+      const active = activeAbsences(now())
+      const mentors = active.map(item => ({ id: accountIdOf(item.mentor), name: item.mentor.name }))
+      const overdueDays = db.settings.reviewOverdueDays
+      const absence = active.find(item => accountIdOf(item.mentor) === mentorId) ?? active[0]
+      if (!absence) return { mentors, items: [], total: 0, overdueCount: 0, overdueDays }
+
+      const waiting = supervisedBy(absence.mentor)
+        .flatMap(({ profile, worklogs }) => worklogs
+          .filter(log => log.reviewStatus === 'submitted')
+          .map(log => toReviewItem(profile.studentId!, profile.name, log)))
+        .sort((a, b) => Date.parse(a.submittedAt) - Date.parse(b.submittedAt))
+
+      const { mentor, startAt, endAt, reason } = absence
+      return structuredClone({
+        mentors,
+        selected: { mentorId: accountIdOf(mentor), mentorName: mentor.name, startAt, endAt, reason },
+        items: waiting.slice(0, limit),
+        total: waiting.length,
+        overdueCount: waiting.filter(item => item.isOverdue).length,
+        overdueDays,
+      })
+    },
+
+    async approveByProxy(mentorId, targets, comment) {
+      const actor = await authorise()
+      const at = now()
+      // ตรวจจากเวลาเซิร์ฟเวอร์ตอนกดอนุมัติ (กติกาการอนุมัติแทนข้อ 1)
+      const absence = activeAbsences(at).find(item => accountIdOf(item.mentor) === mentorId)
+      if (!absence) throw new ApiError('พี่เลี้ยงคนนี้ไม่ได้อยู่ในช่วงไม่อยู่แล้ว จึงอนุมัติแทนไม่ได้', 403, { code: 'proxy_not_allowed' })
+      if (!targets.length) throw new ApiError('เลือกรายการที่จะอนุมัติ', 422)
+
+      const result = reviewWorklogs({
+        targets,
+        decision: 'approved',
+        comment: comment?.trim() || undefined,
+        reviewer: actor,
+        proxyFor: absence.mentor,
+        at,
+        denied: 'รายการนี้ไม่ได้อยู่ในความดูแลของพี่เลี้ยงคนนี้',
+        find: (id) => {
+          for (const { profile, worklogs } of supervisedBy(absence.mentor)) {
+            const worklog = worklogs.find(log => log.id === id && log.reviewStatus !== 'draft')
+            if (worklog) return { student: { studentId: profile.studentId!, name: profile.name }, worklog }
+          }
+          return undefined
+        },
+      })
+      db.proxyApprovals.push(...result.succeededIds.map(worklogId => ({ absenceId: absence.id, worklogId, approvedAt: at })))
+      return result
     },
 
     async getInternships({ filter, q, page }) {

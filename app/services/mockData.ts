@@ -250,7 +250,7 @@ export const absences: MockAbsence[] = [
 ]
 
 /** งานที่แอดมินอนุมัติแทน อ้างอิงช่วงที่พี่เลี้ยงไม่อยู่ */
-export const proxyApprovals: { absenceId: number, worklogId: number }[] = []
+export const proxyApprovals: { absenceId: number, worklogId: number, approvedAt: string }[] = []
 
 const at = (time: string) => thaiTime(daysAgo(1), time)
 
@@ -291,6 +291,7 @@ export function renameUser(profile: UserProfile, firstName: string, lastName: st
   settings.updatedBy = renamed(settings.updatedBy)
   for (const log of students.flatMap(item => item.worklogs)) {
     log.reviewedBy = renamed(log.reviewedBy)
+    log.proxyFor = renamed(log.proxyFor)
   }
   for (const event of Object.values(histories).flat()) event.actorName = renamed(event.actorName)!
   for (const item of deletedWorklogs) {

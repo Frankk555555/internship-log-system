@@ -1,5 +1,5 @@
-/** ประเภทตามขอบเขตงานข้อ 9.3 และผลตรวจที่แจ้งนักศึกษา (แจ้งเตือนการอนุมัติแทนยังไม่มี) */
-export type NotificationType = 'new_submission' | 'overdue_review' | 'returned' | 'approved'
+/** ประเภทตามขอบเขตงานข้อ 9.3 ผลตรวจที่แจ้งนักศึกษา และการอนุมัติแทนที่แจ้งพี่เลี้ยง */
+export type NotificationType = 'new_submission' | 'overdue_review' | 'returned' | 'approved' | 'proxy_approved'
 
 export interface AppNotification {
   id: number

@@ -42,9 +42,10 @@ const filteredLogs = computed(() => {
 const visibleLogs = computed(() => filteredLogs.value.slice(0, visibleCount.value))
 
 function approvedLabel(log: WorkLog) {
-  if (!log.reviewedAt) return log.reviewedBy
+  const reviewer = log.proxyFor ? `${log.reviewedBy} อนุมัติแทน${log.proxyFor}` : log.reviewedBy
+  if (!log.reviewedAt) return reviewer
   const { date, time } = toThaiTimeParts(log.reviewedAt)
-  return `${log.reviewedBy} (${formatThaiDate(date)} • ${time} น.)`
+  return `${reviewer} (${formatThaiDate(date)} • ${time} น.)`
 }
 
 /** เหตุผลที่ปุ่มบันทึกเวลาหรือแก้ไขกดไม่ได้ เพราะเลยกำหนดแก้ไข */

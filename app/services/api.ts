@@ -60,6 +60,17 @@ export interface Api extends AuthApi, AdminApi {
 
 /** ข้อผิดพลาดจาก API ที่แสดงให้ผู้ใช้อ่านได้ */
 export class ApiError extends Error {
+  /**
+   * ให้ Nuxt รู้ว่าเป็น error ที่ตั้งใจส่งพร้อมสถานะ HTTP ไม่เช่นนั้นตอน SSR บน production
+   * จะถูกแทนด้วย 500 หน้าจอจึงไม่เห็นข้อความจริง และพาไปหน้า forbidden ไม่ได้
+   */
+  static readonly __h3_error__ = true
+
+  /** รูปที่ส่งจากเซิร์ฟเวอร์ไปให้เบราว์เซอร์ */
+  toJSON() {
+    return { message: this.message, statusCode: this.statusCode }
+  }
+
   /** รหัสให้หน้าจอแยกกรณี เช่น account_locked */
   readonly code?: string
   /** เวลาที่ปลดล็อกบัญชี (ISO 8601) */
