@@ -43,6 +43,9 @@ export function createHttpApi(baseURL: string, headers?: Record<string, string>,
     updateUser: (id, body) => request(`/admin/users/${id}`, { method: 'PATCH', body }),
     setUserSuspended: (id, suspended) => request(`/admin/users/${id}`, { method: 'PATCH', body: { suspended } }),
     unlockUser: id => request(`/admin/users/${id}/unlock`, { method: 'POST' }),
+    getInternships: ({ filter, q, page }) => request('/admin/internships', { query: { filter, q: q || undefined, page } }),
+    getInternshipDetail: studentId => request(`/admin/internships/${studentId}`),
+    saveInternship: (studentId, body) => request(`/admin/internships/${studentId}`, { method: 'PUT', body }),
     getNotifications: () => request('/notifications'),
     markNotificationsRead: async (ids) => {
       await request('/notifications/read', { method: 'POST', body: { ids } })

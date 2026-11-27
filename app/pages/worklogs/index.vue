@@ -100,6 +100,8 @@ const unavailable = computed(() => {
           />
         </div>
 
+        <NoMentorNotice v-if="!data.hasMentor" class="mt-3" />
+
         <DailyWorklogTable :date="formatThaiDate(data.date)" :logs="logs" class="mt-3" @delete="askDelete" />
       </template>
     </AsyncState>

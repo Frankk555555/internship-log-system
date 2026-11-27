@@ -52,10 +52,10 @@ export function addOverdueNotifications(waiting: ReviewItem[]) {
   }
 }
 
-/** ใหม่สุดก่อน */
-export function notificationsFor(role: UserRole) {
+/** studentIds: นักศึกษาที่ผู้ใช้เกี่ยวข้อง (ตนเอง หรือผู้ที่ตนดูแล) ใหม่สุดก่อน */
+export function notificationsFor(role: UserRole, studentIds: string[]) {
   return stored
-    .filter(entry => entry.recipient === role)
+    .filter(entry => entry.recipient === role && studentIds.includes(entry.studentId))
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
 }
 
@@ -66,16 +66,16 @@ export function reassignStudent(from: string, to: string) {
   }
 }
 
-/** ไม่ระบุ ids = ทุกรายการของบทบาทนั้น */
-export function markRead(role: UserRole, ids?: number[]) {
-  for (const entry of stored) {
-    if (entry.recipient === role && (!ids || ids.includes(entry.id))) entry.isRead = true
+/** ไม่ระบุ ids = ทุกรายการที่ผู้ใช้เห็น */
+export function markRead(role: UserRole, studentIds: string[], ids?: number[]) {
+  for (const entry of notificationsFor(role, studentIds)) {
+    if (!ids || ids.includes(entry.id)) entry.isRead = true
   }
 }
 
 // ข้อมูลตั้งต้น อ้างอิงรายการตัวอย่าง
 function seed(type: NotificationType, worklogId: number, isRead = false) {
-  const owners = [{ studentId: db.student.studentId!, name: db.student.name, worklogs: db.studentWorklogs }, ...db.otherStudents]
+  const owners = db.students.map(({ profile, worklogs }) => ({ studentId: profile.studentId!, name: profile.name, worklogs }))
   for (const owner of owners) {
     const worklog = owner.worklogs.find(log => log.id === worklogId)
     if (!worklog) continue

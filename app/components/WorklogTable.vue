@@ -9,6 +9,8 @@ const props = defineProps<{
   today: string
   /** รายการที่กำลังบันทึกเวลา ระหว่างนั้นปิดปุ่มบันทึกเวลาทุกแถว */
   busyId?: number
+  /** เหตุผลที่บันทึกเวลาไม่ได้ทุกรายการ เช่น ยังไม่มีพี่เลี้ยง หน้าที่เรียกใช้แสดงข้อความไว้เหนือตาราง */
+  recordBlock?: string
 }>()
 
 defineEmits<{
@@ -139,7 +141,8 @@ function endLabel(log: WorkLog) {
                 <template v-else-if="log.reviewStatus === 'draft' && log.workStatus === 'pending'">
                   <button
                     type="button"
-                    :disabled="log.canEdit === false || busyId !== undefined"
+                    :disabled="Boolean(recordBlock) || log.canEdit === false || busyId !== undefined"
+                    :title="recordBlock"
                     :aria-label="`เริ่มทำงาน ${log.title}`"
                     :aria-describedby="lockReason(log) ? `lock-${log.id}` : undefined"
                     class="btn btn-start px-3 py-1.5 text-2xs"
@@ -165,7 +168,8 @@ function endLabel(log: WorkLog) {
                   <button
                     v-else
                     type="button"
-                    :disabled="log.canEdit === false || busyId !== undefined"
+                    :disabled="Boolean(recordBlock) || log.canEdit === false || busyId !== undefined"
+                    :title="recordBlock"
                     :aria-label="`ทำงานเสร็จสิ้น ${log.title}`"
                     :aria-describedby="lockReason(log) ? `lock-${log.id}` : undefined"
                     class="btn btn-done px-3 py-1.5 text-2xs"

@@ -31,6 +31,7 @@ const pending = ref<'finish' | 'draft' | 'submit'>()
 const isSubmitted = ref(false)
 const { error: formError, clear, fail, done } = useFormNotice()
 const isLocked = computed(() => isSubmitted.value || Boolean(pending.value))
+const noMentor = !props.context.hasMentor
 
 // ช่วงวันที่บันทึกย้อนหลังได้ ต้องอยู่ในช่วงฝึกงานด้วย (ขอบเขตงานข้อ 5.6)
 const windowStart = addDays(today, -backdateLimitDays)
@@ -62,6 +63,8 @@ const timeNotice = computed(() => {
 const workDate = computed(() => parseThaiDate(date.value))
 const start = computed(() => parseClock(startTime.value))
 const end = computed(() => parseClock(endTime.value))
+// เวลางานของวันที่เลือก ซึ่งอาจต่างจากเวลางานปัจจุบัน
+const dayHours = computed(() => workHoursOn(workDate.value ?? today, props.context, props.context.hoursHistory))
 
 // รายการอื่นในวันที่เลือก ใช้รวมชั่วโมงและตรวจเวลาซ้อนทับ
 const { data: sameDayLogs, error: sameDayError, refresh: refreshSameDay } = useLazyAsyncData(
@@ -106,7 +109,7 @@ const startError = computed(() => {
     return timesOptional.value && !endTime.value.trim() ? undefined : requiredError(startTime.value, 'เวลาเริ่ม')
   }
   if (!start.value) return 'รูปแบบเวลาไม่ถูกต้อง (ชช:นน)'
-  return startTimeError(start.value, props.context) ?? futureError(start.value)
+  return startTimeError(start.value, dayHours.value) ?? futureError(start.value)
 })
 
 const endError = computed(() => {
@@ -117,7 +120,7 @@ const endError = computed(() => {
   }
   if (!end.value) return 'รูปแบบเวลาไม่ถูกต้อง (ชช:นน)'
   if (!start.value || startError.value) return undefined
-  return timeRangeError(start.value, end.value, props.context) ?? futureError(end.value)
+  return timeRangeError(start.value, end.value, dayHours.value) ?? futureError(end.value)
 })
 
 // รายการอื่นของวันที่เลือก (ไม่นับรายการนี้เอง) ไม่มีค่าระหว่างโหลด
@@ -180,7 +183,7 @@ const finishBlock = computed(() => !start.value || startError.value
 
 // ใช้เวลาของเซิร์ฟเวอร์ และตั้งค่าในฟอร์ม ผู้ใช้ยังต้องกดบันทึกหรือส่งตรวจ
 async function finishWork() {
-  if (isLocked.value || finishBlock.value) return
+  if (noMentor || isLocked.value || finishBlock.value) return
 
   pending.value = 'finish'
   clear()
@@ -219,7 +222,7 @@ async function finishWork() {
 const root = useTemplateRef<HTMLElement>('root')
 
 async function save(mode: 'draft' | 'submit') {
-  if (isLocked.value) return
+  if (noMentor || isLocked.value) return
 
   checked.value = mode
   if (Object.values(errors.value).some(Boolean)) {
@@ -272,6 +275,8 @@ async function save(mode: 'draft' | 'submit') {
   <div ref="root" class="grid gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
     <form class="flex flex-col gap-3 card p-5" novalidate @submit.prevent>
       <h2 class="text-base font-bold text-ink">{{ isEditing ? 'แก้ไขรายการ' : 'รายการย้อนหลัง' }}</h2>
+
+      <NoMentorNotice v-if="noMentor" id="no-mentor" />
 
       <p v-if="timeNotice" id="time-notice" class="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-2xs font-medium text-amber-700">
         <UIcon :name="policy.date || policy.end ? 'i-lucide-info' : 'i-lucide-lock'" class="mt-px size-3.5 shrink-0" />
@@ -370,8 +375,8 @@ async function save(mode: 'draft' | 'submit') {
         <button
           v-if="canShowFinish"
           type="button"
-          :disabled="isLocked || Boolean(finishBlock)"
-          :aria-describedby="finishBlock ? 'finish-hint' : undefined"
+          :disabled="noMentor || isLocked || Boolean(finishBlock)"
+          :aria-describedby="noMentor ? 'no-mentor' : finishBlock ? 'finish-hint' : undefined"
           class="btn btn-done px-3 py-2.5 text-2xs"
           @click="finishWork"
         >
@@ -379,7 +384,8 @@ async function save(mode: 'draft' | 'submit') {
         </button>
         <button
           type="button"
-          :disabled="isLocked"
+          :disabled="noMentor || isLocked"
+          :aria-describedby="noMentor ? 'no-mentor' : undefined"
           class="btn btn-secondary px-3 py-2.5 text-2xs"
           @click="save('draft')"
         >
@@ -387,7 +393,8 @@ async function save(mode: 'draft' | 'submit') {
         </button>
         <button
           type="button"
-          :disabled="isLocked"
+          :disabled="noMentor || isLocked"
+          :aria-describedby="noMentor ? 'no-mentor' : undefined"
           class="btn btn-primary px-3 py-2.5 text-2xs"
           @click="save('submit')"
         >

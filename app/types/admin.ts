@@ -46,6 +46,65 @@ export interface UserInput {
   studentId?: string
 }
 
+export type InternshipFilter = 'all' | 'no_mentor' | 'no_hours'
+
+/** ข้อมูลฝึกงานของนักศึกษาหนึ่งคน ช่องที่ไม่มีค่า = ยังไม่ได้กรอก */
+export interface InternshipRow {
+  studentId: string
+  name: string
+  company?: string
+  position?: string
+  startDate?: string
+  endDate?: string
+  /** เวลางานที่ใช้กับวันนี้ */
+  workStartTime?: string
+  workEndTime?: string
+  mentorName?: string
+}
+
+export interface InternshipQuery {
+  filter: InternshipFilter
+  /** ค้นชื่อ รหัสนักศึกษา หรือหน่วยงาน */
+  q: string
+  /** เริ่มที่ 1 */
+  page: number
+}
+
+export interface InternshipList {
+  items: InternshipRow[]
+  total: number
+  pageSize: number
+  /** นับตามคำค้น ไม่นับตัวกรอง */
+  counts: Record<InternshipFilter, number>
+}
+
+export interface MentorPeriod {
+  mentorName: string
+  from: string
+  /** ไม่มีค่า = ดูแลอยู่ */
+  to?: string
+}
+
+export interface InternshipDetail extends InternshipRow {
+  mentorId?: number
+  /** พี่เลี้ยงที่เลือกได้ */
+  mentors: { id: number, name: string }[]
+  /** ใหม่สุดก่อน */
+  mentorHistory: MentorPeriod[]
+  /** งานรอตรวจ ย้ายไปพี่เลี้ยงคนใหม่เมื่อเปลี่ยน */
+  pendingCount: number
+}
+
+export interface InternshipInput {
+  company: string
+  position: string
+  startDate: string
+  endDate: string
+  workStartTime: string
+  workEndTime: string
+  mentorId: number
+}
+
 export interface SystemSettings {
   /** บันทึกและแก้ไขย้อนหลังได้กี่วัน (5.6) */
   backdateLimitDays: number
@@ -73,4 +132,8 @@ export interface AdminApi {
   /** ระงับแล้ว session ของผู้นั้นใช้ไม่ได้ทันที แอดมินระงับตัวเองไม่ได้ */
   setUserSuspended(id: number, suspended: boolean): Promise<AdminUser>
   unlockUser(id: number): Promise<AdminUser>
+  getInternships(query: InternshipQuery): Promise<InternshipList>
+  getInternshipDetail(studentId: string): Promise<InternshipDetail>
+  /** เวลางานใหม่มีผลกับรายการตั้งแต่วันที่บันทึก */
+  saveInternship(studentId: string, input: InternshipInput): Promise<InternshipDetail>
 }

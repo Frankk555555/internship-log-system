@@ -1,11 +1,9 @@
-import type { AdminApi } from '~/types/admin'
-import type { AuthApi } from '~/types/auth'
 import type { ReviewItem, ReviewResult, ReviewTarget } from '~/types/review'
-import type { Attachment, HistoryEvent, SaveWorklogInput, UserRole, WeeklyReportData, WorkLog } from '~/types/worklog'
+import type { Attachment, HistoryEvent, InternshipInfo, SaveWorklogInput, UserProfile, WeeklyReportData, WorkLog } from '~/types/worklog'
 import { addDays, formatThaiDate, toThaiTimeParts } from '~/utils/date'
 import { fileError } from '~/utils/attachments'
 import { toMinutes } from '~/utils/time'
-import { earliestEntryDate, editDeadline, findOverlaps, futureTimeError, isAfterWork, overlapMessage, startTimeError, timePolicy, timerFinishError, timerStartError, timeRangeError } from '~/utils/worklogRules'
+import { earliestEntryDate, editDeadline, findOverlaps, futureTimeError, isAfterWork, noMentorMessage, overlapMessage, startTimeError, timePolicy, timerFinishError, timerStartError, timeRangeError, workHoursOn } from '~/utils/worklogRules'
 import { ApiError, type Api } from './api'
 import { createMockAdmin } from './mockAdmin'
 import { activeAccount, createMockAuth, requireRole } from './mockAuth'
@@ -22,11 +20,14 @@ async function respond<T>(data: T): Promise<T> {
   return structuredClone(data)
 }
 
-function findWorklog(id: number) {
-  const worklog = db.studentWorklogs.find(item => item.id === id)
+/** นักศึกษาที่แอดมินกรอกข้อมูลฝึกงานและเวลางานแล้ว */
+type Intern = db.StudentRecord & { internship: db.MockInternship }
+
+function findWorklog(intern: Intern, id: number) {
+  const worklog = intern.worklogs.find(item => item.id === id)
   if (worklog) return worklog
   // รายการของนักศึกษาคนอื่น (ขอบเขตงานข้อ 2.3)
-  if (db.otherStudents.some(other => other.worklogs.some(item => item.id === id))) {
+  if (db.students.some(other => other.worklogs.some(item => item.id === id))) {
     throw new ApiError('รายการที่ขออยู่นอกขอบเขตข้อมูลที่คุณมีสิทธิ์ดู', 403)
   }
   throw new ApiError('ไม่พบรายการงานนี้', 404)
@@ -39,8 +40,13 @@ function serverNow() {
   return `${db.TODAY}T${toThaiTimeParts(now.toISOString()).time}:${seconds}+07:00`
 }
 
-function isAfterWorkNow() {
-  return isAfterWork(toThaiTimeParts(serverNow()).time, db.internship.workEndTime)
+/** เวลางานที่ใช้กับวันนี้ */
+function todayHours({ internship }: Intern) {
+  return workHoursOn(db.TODAY, internship.hours[0]!, internship.hours)
+}
+
+function isAfterWorkNow(intern: Intern) {
+  return isAfterWork(toThaiTimeParts(serverNow()).time, todayHours(intern).workEndTime)
 }
 
 /** ฉบับร่างและรายการที่ถูกส่งกลับ เลยกำหนดแก้ไขแล้วหรือยัง (นับทุกวัน) */
@@ -59,62 +65,89 @@ function assertEditable(worklog: WorkLog) {
   }
 }
 
-function weekly(student: { studentId: string, name: string, worklogs: WorkLog[] }, weekStart: string, includeDrafts: boolean): WeeklyReportData {
+function weekly({ profile, mentor, worklogs }: db.StudentRecord, weekStart: string, includeDrafts: boolean): WeeklyReportData {
   const weekEnd = addDays(weekStart, 6)
   return {
-    studentId: student.studentId,
-    name: student.name,
-    mentorName: db.mentor.name,
-    worklogs: student.worklogs.filter(log => log.date >= weekStart && log.date <= weekEnd && (includeDrafts || log.reviewStatus !== 'draft')),
+    studentId: profile.studentId!,
+    name: profile.name,
+    mentorName: mentor?.name ?? 'ยังไม่กำหนด',
+    worklogs: worklogs.filter(log => log.date >= weekStart && log.date <= weekEnd && (includeDrafts || log.reviewStatus !== 'draft')),
   }
 }
 
 /** นักศึกษาในความดูแลของพี่เลี้ยง (ขอบเขตงานข้อ 9.2) */
-function mentoredStudents() {
-  const { company, position, startDate, endDate } = db.internship
-  return [
-    { studentId: db.student.studentId!, name: db.student.name, email: db.student.email, company, position, startDate, endDate, worklogs: db.studentWorklogs },
-    ...db.otherStudents,
-  ]
+function mentoredStudents(mentor: UserProfile) {
+  return db.students.flatMap(({ profile, internship, mentor: assigned, worklogs }) => {
+    if (assigned !== mentor || !internship) return []
+    const { company, position, startDate, endDate } = internship
+    return [{ studentId: profile.studentId!, name: profile.name, email: profile.email, company, position, startDate, endDate, worklogs }]
+  })
+}
+
+function internshipInfo({ internship, mentor }: Intern): InternshipInfo {
+  const { company, position, semester, startDate, endDate } = internship
+  const total = Date.parse(endDate) - Date.parse(startDate)
+  const passed = Date.parse(db.TODAY) - Date.parse(startDate)
+  const { workStartTime, workEndTime } = todayHours({ internship } as Intern)
+  return {
+    company,
+    position,
+    semester,
+    startDate,
+    endDate,
+    workStartTime,
+    workEndTime,
+    mentorName: mentor?.name ?? 'ยังไม่กำหนด',
+    hasMentor: Boolean(mentor),
+    progress: Math.round(Math.min(1, Math.max(0, passed / total)) * 100),
+  }
+}
+
+/** ไม่มีพี่เลี้ยงก็ไม่มีผู้ตรวจ จึงยังบันทึกและส่งตรวจไม่ได้ */
+function assertMentor({ mentor }: Intern) {
+  if (!mentor) throw new ApiError(noMentorMessage, 409, { code: 'mentor_required' })
 }
 
 /** งานของวันนี้ที่เริ่มแล้วแต่ยังไม่เสร็จ */
-function findRunning(excludeId?: number) {
-  return db.studentWorklogs.find(log => log.date === db.TODAY && log.startTime && !log.endTime && log.id !== excludeId)
+function findRunning(intern: Intern, excludeId?: number) {
+  return intern.worklogs.find(log => log.date === db.TODAY && log.startTime && !log.endTime && log.id !== excludeId)
 }
 
-function runningError(running: WorkLog) {
-  const action = isAfterWorkNow() ? 'กรุณากรอกเวลาสิ้นสุดของงานนั้นในหน้าแก้ไขก่อน' : 'กรุณากด "ทำงานเสร็จสิ้น" ก่อน'
+function runningError(intern: Intern, running: WorkLog) {
+  const action = isAfterWorkNow(intern) ? 'กรุณากรอกเวลาสิ้นสุดของงานนั้นในหน้าแก้ไขก่อน' : 'กรุณากด "ทำงานเสร็จสิ้น" ก่อน'
   return new ApiError(`มีงานกำลังดำเนินการอยู่: “${running.title}” ${action}`, 409)
 }
 
 /** จับเวลาได้ครั้งละหนึ่งงาน ทุกทางที่บันทึกเวลา (5.7) */
-function assertSingleTimer(input: SaveWorklogInput) {
-  const running = findRunning(input.id)
+function assertSingleTimer(intern: Intern, input: SaveWorklogInput) {
+  const running = findRunning(intern, input.id)
   if (!running || input.date !== db.TODAY) return
 
   const startsNewTimer = (input.mode === 'new' && !input.id) || (input.startTime && !input.endTime)
   // งานที่จับเวลาอยู่กินช่วงตั้งแต่เวลาเริ่มจนถึงตอนนี้
   const overlapsRunning = input.endTime && toMinutes(input.endTime) > toMinutes(running.startTime!)
-  if (startsNewTimer || overlapsRunning) throw runningError(running)
+  if (startsNewTimer || overlapsRunning) throw runningError(intern, running)
 }
 
-function validate(input: SaveWorklogInput) {
+function validate(intern: Intern, input: SaveWorklogInput) {
+  const { internship, worklogs } = intern
   if (!input.title.trim() || !input.description.trim()) throw new ApiError('กรุณากรอกหัวข้องานและรายละเอียด', 422)
   if (input.endTime && !input.startTime) throw new ApiError('กรุณากรอกเวลาเริ่ม', 422)
   if (input.startTime) {
     const now = toThaiTimeParts(serverNow())
-    const timeError = startTimeError(input.startTime, db.internship)
-      ?? (input.endTime ? timeRangeError(input.startTime, input.endTime, db.internship) : undefined)
+    // ตรวจตามเวลางานของวันที่ทำงาน
+    const hours = workHoursOn(input.date, todayHours(intern), internship.hours)
+    const timeError = startTimeError(input.startTime, hours)
+      ?? (input.endTime ? timeRangeError(input.startTime, input.endTime, hours) : undefined)
       ?? futureTimeError(input.date, input.endTime ?? input.startTime, now)
     if (timeError) throw new ApiError(timeError, 422)
-    const sameDay = db.studentWorklogs.filter(log => log.date === input.date)
+    const sameDay = worklogs.filter(log => log.date === input.date)
     const overlap = findOverlaps(sameDay, input.startTime, input.endTime, input.id)[0]
     if (overlap) throw new ApiError(overlapMessage(overlap), 409)
   }
-  assertSingleTimer(input)
-  if (input.date < db.internship.startDate || input.date > db.internship.endDate) throw new ApiError('วันที่อยู่นอกช่วงฝึกงาน', 422)
-  const existing = db.studentWorklogs.find(log => log.id === input.id)
+  assertSingleTimer(intern, input)
+  if (input.date < internship.startDate || input.date > internship.endDate) throw new ApiError('วันที่อยู่นอกช่วงฝึกงาน', 422)
+  const existing = worklogs.find(log => log.id === input.id)
   const earliest = earliestEntryDate(existing, db.TODAY, db.settings.backdateLimitDays)
   if (input.mode === 'backdate' && (input.date < earliest || input.date > db.TODAY)) {
     throw new ApiError('วันที่อยู่นอกช่วงย้อนหลังที่อนุญาต', 422)
@@ -126,7 +159,7 @@ function validate(input: SaveWorklogInput) {
 }
 
 /** กันการแก้เวลาที่ล็อกไว้ และตรวจเวลาของรายการที่ระบบจับเวลา */
-function assertTimeRules(input: SaveWorklogInput, existing?: WorkLog) {
+function assertTimeRules(intern: Intern, input: SaveWorklogInput, existing?: WorkLog) {
   const now = toThaiTimeParts(serverNow()).time
   const isFuture = (time?: string) => Boolean(time) && toMinutes(time!) > toMinutes(now)
 
@@ -137,7 +170,7 @@ function assertTimeRules(input: SaveWorklogInput, existing?: WorkLog) {
     return
   }
 
-  const policy = timePolicy(existing, db.TODAY, isAfterWorkNow())
+  const policy = timePolicy(existing, db.TODAY, isAfterWorkNow(intern))
   // กดทำงานเสร็จสิ้น: เติมเวลาสิ้นสุดของร่างวันนี้ ไม่เกินเวลาปัจจุบัน
   const isFinishing = existing.reviewStatus === 'draft' && !existing.endTime && input.date === db.TODAY
     && Boolean(input.endTime) && !isFuture(input.endTime)
@@ -150,14 +183,14 @@ function assertTimeRules(input: SaveWorklogInput, existing?: WorkLog) {
 }
 
 /** ที่มาของเวลา และการแก้เวลาหลังถูกส่งกลับ เพื่อให้พี่เลี้ยงเห็น */
-function timeFlags(input: SaveWorklogInput, existing?: WorkLog) {
+function timeFlags(intern: Intern, input: SaveWorklogInput, existing?: WorkLog) {
   if (!existing) {
     const timeSource: WorkLog['timeSource'] = input.mode === 'new' ? 'timer' : input.startTime ? 'manual' : undefined
     return { timeSource, timeEdited: undefined }
   }
 
   const changed = input.date !== existing.date || input.startTime !== existing.startTime || input.endTime !== existing.endTime
-  const missedFinish = existing.date < db.TODAY || (existing.date === db.TODAY && isAfterWorkNow())
+  const missedFinish = existing.date < db.TODAY || (existing.date === db.TODAY && isAfterWorkNow(intern))
   const forgotFinish = existing.timeSource === 'timer' && !existing.endTime && Boolean(input.endTime) && missedFinish
   const timeSource: WorkLog['timeSource'] = forgotFinish
     ? 'timer_manual_end'
@@ -167,16 +200,16 @@ function timeFlags(input: SaveWorklogInput, existing?: WorkLog) {
 }
 
 /** ฉบับร่างของนักศึกษาที่ยังอยู่ในช่วงแก้ไขได้ */
-function findDraft(id: number) {
-  const worklog = findWorklog(id)
+function findDraft(intern: Intern, id: number) {
+  const worklog = findWorklog(intern, id)
   if (worklog.reviewStatus !== 'draft') throw new ApiError('เริ่มหรือจบงานได้เฉพาะฉบับร่าง', 409)
   if (isOutsideEditWindow(worklog)) throw new ApiError('รายการนี้เกินช่วงย้อนหลังแล้ว', 409)
   return worklog
 }
 
 /** รายการของนักศึกษาในความดูแลที่ส่งเข้ามาแล้ว (ไม่รวมฉบับร่าง) */
-function findReviewable(id: number) {
-  for (const student of mentoredStudents()) {
+function findReviewable(mentor: UserProfile, id: number) {
+  for (const student of mentoredStudents(mentor)) {
     const worklog = student.worklogs.find(item => item.id === id)
     if (worklog && worklog.reviewStatus !== 'draft') return { student, worklog }
   }
@@ -184,8 +217,9 @@ function findReviewable(id: number) {
 }
 
 /** รายการที่พี่เลี้ยงส่งกลับแล้วนักศึกษาลบ (ฉบับร่างที่ไม่เคยส่งตรวจ พี่เลี้ยงไม่เห็น) */
-function deletedReturns() {
-  return db.deletedWorklogs.filter(item => item.worklog.reviewStatus === 'returned')
+function deletedReturns(mentor: UserProfile) {
+  const ids = mentoredStudents(mentor).map(student => student.studentId)
+  return db.deletedWorklogs.filter(item => item.worklog.reviewStatus === 'returned' && ids.includes(item.studentId))
 }
 
 function toReviewItem(studentId: string, studentName: string, worklog: WorkLog): ReviewItem {
@@ -202,11 +236,11 @@ function addHistory(worklogId: number, event: Omit<HistoryEvent, 'id' | 'changed
 }
 
 /** อนุมัติหรือส่งกลับทีละรายการ รายการที่ทำไม่ได้จะแจ้งเหตุผลกลับไป */
-async function review(targets: ReviewTarget[], decision: 'approved' | 'returned', comment?: string, allowTimeEdit?: boolean): Promise<ReviewResult> {
+async function review(mentor: UserProfile, targets: ReviewTarget[], decision: 'approved' | 'returned', comment?: string, allowTimeEdit?: boolean): Promise<ReviewResult> {
   const result: ReviewResult = { succeededIds: [], failures: [] }
 
   for (const { id, version } of targets) {
-    const found = findReviewable(id)
+    const found = findReviewable(mentor, id)
     const problem = !found
       ? 'ไม่มีสิทธิ์ตรวจรายการนี้'
       : found.worklog.reviewStatus !== 'submitted'
@@ -218,12 +252,11 @@ async function review(targets: ReviewTarget[], decision: 'approved' | 'returned'
       continue
     }
 
-    Object.assign(found.worklog, { reviewStatus: decision, reviewComment: comment, reviewedBy: db.mentor.name, reviewedAt: serverNow(), timeEditAllowed: allowTimeEdit || undefined, version: version + 1 })
+    Object.assign(found.worklog, { reviewStatus: decision, reviewComment: comment, reviewedBy: mentor.name, reviewedAt: serverNow(), timeEditAllowed: allowTimeEdit || undefined, version: version + 1 })
     addHistory(id, decision === 'approved'
-      ? { type: 'approval', title: comment ? `อนุมัติ: ${comment}` : 'ผู้อนุมัติ', actorName: db.mentor.name, before: 'รอตรวจ', after: 'อนุมัติแล้ว' }
-      : { type: 'return', title: `ส่งกลับ${allowTimeEdit ? ' (เปิดให้แก้เวลา)' : ''}: ${comment}`, actorName: db.mentor.name, before: 'รอตรวจ', after: 'ส่งกลับแก้ไข' })
-    // มีบัญชีนักศึกษาทดสอบคนเดียว แจ้งเตือนเฉพาะรายการของบัญชีนั้น
-    if (found.student.studentId === db.student.studentId) addNotification(decision, found.student, found.worklog, serverNow())
+      ? { type: 'approval', title: comment ? `อนุมัติ: ${comment}` : 'ผู้อนุมัติ', actorName: mentor.name, before: 'รอตรวจ', after: 'อนุมัติแล้ว' }
+      : { type: 'return', title: `ส่งกลับ${allowTimeEdit ? ' (เปิดให้แก้เวลา)' : ''}: ${comment}`, actorName: mentor.name, before: 'รอตรวจ', after: 'ส่งกลับแก้ไข' })
+    addNotification(decision, found.student, found.worklog, serverNow())
     result.succeededIds.push(id)
   }
 
@@ -250,300 +283,329 @@ function describeChange(before: WorkLog, after: WorkLog) {
   }
 }
 
-function runningSummary() {
-  const running = findRunning()
+function runningSummary(intern: Intern) {
+  const running = findRunning(intern)
   return running && { id: running.id, title: running.title, startTime: running.startTime! }
 }
 
-const dataApi: Omit<Api, keyof AuthApi | keyof AdminApi | 'getNotifications' | 'markNotificationsRead'> = {
-  getDashboard: () => {
-    const count = (status: WorkLog['reviewStatus']) => db.studentWorklogs.filter(log => log.reviewStatus === status).length
+type StudentApi = Pick<Api, 'getDashboard' | 'getInternship' | 'getDailyWorklogs' | 'listWorklogs' | 'getWorklog' | 'getWorklogFormContext' | 'saveWorklog' | 'startWorklog' | 'finishWorklog' | 'deleteWorklog' | 'getWorklogHistory' | 'getMyWeeklyReport'>
 
-    return respond({
-      today: db.TODAY,
-      internship: db.internship,
-      summary: { approvedCount: count('approved'), waitingReviewCount: count('submitted'), returnedCount: count('returned') },
-      // ใหม่สุดก่อน วันเดียวกันให้รายการที่ยังไม่เริ่มอยู่บนสุด แล้วเรียงตามเวลาเริ่มจากหลังไปหน้า
-      recentWorklogs: withPermissions([...db.studentWorklogs].sort((a, b) => b.date.localeCompare(a.date)
-        || (b.startTime ?? '99:99').localeCompare(a.startTime ?? '99:99'))),
-    })
-  },
+/** ข้อมูลของนักศึกษาที่เข้าสู่ระบบ ทุกเมธอดเห็นเฉพาะรายการของตนเอง */
+function studentApi(intern: Intern): StudentApi {
+  const { profile, worklogs, internship } = intern
+  const owner = { studentId: profile.studentId!, name: profile.name }
 
-  getInternship: () => respond(db.internship),
+  return {
+    getDashboard: () => {
+      const count = (status: WorkLog['reviewStatus']) => worklogs.filter(log => log.reviewStatus === status).length
 
-  getDailyWorklogs: (date = db.TODAY) => respond({
-    date,
-    semester: db.internship.semester,
-    worklogs: withPermissions(db.studentWorklogs.filter(log => log.date === date)),
-    mentorUnavailable: db.unavailabilities.find(range => range.date === date),
-  }),
-
-  listWorklogs: (from, to) => respond(withPermissions(db.studentWorklogs.filter(log => log.date >= from && log.date <= to))),
-
-  getWorklog: async id => respond(withPermissions([findWorklog(id)])[0]!),
-
-  getWorklogFormContext: mode => respond({
-    today: db.TODAY,
-    runningWorklog: runningSummary(),
-    backdateLimitDays: db.settings.backdateLimitDays,
-    workStartTime: db.internship.workStartTime,
-    workEndTime: db.internship.workEndTime,
-    internshipStart: db.internship.startDate,
-    internshipEnd: db.internship.endDate,
-    // ฟอร์มเปิดมาว่าง รายการใหม่เริ่มนับเวลาตั้งแต่เปิดฟอร์ม ส่วนย้อนหลังให้ผู้ใช้เลือกวันเอง
-    defaults: {
-      date: mode === 'new' ? db.TODAY : '',
-      startTime: mode === 'new' ? toThaiTimeParts(serverNow()).time : undefined,
-      title: '',
-      description: '',
-      attachments: [],
+      return respond({
+        today: db.TODAY,
+        internship: internshipInfo(intern),
+        summary: { approvedCount: count('approved'), waitingReviewCount: count('submitted'), returnedCount: count('returned') },
+        // ใหม่สุดก่อน วันเดียวกันให้รายการที่ยังไม่เริ่มอยู่บนสุด แล้วเรียงตามเวลาเริ่มจากหลังไปหน้า
+        recentWorklogs: withPermissions([...worklogs].sort((a, b) => b.date.localeCompare(a.date)
+          || (b.startTime ?? '99:99').localeCompare(a.startTime ?? '99:99'))),
+      })
     },
-  }),
 
-  getServerTime: () => respond(serverNow()),
+    getInternship: () => respond(internshipInfo(intern)),
 
-  async saveWorklog(input) {
-    validate(input)
-
-    const existing = input.id ? findWorklog(input.id) : undefined
-    if (existing) {
-      assertEditable(existing)
-      if (isOutsideEditWindow(existing)) throw new ApiError('รายการนี้เลยกำหนดแก้ไขแล้ว แก้ไขและส่งตรวจไม่ได้', 409)
-    }
-    assertTimeRules(input, existing)
-
-    // ไฟล์เดิมมาจากรายการที่บันทึกไว้
-    const known = existing?.attachments ?? []
-    const uploaded: Attachment[] = input.newFiles.map(file => ({
-      id: nextId++,
-      name: file.name,
-      size: file.size,
-      uploadedAt: new Date().toISOString(),
-      url: URL.createObjectURL(file),
-    }))
-
-    const saved: WorkLog = {
-      id: existing?.id ?? nextId++,
-      date: input.date,
-      title: input.title.trim(),
-      description: input.description.trim(),
-      startTime: input.startTime,
-      endTime: input.endTime,
-      workStatus: input.endTime ? 'done' : input.startTime ? 'in_progress' : 'pending',
-      reviewStatus: input.submit ? 'submitted' : existing?.reviewStatus ?? 'draft',
-      submittedAt: input.submit ? serverNow() : existing?.submittedAt,
-      reviewComment: input.submit ? undefined : existing?.reviewComment,
-      reviewedBy: input.submit ? undefined : existing?.reviewedBy,
-      reviewedAt: input.submit ? undefined : existing?.reviewedAt,
-      timeEditAllowed: input.submit ? undefined : existing?.timeEditAllowed,
-      ...timeFlags(input, existing),
-      version: (existing?.version ?? 0) + 1,
-      attachments: [...known.filter(file => input.keepAttachmentIds.includes(file.id)), ...uploaded],
-    }
-
-    if (existing) db.studentWorklogs.splice(db.studentWorklogs.indexOf(existing), 1, saved)
-    else db.studentWorklogs.push(saved)
-    // เก็บประวัติการแก้ไขข้อมูลก่อนและหลัง (ขอบเขตงานข้อ 8.2)
-    const change = existing ? describeChange(existing, saved) : undefined
-    if (change) addHistory(saved.id, { type: 'edit', actorName: db.student.name, ...change })
-    if (input.submit) {
-      addNotification('new_submission', { studentId: db.student.studentId!, name: db.student.name }, saved, serverNow())
-      addHistory(saved.id, { type: 'status', title: 'ส่งตรวจ', actorName: db.student.name, before: existing?.reviewStatus === 'returned' ? 'ส่งกลับแก้ไข' : 'ฉบับร่าง', after: 'รอตรวจ' })
-    }
-
-    return respond(saved)
-  },
-
-  async startWorklog(id) {
-    const worklog = findDraft(id)
-    if (worklog.startTime) throw new ApiError('รายการนี้เริ่มงานแล้ว', 409)
-
-    const now = toThaiTimeParts(serverNow()).time
-    if (db.TODAY < db.internship.startDate || db.TODAY > db.internship.endDate) throw new ApiError('วันนี้อยู่นอกช่วงฝึกงาน', 422)
-    const outsideHours = timerStartError(now, db.internship)
-    if (outsideHours) throw new ApiError(outsideHours, 422)
-
-    // จับเวลาได้ครั้งละหนึ่งงาน ไม่ให้ช่วงเวลาซ้อนกัน (5.7)
-    const running = findRunning(id)
-    if (running) throw runningError(running)
-    const todayLogs = db.studentWorklogs.filter(log => log.date === db.TODAY && log.id !== id)
-    const overlap = findOverlaps(todayLogs, now)[0]
-    if (overlap) throw new ApiError(overlapMessage(overlap), 409)
-
-    // งานนับเป็นของวันที่ลงมือทำ
-    const previousDate = worklog.date
-    Object.assign(worklog, { date: db.TODAY, startTime: now, workStatus: 'in_progress', timeSource: 'timer', version: (worklog.version ?? 0) + 1 })
-    addHistory(id, {
-      type: 'status',
-      title: 'รอดำเนินการ → กำลังดำเนินการ',
-      actorName: db.student.name,
-      before: previousDate === db.TODAY ? 'รอดำเนินการ' : `รอดำเนินการ · วันที่: ${formatThaiDate(previousDate)}`,
-      after: previousDate === db.TODAY ? 'กำลังดำเนินการ' : `กำลังดำเนินการ · วันที่: ${formatThaiDate(db.TODAY)}`,
-    })
-    return respond(worklog)
-  },
-
-  async finishWorklog(id) {
-    const worklog = findDraft(id)
-    if (!worklog.startTime || worklog.endTime) throw new ApiError('รายการนี้ไม่ได้อยู่ระหว่างดำเนินการ', 409)
-    // งานต้องเสร็จภายในวันเดียวกัน
-    if (worklog.date !== db.TODAY) throw new ApiError('บันทึกเวลาสิ้นสุดข้ามวันไม่ได้ กรุณากรอกเวลาสิ้นสุดในหน้าแก้ไขรายการ', 409)
-
-    const now = toThaiTimeParts(serverNow()).time
-    const timeError = timerFinishError(now, db.internship) ?? timeRangeError(worklog.startTime, now, db.internship)
-    if (timeError) throw new ApiError(timeError, 422)
-    const overlap = findOverlaps(db.studentWorklogs.filter(log => log.date === db.TODAY), worklog.startTime, now, id)[0]
-    if (overlap) throw new ApiError(overlapMessage(overlap), 409)
-
-    Object.assign(worklog, { endTime: now, workStatus: 'done', version: (worklog.version ?? 0) + 1 })
-    addHistory(id, { type: 'status', title: 'กำลังดำเนินการ → เสร็จสิ้น', actorName: db.student.name, before: 'กำลังดำเนินการ', after: 'เสร็จสิ้น' })
-    return respond(worklog)
-  },
-
-  async deleteWorklog(id, reason) {
-    const worklog = findWorklog(id)
-    assertEditable(worklog)
-    if (!reason.trim()) throw new ApiError('กรุณาระบุเหตุผล', 422)
-    // ย้ายออกจากรายการใช้งาน แต่เก็บข้อมูลและประวัติไว้ (ขอบเขตงานข้อ 8.2)
-    db.studentWorklogs.splice(db.studentWorklogs.indexOf(worklog), 1)
-    const deletion = { deletedAt: serverNow(), deletedBy: db.student.name, reason: reason.trim() }
-    db.deletedWorklogs.unshift({ studentId: db.student.studentId!, studentName: db.student.name, worklog: { ...worklog, deletion } })
-    addHistory(id, {
-      type: 'delete',
-      title: `ลบรายการ: ${deletion.reason}`,
-      actorName: db.student.name,
-      before: worklog.reviewStatus === 'returned' ? 'ส่งกลับแก้ไข' : 'ฉบับร่าง',
-      after: 'ถูกลบ',
-    })
-    await respond(null)
-  },
-
-  getWorklogHistory: async (id) => {
-    const worklog = db.deletedWorklogs.find(item => item.worklog.id === id)?.worklog ?? findWorklog(id)
-    return respond({ worklog, events: db.histories[id] ?? [] })
-  },
-
-  getMyWeeklyReport: weekStart => respond(weekly(mentoredStudents()[0]!, weekStart, true)),
-
-  getMentorStudents: () => respond(mentoredStudents().map(({ studentId, name }) => ({ studentId, name }))),
-
-  getMentorWeeklyReports: (weekStart, studentId) => respond(mentoredStudents()
-    .filter(student => !studentId || student.studentId === studentId)
-    // ฉบับร่างยังไม่ถูกส่งตรวจ พี่เลี้ยงจึงไม่เห็น
-    .map(student => weekly(student, weekStart, false))),
-
-  getSupervisedStudents: () => respond({
-    overdueDays: db.settings.reviewOverdueDays,
-    students: mentoredStudents().map(({ worklogs, ...profile }) => {
-      const withStatus = (status: WorkLog['reviewStatus']) => worklogs.filter(log => log.reviewStatus === status)
-      const waiting = withStatus('submitted').map(log => toReviewItem(profile.studentId, profile.name, log))
-      const submittedTimes = worklogs.flatMap(log => log.reviewStatus !== 'draft' && log.submittedAt ? [log.submittedAt] : [])
-
-      return {
-        ...profile,
-        approvedMinutes: withStatus('approved').reduce((total, log) => total + toMinutes(log.endTime!) - toMinutes(log.startTime!), 0),
-        pendingCount: waiting.length,
-        overdueCount: waiting.filter(item => item.isOverdue).length,
-        returnedCount: withStatus('returned').length,
-        lastSubmittedAt: submittedTimes.sort((a, b) => Date.parse(b) - Date.parse(a))[0],
-      }
+    getDailyWorklogs: (date = db.TODAY) => respond({
+      hasMentor: Boolean(intern.mentor),
+      date,
+      semester: internship.semester,
+      worklogs: withPermissions(worklogs.filter(log => log.date === date)),
+      mentorUnavailable: db.unavailabilities.find(range => range.mentor === intern.mentor && range.date === date),
     }),
-  }),
 
-  getReviewQueue(filter, limit, studentId) {
-    const students = mentoredStudents().filter(student => !studentId || student.studentId === studentId)
-    // ดูได้เฉพาะนักศึกษาในความดูแล (9.2)
-    if (studentId && !students.length) throw new ApiError('นักศึกษานี้ไม่อยู่ในความดูแลของคุณ', 403)
+    listWorklogs: (from, to) => respond(withPermissions(worklogs.filter(log => log.date >= from && log.date <= to))),
 
-    const items = students.flatMap(student => student.worklogs
-      .filter(log => filter === 'all' ? log.reviewStatus !== 'draft' : log.reviewStatus === 'submitted')
-      .map(log => toReviewItem(student.studentId, student.name, log)))
-    items.sort((a, b) => Date.parse(a.submittedAt) - Date.parse(b.submittedAt))
-    if (filter === 'all') items.reverse()
+    getWorklog: async id => respond(withPermissions([findWorklog(intern, id)])[0]!),
 
-    return respond({
-      student: studentId ? { studentId, name: students[0]!.name } : undefined,
-      items: items.slice(0, limit),
-      total: items.length,
-      pendingCount: students.flatMap(student => student.worklogs).filter(log => log.reviewStatus === 'submitted').length,
+    getWorklogFormContext: (mode) => {
+      const { workStartTime, workEndTime } = todayHours(intern)
+      return respond({
+        today: db.TODAY,
+        hasMentor: Boolean(intern.mentor),
+        runningWorklog: runningSummary(intern),
+        backdateLimitDays: db.settings.backdateLimitDays,
+        workStartTime,
+        workEndTime,
+        hoursHistory: internship.hours,
+        internshipStart: internship.startDate,
+        internshipEnd: internship.endDate,
+        // ฟอร์มเปิดมาว่าง รายการใหม่เริ่มนับเวลาตั้งแต่เปิดฟอร์ม ส่วนย้อนหลังให้ผู้ใช้เลือกวันเอง
+        defaults: {
+          date: mode === 'new' ? db.TODAY : '',
+          startTime: mode === 'new' ? toThaiTimeParts(serverNow()).time : undefined,
+          title: '',
+          description: '',
+          attachments: [],
+        },
+      })
+    },
+
+    async saveWorklog(input) {
+      assertMentor(intern)
+      validate(intern, input)
+
+      const existing = input.id ? findWorklog(intern, input.id) : undefined
+      if (existing) {
+        assertEditable(existing)
+        if (isOutsideEditWindow(existing)) throw new ApiError('รายการนี้เลยกำหนดแก้ไขแล้ว แก้ไขและส่งตรวจไม่ได้', 409)
+      }
+      assertTimeRules(intern, input, existing)
+
+      // ไฟล์เดิมมาจากรายการที่บันทึกไว้
+      const known = existing?.attachments ?? []
+      const uploaded: Attachment[] = input.newFiles.map(file => ({
+        id: nextId++,
+        name: file.name,
+        size: file.size,
+        uploadedAt: new Date().toISOString(),
+        url: URL.createObjectURL(file),
+      }))
+
+      const saved: WorkLog = {
+        id: existing?.id ?? nextId++,
+        date: input.date,
+        title: input.title.trim(),
+        description: input.description.trim(),
+        startTime: input.startTime,
+        endTime: input.endTime,
+        workStatus: input.endTime ? 'done' : input.startTime ? 'in_progress' : 'pending',
+        reviewStatus: input.submit ? 'submitted' : existing?.reviewStatus ?? 'draft',
+        submittedAt: input.submit ? serverNow() : existing?.submittedAt,
+        reviewComment: input.submit ? undefined : existing?.reviewComment,
+        reviewedBy: input.submit ? undefined : existing?.reviewedBy,
+        reviewedAt: input.submit ? undefined : existing?.reviewedAt,
+        timeEditAllowed: input.submit ? undefined : existing?.timeEditAllowed,
+        ...timeFlags(intern, input, existing),
+        version: (existing?.version ?? 0) + 1,
+        attachments: [...known.filter(file => input.keepAttachmentIds.includes(file.id)), ...uploaded],
+      }
+
+      if (existing) worklogs.splice(worklogs.indexOf(existing), 1, saved)
+      else worklogs.push(saved)
+      // เก็บประวัติการแก้ไขข้อมูลก่อนและหลัง (ขอบเขตงานข้อ 8.2)
+      const change = existing ? describeChange(existing, saved) : undefined
+      if (change) addHistory(saved.id, { type: 'edit', actorName: profile.name, ...change })
+      if (input.submit) {
+        addNotification('new_submission', owner, saved, serverNow())
+        addHistory(saved.id, { type: 'status', title: 'ส่งตรวจ', actorName: profile.name, before: existing?.reviewStatus === 'returned' ? 'ส่งกลับแก้ไข' : 'ฉบับร่าง', after: 'รอตรวจ' })
+      }
+
+      return respond(saved)
+    },
+
+    async startWorklog(id) {
+      assertMentor(intern)
+      const worklog = findDraft(intern, id)
+      if (worklog.startTime) throw new ApiError('รายการนี้เริ่มงานแล้ว', 409)
+
+      const now = toThaiTimeParts(serverNow()).time
+      if (db.TODAY < internship.startDate || db.TODAY > internship.endDate) throw new ApiError('วันนี้อยู่นอกช่วงฝึกงาน', 422)
+      const outsideHours = timerStartError(now, todayHours(intern))
+      if (outsideHours) throw new ApiError(outsideHours, 422)
+
+      // จับเวลาได้ครั้งละหนึ่งงาน ไม่ให้ช่วงเวลาซ้อนกัน (5.7)
+      const running = findRunning(intern, id)
+      if (running) throw runningError(intern, running)
+      const todayLogs = worklogs.filter(log => log.date === db.TODAY && log.id !== id)
+      const overlap = findOverlaps(todayLogs, now)[0]
+      if (overlap) throw new ApiError(overlapMessage(overlap), 409)
+
+      // งานนับเป็นของวันที่ลงมือทำ
+      const previousDate = worklog.date
+      Object.assign(worklog, { date: db.TODAY, startTime: now, workStatus: 'in_progress', timeSource: 'timer', version: (worklog.version ?? 0) + 1 })
+      addHistory(id, {
+        type: 'status',
+        title: 'รอดำเนินการ → กำลังดำเนินการ',
+        actorName: profile.name,
+        before: previousDate === db.TODAY ? 'รอดำเนินการ' : `รอดำเนินการ · วันที่: ${formatThaiDate(previousDate)}`,
+        after: previousDate === db.TODAY ? 'กำลังดำเนินการ' : `กำลังดำเนินการ · วันที่: ${formatThaiDate(db.TODAY)}`,
+      })
+      return respond(worklog)
+    },
+
+    async finishWorklog(id) {
+      assertMentor(intern)
+      const worklog = findDraft(intern, id)
+      if (!worklog.startTime || worklog.endTime) throw new ApiError('รายการนี้ไม่ได้อยู่ระหว่างดำเนินการ', 409)
+      // งานต้องเสร็จภายในวันเดียวกัน
+      if (worklog.date !== db.TODAY) throw new ApiError('บันทึกเวลาสิ้นสุดข้ามวันไม่ได้ กรุณากรอกเวลาสิ้นสุดในหน้าแก้ไขรายการ', 409)
+
+      const now = toThaiTimeParts(serverNow()).time
+      const hours = todayHours(intern)
+      const timeError = timerFinishError(now, hours) ?? timeRangeError(worklog.startTime, now, hours)
+      if (timeError) throw new ApiError(timeError, 422)
+      const overlap = findOverlaps(worklogs.filter(log => log.date === db.TODAY), worklog.startTime, now, id)[0]
+      if (overlap) throw new ApiError(overlapMessage(overlap), 409)
+
+      Object.assign(worklog, { endTime: now, workStatus: 'done', version: (worklog.version ?? 0) + 1 })
+      addHistory(id, { type: 'status', title: 'กำลังดำเนินการ → เสร็จสิ้น', actorName: profile.name, before: 'กำลังดำเนินการ', after: 'เสร็จสิ้น' })
+      return respond(worklog)
+    },
+
+    async deleteWorklog(id, reason) {
+      const worklog = findWorklog(intern, id)
+      assertEditable(worklog)
+      if (!reason.trim()) throw new ApiError('กรุณาระบุเหตุผล', 422)
+      // ย้ายออกจากรายการใช้งาน แต่เก็บข้อมูลและประวัติไว้ (ขอบเขตงานข้อ 8.2)
+      worklogs.splice(worklogs.indexOf(worklog), 1)
+      const deletion = { deletedAt: serverNow(), deletedBy: profile.name, reason: reason.trim() }
+      db.deletedWorklogs.unshift({ studentId: owner.studentId, studentName: owner.name, worklog: { ...worklog, deletion } })
+      addHistory(id, {
+        type: 'delete',
+        title: `ลบรายการ: ${deletion.reason}`,
+        actorName: profile.name,
+        before: worklog.reviewStatus === 'returned' ? 'ส่งกลับแก้ไข' : 'ฉบับร่าง',
+        after: 'ถูกลบ',
+      })
+      await respond(null)
+    },
+
+    getWorklogHistory: async (id) => {
+      const removed = db.deletedWorklogs.find(item => item.worklog.id === id && item.studentId === owner.studentId)
+      const worklog = removed?.worklog ?? findWorklog(intern, id)
+      return respond({ worklog, events: db.histories[id] ?? [] })
+    },
+
+    getMyWeeklyReport: weekStart => respond(weekly(intern, weekStart, true)),
+  }
+}
+
+type MentorApi = Pick<Api, 'getMentorStudents' | 'getMentorWeeklyReports' | 'getSupervisedStudents' | 'getReviewQueue' | 'approveWorklogs' | 'returnWorklogs' | 'createUnavailability' | 'getWorklogHistory'>
+
+/** ข้อมูลของพี่เลี้ยงที่เข้าสู่ระบบ เห็นเฉพาะนักศึกษาในความดูแล */
+function mentorApi(mentor: UserProfile): MentorApi {
+  return {
+    getMentorStudents: () => respond(mentoredStudents(mentor).map(({ studentId, name }) => ({ studentId, name }))),
+
+    getMentorWeeklyReports: (weekStart, studentId) => respond(db.students
+      .filter(item => item.mentor === mentor && item.internship && (!studentId || item.profile.studentId === studentId))
+      // ฉบับร่างยังไม่ถูกส่งตรวจ พี่เลี้ยงจึงไม่เห็น
+      .map(item => weekly(item, weekStart, false))),
+
+    getSupervisedStudents: () => respond({
       overdueDays: db.settings.reviewOverdueDays,
-      deletedReturns: deletedReturns().filter(item => !studentId || item.studentId === studentId),
-    })
-  },
+      students: mentoredStudents(mentor).map(({ worklogs, ...profile }) => {
+        const withStatus = (status: WorkLog['reviewStatus']) => worklogs.filter(log => log.reviewStatus === status)
+        const waiting = withStatus('submitted').map(log => toReviewItem(profile.studentId, profile.name, log))
+        const submittedTimes = worklogs.flatMap(log => log.reviewStatus !== 'draft' && log.submittedAt ? [log.submittedAt] : [])
 
-  approveWorklogs: (targets, comment) => review(targets, 'approved', comment?.trim() || undefined),
+        return {
+          ...profile,
+          approvedMinutes: withStatus('approved').reduce((total, log) => total + toMinutes(log.endTime!) - toMinutes(log.startTime!), 0),
+          pendingCount: waiting.length,
+          overdueCount: waiting.filter(item => item.isOverdue).length,
+          returnedCount: withStatus('returned').length,
+          lastSubmittedAt: submittedTimes.sort((a, b) => Date.parse(b) - Date.parse(a))[0],
+        }
+      }),
+    }),
 
-  async returnWorklogs(targets, comment, allowTimeEdit) {
-    if (!comment.trim()) throw new ApiError('กรุณาระบุความคิดเห็นเมื่อส่งกลับแก้ไข', 422)
-    return review(targets, 'returned', comment.trim(), allowTimeEdit)
-  },
+    getReviewQueue(filter, limit, studentId) {
+      const students = mentoredStudents(mentor).filter(student => !studentId || student.studentId === studentId)
+      // ดูได้เฉพาะนักศึกษาในความดูแล (9.2)
+      if (studentId && !students.length) throw new ApiError('นักศึกษานี้ไม่อยู่ในความดูแลของคุณ', 403)
 
-  async createUnavailability(input) {
-    if (!input.reason.trim()) throw new ApiError('กรุณาระบุเหตุผล', 422)
-    if (input.date < db.TODAY) throw new ApiError('ไม่สามารถแจ้งวันที่ผ่านมาแล้ว', 422)
-    if (toMinutes(input.endTime) <= toMinutes(input.startTime)) throw new ApiError('เวลาสิ้นสุดต้องมากกว่าเวลาเริ่ม', 422)
-    const overlaps = db.unavailabilities.some(range => range.date === input.date
-      && toMinutes(input.startTime) < toMinutes(range.endTime) && toMinutes(range.startTime) < toMinutes(input.endTime))
-    if (overlaps) throw new ApiError('ช่วงเวลานี้ซ้อนกับที่แจ้งไว้แล้ว', 409)
-    db.unavailabilities.push({ ...input, reason: input.reason.trim() })
-    await respond(null)
-  },
+      const items = students.flatMap(student => student.worklogs
+        .filter(log => filter === 'all' ? log.reviewStatus !== 'draft' : log.reviewStatus === 'submitted')
+        .map(log => toReviewItem(student.studentId, student.name, log)))
+      items.sort((a, b) => Date.parse(a.submittedAt) - Date.parse(b.submittedAt))
+      if (filter === 'all') items.reverse()
+
+      return respond({
+        student: studentId ? { studentId, name: students[0]!.name } : undefined,
+        items: items.slice(0, limit),
+        total: items.length,
+        pendingCount: students.flatMap(student => student.worklogs).filter(log => log.reviewStatus === 'submitted').length,
+        overdueDays: db.settings.reviewOverdueDays,
+        deletedReturns: deletedReturns(mentor).filter(item => !studentId || item.studentId === studentId),
+      })
+    },
+
+    approveWorklogs: (targets, comment) => review(mentor, targets, 'approved', comment?.trim() || undefined),
+
+    async returnWorklogs(targets, comment, allowTimeEdit) {
+      if (!comment.trim()) throw new ApiError('กรุณาระบุความคิดเห็นเมื่อส่งกลับแก้ไข', 422)
+      return review(mentor, targets, 'returned', comment.trim(), allowTimeEdit)
+    },
+
+    async createUnavailability(input) {
+      if (!input.reason.trim()) throw new ApiError('กรุณาระบุเหตุผล', 422)
+      if (input.date < db.TODAY) throw new ApiError('ไม่สามารถแจ้งวันที่ผ่านมาแล้ว', 422)
+      if (toMinutes(input.endTime) <= toMinutes(input.startTime)) throw new ApiError('เวลาสิ้นสุดต้องมากกว่าเวลาเริ่ม', 422)
+      const overlaps = db.unavailabilities.some(range => range.mentor === mentor && range.date === input.date
+        && toMinutes(input.startTime) < toMinutes(range.endTime) && toMinutes(range.startTime) < toMinutes(input.endTime))
+      if (overlaps) throw new ApiError('ช่วงเวลานี้ซ้อนกับที่แจ้งไว้แล้ว', 409)
+      db.unavailabilities.push({ ...input, mentor, reason: input.reason.trim() })
+      await respond(null)
+    },
+
+    getWorklogHistory: async (id) => {
+      const found = findReviewable(mentor, id) ?? deletedReturns(mentor).find(item => item.worklog.id === id)
+      if (!found) throw new ApiError('รายการที่ขออยู่นอกขอบเขตข้อมูลที่คุณมีสิทธิ์ดู', 403)
+      return respond({ worklog: found.worklog, events: db.histories[id] ?? [] })
+    },
+  }
 }
 
 /** ตรวจ session และบทบาทก่อนเรียกข้อมูล เหมือนที่ backend ต้องทำ (ขอบเขตงานข้อ 2.2, 2.3) */
 export function createMockApi(session: MockSession): Api {
-  const guard = <Args extends unknown[], Result>(role: UserRole, method: (...args: Args) => Promise<Result>) =>
-    async (...args: Args) => {
-      requireRole(session, role)
-      requireSampleData(role)
-      db.refreshToday()
-      return method(...args)
-    }
-
-  /** ข้อมูลจำลองมีบันทึกงานของนักศึกษาและพี่เลี้ยงตัวอย่างอย่างละคน บัญชีอื่นยังไม่มีข้อมูลการฝึกงาน */
-  function hasSampleData() {
-    const { profile } = activeAccount(session)
-    return profile.role === 'admin' || profile === db.student || profile === db.mentor
+  function currentIntern(): Intern {
+    requireRole(session, 'student')
+    db.refreshToday()
+    const record = db.recordOf(activeAccount(session).profile)
+    if (!record?.internship?.hours.length) throw new ApiError('ข้อมูลการฝึกงานยังไม่ครบ กรุณาติดต่อแอดมิน', 404)
+    return record as Intern
   }
 
-  function requireSampleData(role: UserRole) {
-    if (hasSampleData()) return
-    throw new ApiError(role === 'supervisor' ? 'ยังไม่มีนักศึกษาที่ได้รับมอบหมายให้บัญชีนี้' : 'บัญชีนี้ยังไม่มีข้อมูลการฝึกงาน กรุณาติดต่อแอดมิน', 404)
+  function currentMentor() {
+    requireRole(session, 'supervisor')
+    db.refreshToday()
+    return activeAccount(session).profile
   }
+
+  const student = <Key extends keyof StudentApi>(key: Key) =>
+    (async (...args: unknown[]) => (studentApi(currentIntern())[key] as (...values: unknown[]) => unknown)(...args)) as StudentApi[Key]
+
+  const mentor = <Key extends keyof MentorApi>(key: Key) =>
+    (async (...args: unknown[]) => (mentorApi(currentMentor())[key] as (...values: unknown[]) => unknown)(...args)) as MentorApi[Key]
 
   /** นักศึกษาดูของตนเอง พี่เลี้ยงดูของนักศึกษาในความดูแล (ขอบเขตงานข้อ 2.3) */
-  async function getWorklogHistory(id: number) {
-    if (activeAccount(session).profile.role !== 'supervisor') {
-      requireRole(session, 'student')
-      requireSampleData('student')
-      return dataApi.getWorklogHistory(id)
-    }
-    requireSampleData('supervisor')
-    const found = findReviewable(id) ?? deletedReturns().find(item => item.worklog.id === id)
-    if (!found) throw new ApiError('รายการที่ขออยู่นอกขอบเขตข้อมูลที่คุณมีสิทธิ์ดู', 403)
-    return respond({ worklog: found.worklog, events: db.histories[id] ?? [] })
+  const getWorklogHistory = (id: number) => activeAccount(session).profile.role === 'supervisor'
+    ? mentor('getWorklogHistory')(id)
+    : student('getWorklogHistory')(id)
+
+  /** นักศึกษาที่ผู้ใช้เกี่ยวข้อง ใช้เลือกการแจ้งเตือน: ตนเอง หรือผู้ที่ตนดูแล */
+  function relatedStudents(profile: UserProfile) {
+    if (profile.role === 'student') return [profile.studentId!]
+    return mentoredStudents(profile).map(item => item.studentId)
   }
 
-  /** การแจ้งเตือนแยกตามบทบาทของผู้ที่เข้าสู่ระบบ */
+  /** การแจ้งเตือนแยกตามผู้ที่เข้าสู่ระบบ */
   async function getNotifications() {
-    const { role } = activeAccount(session).profile
+    const { profile } = activeAccount(session)
     db.refreshToday()
-    if (!hasSampleData()) return respond([])
-    if (role === 'supervisor') {
-      addOverdueNotifications(mentoredStudents().flatMap(student => student.worklogs
+    if (profile.role === 'supervisor') {
+      addOverdueNotifications(mentoredStudents(profile).flatMap(item => item.worklogs
         .filter(log => log.reviewStatus === 'submitted')
-        .map(log => toReviewItem(student.studentId, student.name, log))))
+        .map(log => toReviewItem(item.studentId, item.name, log))))
     }
 
-    return respond(notificationsFor(role).map(({ recipient, ...notification }) => {
-      const worklog = db.studentWorklogs.find(log => log.id === notification.worklogId)
+    return respond(notificationsFor(profile.role, relatedStudents(profile)).map(({ recipient, ...notification }) => {
+      const worklog = db.recordOf(profile)?.worklogs.find(log => log.id === notification.worklogId)
       const canEdit = notification.type === 'returned' && worklog?.reviewStatus === 'returned' && !isOutsideEditWindow(worklog)
       return { ...notification, canEdit }
     }))
   }
 
   async function markNotificationsRead(ids?: number[]) {
-    markRead(activeAccount(session).profile.role, ids)
+    const { profile } = activeAccount(session)
+    markRead(profile.role, relatedStudents(profile), ids)
     await respond(null)
   }
 
@@ -553,31 +615,31 @@ export function createMockApi(session: MockSession): Api {
     getNotifications,
     markNotificationsRead,
 
-    getDashboard: guard('student', dataApi.getDashboard),
-    getInternship: guard('student', dataApi.getInternship),
-    getDailyWorklogs: guard('student', dataApi.getDailyWorklogs),
-    listWorklogs: guard('student', dataApi.listWorklogs),
-    getWorklog: guard('student', dataApi.getWorklog),
-    getWorklogFormContext: guard('student', dataApi.getWorklogFormContext),
+    getDashboard: student('getDashboard'),
+    getInternship: student('getInternship'),
+    getDailyWorklogs: student('getDailyWorklogs'),
+    listWorklogs: student('listWorklogs'),
+    getWorklog: student('getWorklog'),
+    getWorklogFormContext: student('getWorklogFormContext'),
     // ต้องเข้าสู่ระบบ แต่ไม่จำกัดบทบาท
     getServerTime: async () => {
       activeAccount(session)
       db.refreshToday()
-      return dataApi.getServerTime()
+      return respond(serverNow())
     },
-    saveWorklog: guard('student', dataApi.saveWorklog),
-    startWorklog: guard('student', dataApi.startWorklog),
-    finishWorklog: guard('student', dataApi.finishWorklog),
-    deleteWorklog: guard('student', dataApi.deleteWorklog),
+    saveWorklog: student('saveWorklog'),
+    startWorklog: student('startWorklog'),
+    finishWorklog: student('finishWorklog'),
+    deleteWorklog: student('deleteWorklog'),
     getWorklogHistory,
-    getMyWeeklyReport: guard('student', dataApi.getMyWeeklyReport),
+    getMyWeeklyReport: student('getMyWeeklyReport'),
 
-    getMentorStudents: guard('supervisor', dataApi.getMentorStudents),
-    getMentorWeeklyReports: guard('supervisor', dataApi.getMentorWeeklyReports),
-    getSupervisedStudents: guard('supervisor', dataApi.getSupervisedStudents),
-    getReviewQueue: guard('supervisor', dataApi.getReviewQueue),
-    approveWorklogs: guard('supervisor', dataApi.approveWorklogs),
-    returnWorklogs: guard('supervisor', dataApi.returnWorklogs),
-    createUnavailability: guard('supervisor', dataApi.createUnavailability),
+    getMentorStudents: mentor('getMentorStudents'),
+    getMentorWeeklyReports: mentor('getMentorWeeklyReports'),
+    getSupervisedStudents: mentor('getSupervisedStudents'),
+    getReviewQueue: mentor('getReviewQueue'),
+    approveWorklogs: mentor('approveWorklogs'),
+    returnWorklogs: mentor('returnWorklogs'),
+    createUnavailability: mentor('createUnavailability'),
   }
 }

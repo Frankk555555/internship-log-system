@@ -1,6 +1,7 @@
 // ข้อมูลจำลองของแอดมิน โหลดพร้อม mockApi เมื่อใช้ข้อมูลจำลองเท่านั้น
-import type { AdminApi, AdminUser, UserInput } from '~/types/admin'
-import { settingDayError, userInputErrors } from '~/utils/adminRules'
+import type { AdminApi, AdminUser, InternshipDetail, InternshipRow, UserInput } from '~/types/admin'
+import { internshipErrors, settingDayError, userInputErrors } from '~/utils/adminRules'
+import { workHoursOn } from '~/utils/worklogRules'
 import { ApiError } from './api'
 import { mockAccounts, type MockAccount } from './mockAccounts'
 import { clearFailures, currentAccount, lockedUntilFor, requireRole, sendResetLink } from './mockAuth'
@@ -9,6 +10,7 @@ import { reassignStudent } from './mockNotifications'
 import type { MockSession } from './mockSession'
 
 const userPageSize = 8
+const internshipPageSize = 8
 const wait = () => new Promise(resolve => setTimeout(resolve, 150))
 
 function toAdminUser({ id, suspended, lastLoginAt, profile }: MockAccount): AdminUser {
@@ -53,6 +55,49 @@ function checkUser(input: UserInput, current?: MockAccount) {
     throw new ApiError('รหัสนักศึกษานี้มีบัญชีอยู่แล้ว', 409, { code: 'student_id_taken' })
   }
   return next
+}
+
+function toRow({ profile, internship, mentor }: db.StudentRecord): InternshipRow {
+  const hours = internship?.hours.length ? workHoursOn(db.TODAY, internship.hours[0]!, internship.hours) : undefined
+  return {
+    studentId: profile.studentId!,
+    name: profile.name,
+    company: internship?.company,
+    position: internship?.position,
+    startDate: internship?.startDate,
+    endDate: internship?.endDate,
+    workStartTime: hours?.workStartTime,
+    workEndTime: hours?.workEndTime,
+    mentorName: mentor?.name,
+  }
+}
+
+function findStudent(studentId: string) {
+  const record = db.students.find(item => item.profile.studentId === studentId)
+  if (!record) throw new ApiError('ไม่พบนักศึกษาคนนี้', 404)
+  return record
+}
+
+function toDetail(record: db.StudentRecord): InternshipDetail {
+  const supervisors = mockAccounts.filter(account => account.profile.role === 'supervisor'
+    // พี่เลี้ยงคนปัจจุบันถูกระงับก็ยังต้องแสดง
+    && (!account.suspended || account.profile === record.mentor))
+  return {
+    ...toRow(record),
+    mentorId: mockAccounts.find(account => account.profile === record.mentor)?.id,
+    mentors: supervisors.map(({ id, suspended, profile }) => ({ id, name: suspended ? `${profile.name} (ระงับการใช้งาน)` : profile.name })),
+    mentorHistory: record.mentorHistory.map(({ mentor, from, to }) => ({ mentorName: mentor.name, from, to })),
+    pendingCount: record.worklogs.filter(log => log.reviewStatus === 'submitted').length,
+  }
+}
+
+/** เพิ่มช่วงเวลางานเมื่อค่าที่ใช้กับวันนี้เปลี่ยน รายการก่อนวันนี้ยังตรวจตามเวลาเดิม */
+function nextHours(history: db.MockInternship['hours'], startDate: string, workStartTime: string, workEndTime: string) {
+  const same = (period?: { workStartTime: string, workEndTime: string }) => period?.workStartTime === workStartTime && period.workEndTime === workEndTime
+  if (!history.length) return [{ effectiveFrom: startDate, workStartTime, workEndTime }]
+  if (same(workHoursOn(db.TODAY, history[0]!, history))) return history
+  const earlier = history.filter(period => period.effectiveFrom < db.TODAY)
+  return same(earlier.at(-1)) ? earlier : [...earlier, { effectiveFrom: db.TODAY, workStartTime, workEndTime }]
 }
 
 /** now: เวลาเซิร์ฟเวอร์จำลอง ใช้บันทึกว่าแก้เมื่อไร */
@@ -114,6 +159,7 @@ export function createMockAdmin(session: MockSession, now: () => string): AdminA
       }
       db.applyUserChange(account.profile, next)
       mockAccounts.unshift(account)
+      if (isStudent) db.students.push({ profile: account.profile, mentorHistory: [], worklogs: [] })
       if (!isStudent) sendResetLink(account)
       return toAdminUser(account)
     },
@@ -151,6 +197,60 @@ export function createMockAdmin(session: MockSession, now: () => string): AdminA
       const account = findUser(id)
       clearFailures(account.profile.email)
       return toAdminUser(account)
+    },
+
+    async getInternships({ filter, q, page }) {
+      await authorise()
+      const keyword = q.trim().toLowerCase()
+      const matched = db.students.map(toRow).filter(row => !keyword
+        || [row.name, row.studentId, row.company ?? ''].some(value => value.toLowerCase().includes(keyword)))
+      const withoutMentor = matched.filter(row => !row.mentorName)
+      const withoutHours = matched.filter(row => !row.workStartTime)
+      const items = filter === 'no_mentor' ? withoutMentor : filter === 'no_hours' ? withoutHours : matched
+      const current = Math.min(Math.max(1, page), Math.max(1, Math.ceil(items.length / internshipPageSize)))
+      return {
+        items: items.slice((current - 1) * internshipPageSize, current * internshipPageSize),
+        total: items.length,
+        pageSize: internshipPageSize,
+        counts: { all: matched.length, no_mentor: withoutMentor.length, no_hours: withoutHours.length },
+      }
+    },
+
+    async getInternshipDetail(studentId) {
+      await authorise()
+      return toDetail(findStudent(studentId))
+    },
+
+    async saveInternship(studentId, input) {
+      await authorise()
+      const record = findStudent(studentId)
+      const problem = Object.values(internshipErrors(input)).find(Boolean)
+      if (problem) throw new ApiError(problem, 422)
+      if (![input.startDate, input.endDate].every(value => /^\d{4}-\d{2}-\d{2}$/.test(value))
+        || ![input.workStartTime, input.workEndTime].every(value => /^\d{2}:\d{2}$/.test(value))) {
+        throw new ApiError('รูปแบบวันที่หรือเวลาไม่ถูกต้อง', 422)
+      }
+      const account = mockAccounts.find(item => item.id === input.mentorId && item.profile.role === 'supervisor')
+      if (!account || (account.suspended && account.profile !== record.mentor)) {
+        throw new ApiError('เลือกพี่เลี้ยงที่ใช้งานอยู่', 422)
+      }
+
+      record.internship = {
+        company: input.company.trim(),
+        position: input.position.trim(),
+        semester: record.internship?.semester ?? db.currentSemester,
+        startDate: input.startDate,
+        endDate: input.endDate,
+        hours: nextHours(record.internship?.hours ?? [], input.startDate, input.workStartTime, input.workEndTime),
+      }
+      // เปลี่ยนพี่เลี้ยง: ปิดช่วงของคนเดิม งานรอตรวจตามไปคนใหม่เพราะค้นจากพี่เลี้ยงปัจจุบัน (ขอบเขตงานข้อ 3.1, 3.2)
+      if (record.mentor !== account.profile) {
+        const open = record.mentorHistory.find(period => !period.to)
+        if (open) open.to = db.TODAY
+        record.mentorHistory.unshift({ mentor: account.profile, from: db.TODAY })
+        record.mentor = account.profile
+      }
+      return toDetail(record)
     },
   }
 }

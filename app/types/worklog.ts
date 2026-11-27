@@ -33,10 +33,17 @@ export interface WorkHours {
   workEndTime: string
 }
 
+/** เวลางานช่วงหนึ่ง ใช้กับรายการของวันที่ตั้งแต่ effectiveFrom */
+export interface WorkHoursPeriod extends WorkHours {
+  effectiveFrom: string
+}
+
 export interface InternshipInfo extends WorkHours {
   company: string
   position: string
   mentorName: string
+  /** ยังไม่มีพี่เลี้ยง = บันทึกเวลาและส่งตรวจไม่ได้ */
+  hasMentor: boolean
   semester: string
   /** ร้อยละของระยะเวลาฝึกที่ผ่านไปแล้ว */
   progress: number
@@ -114,6 +121,7 @@ export interface StudentDashboard {
 }
 
 export interface DailyWorklogs {
+  hasMentor: boolean
   date: string
   semester: string
   worklogs: WorkLog[]
@@ -125,6 +133,9 @@ export type WorklogFormMode = 'new' | 'backdate'
 
 /** ค่าตั้งต้นและเงื่อนไขของฟอร์มบันทึกงาน */
 export interface WorklogFormContext extends WorkHours {
+  /** เวลางานตามวันเริ่มมีผล เรียงจากเก่าไปใหม่ ไม่ส่ง = ใช้เวลางานปัจจุบันกับทุกวัน */
+  hoursHistory?: WorkHoursPeriod[]
+  hasMentor: boolean
   today: string
   backdateLimitDays: number
   internshipStart: string

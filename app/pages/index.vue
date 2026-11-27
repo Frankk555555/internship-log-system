@@ -95,12 +95,15 @@ async function recordTime(action: 'start' | 'finish', log: WorkLog) {
           />
         </div>
 
+        <NoMentorNotice v-if="!data.internship.hasMentor" class="mt-5" />
+
         <ErrorNotice v-if="actionError" title="บันทึกเวลาไม่สำเร็จ" :messages="[actionError]" class="mt-5" @close="actionError = undefined" />
 
         <WorklogTable
           :logs="data.recentWorklogs"
           :today="data.today"
           :busy-id="busyId"
+          :record-block="data.internship.hasMentor ? undefined : noMentorMessage"
           class="mt-5"
           @start="log => ask('start', log)"
           @finish="log => ask('finish', log)"

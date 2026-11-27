@@ -1,7 +1,15 @@
 // กฎการบันทึกเวลา ใช้ร่วมกันระหว่างหน้าจอและข้อมูลจำลอง (backend ต้องบังคับซ้ำ)
-import type { WorkHours, WorkLog } from '~/types/worklog'
+import type { WorkHours, WorkHoursPeriod, WorkLog } from '~/types/worklog'
 import { addDays, toThaiTimeParts } from './date'
 import { toMinutes } from './time'
+
+/** นักศึกษาต้องมีพี่เลี้ยงก่อนจึงบันทึกและส่งตรวจได้ */
+export const noMentorMessage = 'ยังไม่มีพี่เลี้ยง จึงบันทึกและส่งตรวจไม่ได้ กรุณาติดต่อแอดมิน'
+
+/** เวลางานของวันที่ทำงาน แอดมินเปลี่ยนเวลางานแล้ว รายการก่อนหน้ายังตรวจตามเวลาเดิม */
+export function workHoursOn(date: string, current: WorkHours, history: WorkHoursPeriod[] = []): WorkHours {
+  return history.filter(period => period.effectiveFrom <= date).at(-1) ?? history[0] ?? current
+}
 
 /** เลยเวลาเลิกงานแล้ว (เวลาเลิกงานพอดียังบันทึกเสร็จได้) */
 export function isAfterWork(time: string, workEndTime: string) {

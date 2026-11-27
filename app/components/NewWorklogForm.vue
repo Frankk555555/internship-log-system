@@ -14,7 +14,8 @@ const { workEndTime } = props.context
 // เริ่มงานใหม่ไม่ได้ ถ้าอยู่นอกเวลางาน หรือยังมีงานอื่นจับเวลาอยู่ (ตรวจตอนเปิดฟอร์ม)
 const running = props.context.runningWorklog
 const outsideHours = timerStartError(startTime, props.context)
-const blocked = outsideHours ?? (running
+const noMentor = props.context.hasMentor ? undefined : noMentorMessage
+const blocked = noMentor ?? outsideHours ?? (running
   ? `เริ่มงานใหม่ไม่ได้ ยังมีงานกำลังดำเนินการอยู่: “${running.title}” (เริ่ม ${running.startTime} น.)`
   : undefined)
 
@@ -40,6 +41,8 @@ const missedFinish = computed(() => afterWork.value && !endTime.value && !isSubm
 
 // ทางไปต่อเมื่อทำในฟอร์มนี้ไม่ได้
 const nextStep = computed(() => {
+  // ต้องรอแอดมินกำหนดพี่เลี้ยง ไม่มีหน้าให้ไปต่อ
+  if (noMentor) return undefined
   if (outsideHours) {
     // ก่อนเวลาเข้างานต้องรอ ไม่มีหน้าให้ไปต่อ
     if (toMinutes(startTime) < toMinutes(workEndTime)) return undefined
