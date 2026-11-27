@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'mentor', role: 'supervisor' })
+definePageMeta({ layout: 'staff', role: 'supervisor' })
 useHead({ title: 'นักศึกษาในความดูแล' })
 
 const api = useApi()

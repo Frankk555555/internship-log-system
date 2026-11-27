@@ -47,6 +47,16 @@ export const mentor: UserProfile = {
   defaultReportDate: daysAgo(4),
 }
 
+export const admin: UserProfile = {
+  name: 'อรุณี ศรีสุข',
+  firstName: 'อรุณี',
+  lastName: 'ศรีสุข',
+  email: 'arunee.s@university.ac.th',
+  initials: 'อศ',
+  role: 'admin',
+  defaultReportDate: TODAY,
+}
+
 export const internship: InternshipInfo = {
   company: 'บริษัท เทคคอร์ป ประเทศไทย จำกัด',
   position: 'Full stack developer',

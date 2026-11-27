@@ -215,6 +215,7 @@
 | รูปแบบวันที่ | `app/utils/date.ts` (`formatThaiDate` สำหรับแสดงผล, `formatThaiInputDate` สำหรับช่องกรอก) |
 | รูปแบบใช้ซ้ำ `card`, `field`, `field-error`, `notice-error`, `link` | `app/assets/css/main.css` |
 | หัวหน้าเพจ และกล่องข้อผิดพลาด | `app/components/PageHeader.vue`, `app/components/ErrorNotice.vue` |
+| แถบตัวกรอง ช่องเลือก และแบ่งหน้าตาราง | `app/components/FilterChips.vue`, `SelectField.vue`, `TablePagination.vue` |
 
 ## ที่ไฟล์นี้ยังไม่ได้กำหนด
 

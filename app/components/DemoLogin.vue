@@ -29,7 +29,7 @@ const icons: Record<UserRole, string> = {
         :key="account.email"
         type="button"
         :disabled="disabled"
-        class="btn btn-secondary flex-col items-start gap-0.5 px-3.5 py-2.5 text-left"
+        class="btn btn-secondary flex-col items-start gap-0.5 px-3.5 py-2.5 text-left sm:last:odd:col-span-2"
         @click="$emit('select', { email: account.email, password: account.password })"
       >
         <span class="flex items-center gap-1.5 text-xs">

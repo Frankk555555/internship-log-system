@@ -41,9 +41,14 @@ export const roleLabels: Record<UserRole, string> = {
   admin: 'แอดมิน',
 }
 
-/** หน้าแรกของแต่ละบทบาท (ยังไม่มีหน้าของแอดมิน) */
+/** หน้าแรกของแต่ละบทบาท */
 export function homePathFor(role?: UserRole) {
   if (role === 'supervisor') return '/mentor/reviews'
-  if (role === 'admin') return '/settings'
+  if (role === 'admin') return '/admin'
   return '/'
+}
+
+/** layout ของหน้าที่หลายบทบาทใช้ร่วมกัน */
+export function layoutFor(role?: UserRole): 'staff' | 'default' {
+  return role === 'supervisor' || role === 'admin' ? 'staff' : 'default'
 }

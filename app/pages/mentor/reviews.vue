@@ -2,7 +2,7 @@
 import { errorMessage } from '~/services/api'
 import type { ReviewFilter, ReviewItem } from '~/types/review'
 
-definePageMeta({ layout: 'mentor', role: 'supervisor' })
+definePageMeta({ layout: 'staff', role: 'supervisor' })
 useHead({ title: 'ตรวจงานนักศึกษา' })
 
 const pageSize = 6

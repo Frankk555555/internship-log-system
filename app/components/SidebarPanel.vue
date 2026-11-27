@@ -40,9 +40,15 @@ async function onLogout() {
 
 const route = useRoute()
 
-// หน้าย่อย เช่น /worklogs/new ให้ไฮไลต์เมนูแม่ด้วย
+// หน้าย่อย เช่น /worklogs/new ให้ไฮไลต์เมนูแม่ด้วย ตรงหลายเมนูเลือกเส้นทางที่ยาวที่สุด
+// เช่น /admin/users ต้องไม่ไฮไลต์ /admin
+const activePath = computed(() => workspace.value.menus
+  .map(item => item.to)
+  .filter(to => route.path === to || (to !== '/' && route.path.startsWith(`${to}/`)))
+  .sort((a, b) => b.length - a.length)[0])
+
 function isActive(to: string) {
-  return route.path === to || (to !== '/' && route.path.startsWith(`${to}/`))
+  return to === activePath.value
 }
 </script>
 

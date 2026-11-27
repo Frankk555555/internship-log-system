@@ -3,6 +3,17 @@ definePageMeta({ layout: 'auth', public: true })
 useHead({ title: 'เข้าถึงรายการนี้ไม่ได้' })
 
 const user = useSessionUser()
+const api = useApi()
+
+// เปิดหน้านี้จากการโหลดใหม่ยังไม่รู้ผู้ใช้ ต้องถามก่อน ไม่อย่างนั้นลิงก์หน้าหลักพาพี่เลี้ยงและแอดมินวนกลับมาที่นี่
+if (!user.value) {
+  try {
+    user.value = await api.getMe()
+  }
+  catch {
+    // ยังไม่เข้าสู่ระบบ ลิงก์ไปหน้าหลักซึ่งส่งต่อไปหน้าเข้าสู่ระบบ
+  }
+}
 </script>
 
 <template>

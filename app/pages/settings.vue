@@ -4,7 +4,7 @@ import { ApiError, errorMessage } from '~/services/api'
 // ทุกบทบาทใช้หน้านี้ได้ เลือกเมนูข้างตามบทบาท
 definePageMeta({
   middleware: [() => {
-    setPageLayout(useSessionUser().value?.role === 'supervisor' ? 'mentor' : 'default')
+    setPageLayout(layoutFor(useSessionUser().value?.role))
   }],
 })
 

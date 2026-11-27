@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { errorMessage } from '~/services/api'
 
-definePageMeta({ layout: 'mentor', role: 'supervisor' })
+definePageMeta({ layout: 'staff', role: 'supervisor' })
 useHead({ title: 'ตารางเวลาไม่สะดวก' })
 
 const api = useApi()

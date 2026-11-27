@@ -6,7 +6,7 @@ import type { HistoryEvent } from '~/types/worklog'
 definePageMeta({
   role: ['student', 'supervisor'],
   middleware: [() => {
-    setPageLayout(useSessionUser().value?.role === 'supervisor' ? 'mentor' : 'default')
+    setPageLayout(layoutFor(useSessionUser().value?.role))
   }],
 })
 
