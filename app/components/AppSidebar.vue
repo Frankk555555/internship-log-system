@@ -1,63 +1,53 @@
 <script setup lang="ts">
 import type { UserProfile, UserRole } from '~/types/worklog'
 
-const props = defineProps<{
-  user: UserProfile
+defineProps<{
+  role: UserRole
+  /** ไม่มีค่าระหว่างโหลดหรือโหลดไม่สำเร็จ */
+  user?: UserProfile
 }>()
 
-const roleLabels: Record<UserRole, string> = {
-  student: 'นักศึกษา',
-  supervisor: 'พี่เลี้ยง',
-  admin: 'แอดมิน',
+// จอแคบกว่า lg ใช้แถบบนกับเมนูแบบเลื่อน
+const isOpen = ref(false)
+const route = useRoute()
+
+watch(() => route.fullPath, () => {
+  isOpen.value = false
+})
+
+// ขยายจอจนมีเมนูข้างแล้ว ปิดเมนูแบบเลื่อน
+let wideScreen: MediaQueryList | undefined
+
+function closeOnWide(event: MediaQueryListEvent) {
+  if (event.matches) isOpen.value = false
 }
 
-const menus = [
-  { label: 'หน้าหลัก', icon: 'i-lucide-house', to: '/', active: true },
-  { label: 'บันทึกงานประจำวัน', icon: 'i-lucide-notebook-pen', to: '#' },
-  { label: 'ข้อมูลสถานที่ฝึกงาน', icon: 'i-lucide-building-2', to: '#' },
-  { label: 'ปฏิบัติการทำงาน', icon: 'i-lucide-clipboard-list', to: '#' },
-  { label: 'รายงานรายสัปดาห์', icon: 'i-lucide-file-text', to: '#' },
-  { label: 'ตั้งค่าบัญชี', icon: 'i-lucide-settings', to: '#' },
-]
+onMounted(() => {
+  wideScreen = window.matchMedia('(min-width: 1024px)')
+  wideScreen.addEventListener('change', closeOnWide)
+})
+
+onBeforeUnmount(() => wideScreen?.removeEventListener('change', closeOnWide))
 </script>
 
 <template>
-  <aside class="fixed inset-y-0 left-0 z-40 hidden w-[180px] flex-col overflow-hidden bg-[linear-gradient(180deg,#191642_0%,#100d31_100%)] text-white lg:flex">
-    <div class="border-b border-white/10 px-4 pb-4 pt-5">
-      <h1 class="text-[12px] font-semibold leading-tight">Internship Work Log System</h1>
-      <p class="mt-1 text-[10px] text-slate-300">Student Workspace</p>
-    </div>
-
-    <nav class="flex-1 space-y-2 px-3 py-5">
-      <NuxtLink
-        v-for="item in menus"
-        :key="item.label"
-        :to="item.to"
-        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium text-slate-200 transition hover:bg-white/10 hover:text-white"
-        :class="item.active ? 'bg-[linear-gradient(90deg,#6548f3_0%,#4156e8_100%)] text-white shadow-lg shadow-indigo-950/20' : ''"
-        :aria-current="item.active ? 'page' : undefined"
-      >
-        <UIcon :name="item.icon" class="size-4 shrink-0" />
-        <span>{{ item.label }}</span>
-      </NuxtLink>
-    </nav>
-
-    <div class="p-3">
-      <div class="rounded-xl border border-white/10 bg-white/10 p-3 backdrop-blur">
-        <div class="flex items-center gap-2">
-          <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-indigo-400/70 text-xs font-semibold">
-            สช
-          </div>
-          <div class="min-w-0">
-            <p class="truncate text-[12px] font-semibold">{{ props.user.name }}</p>
-            <p class="text-[10px] text-slate-300">{{ props.user.studentId }}</p>
-          </div>
-        </div>
-        <div class="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[10px]">
-          <span class="text-slate-300">{{ roleLabels[props.user.role] }}</span>
-          <button type="button" class="font-medium text-red-400 hover:text-red-300">ออกจากระบบ</button>
-        </div>
-      </div>
-    </div>
+  <aside class="fixed inset-y-0 left-0 z-40 hidden w-[180px] lg:block print:hidden">
+    <SidebarPanel :role="role" :user="user" />
   </aside>
+
+  <header class="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:hidden print:hidden">
+    <div>
+      <p class="text-sm font-semibold">Internship Work Log System</p>
+      <p class="text-xs text-slate-500">{{ workspaces[role].name }}</p>
+    </div>
+    <button type="button" class="flex size-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50" aria-label="เปิดเมนู" aria-haspopup="dialog" :aria-expanded="isOpen" @click="isOpen = true">
+      <UIcon name="i-lucide-menu" class="size-5" />
+    </button>
+  </header>
+
+  <USlideover v-model:open="isOpen" side="left" title="เมนู" description="เลือกหน้าที่ต้องการ" :ui="{ content: 'max-w-[240px]' }">
+    <template #content>
+      <SidebarPanel :role="role" :user="user" closable @close="isOpen = false" />
+    </template>
+  </USlideover>
 </template>
