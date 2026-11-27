@@ -1,6 +1,6 @@
 import type { Api } from '~/services/api'
 import { createHttpApi } from '~/services/httpApi'
-import { createMockApi } from '~/services/mockApi'
+import { createLazyApi } from '~/services/lazyApi'
 import { createMockSession } from '~/services/mockSession'
 
 /**
@@ -12,7 +12,11 @@ export function useApi(): Api {
   // ตอน render ฝั่งเซิร์ฟเวอร์ ต้องใช้ cookie ของผู้ใช้
   const headers = import.meta.server ? useRequestHeaders(['cookie']) as Record<string, string> : undefined
 
-  if (!apiBase) return createMockApi(createMockSession(headers?.cookie))
+  if (!apiBase) {
+    const session = createMockSession(headers?.cookie)
+    // โหลดข้อมูลจำลองเฉพาะเมื่อใช้จริง ต่อ backend แล้วเบราว์เซอร์ไม่ต้องดาวน์โหลด
+    return createLazyApi(async () => (await import('~/services/mockApi')).createMockApi(session))
+  }
 
   const user = useSessionUser()
   const router = useRouter()

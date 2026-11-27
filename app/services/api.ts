@@ -1,4 +1,5 @@
 import type { AuthApi } from '~/types/auth'
+import type { AppNotification } from '~/types/notification'
 import type { ReviewFilter, ReviewQueue, ReviewResult, ReviewTarget, SupervisedStudents, UnavailabilityInput } from '~/types/review'
 import type {
   DailyWorklogs,
@@ -18,6 +19,12 @@ import type {
  * ปัจจุบันมี 2 ตัว: mockApi (ข้อมูลจำลอง) และ createHttpApi (เรียก REST จริง)
  */
 export interface Api extends AuthApi {
+  // ทุกบทบาท
+  /** การแจ้งเตือนของผู้ใช้ที่เข้าสู่ระบบ ใหม่สุดก่อน */
+  getNotifications(): Promise<AppNotification[]>
+  /** ไม่ระบุ ids = อ่านแล้วทุกรายการ */
+  markNotificationsRead(ids?: number[]): Promise<void>
+
   // นักศึกษา
   getDashboard(): Promise<StudentDashboard>
   getInternship(): Promise<InternshipInfo>

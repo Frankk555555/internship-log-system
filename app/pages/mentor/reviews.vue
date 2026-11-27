@@ -7,7 +7,6 @@ useHead({ title: 'ตรวจงานนักศึกษา' })
 
 const pageSize = 6
 const api = useApi()
-const user = useSessionUser()
 const notify = useNotify()
 
 // เปิดจากหน้านักศึกษาในความดูแล: กรองรายคน และเลือกแท็บเริ่มต้นได้
@@ -49,10 +48,14 @@ function toggleAll(items: ReviewItem[], checked: boolean) {
   selected.value = checked ? [...others, ...items] : others
 }
 
+// รายการที่ตรวจไม่สำเร็จ ค้างไว้ในหน้าจนกว่าจะปิดหรือทำรายการใหม่
+const problems = ref<{ title: string, messages: string[] }>()
+
 // เปลี่ยนนักศึกษาแล้วต้องเลือกรายการใหม่
 watch(studentId, () => {
   limit.value = pageSize
   selected.value = []
+  problems.value = undefined
 })
 
 function selectTab(next: ReviewFilter) {
@@ -60,6 +63,7 @@ function selectTab(next: ReviewFilter) {
   filter.value = next
   limit.value = pageSize
   selected.value = []
+  problems.value = undefined
 }
 
 // แท็บเลื่อนด้วยปุ่มลูกศรได้ตามรูปแบบแท็บมาตรฐาน
@@ -115,6 +119,7 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
 
   pending.value = kind
   failure.value = undefined
+  problems.value = undefined
   try {
     const targets = items.map(({ worklog }) => ({ id: worklog.id, version: worklog.version ?? 0 }))
     const result = kind === 'approve'
@@ -129,7 +134,8 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
         const title = items.find(item => item.worklog.id === problem.id)?.worklog.title
         return `${title}: ${problem.message}`
       })
-      notify('error', `ทำรายการไม่สำเร็จ ${result.failures.length} รายการ`, lines.join('\n'))
+      problems.value = { title: `ทำรายการไม่สำเร็จ ${result.failures.length} รายการ`, messages: lines }
+      notify('error', problems.value.title, lines.join('\n'))
     }
 
     // รายการที่ทำแล้วหรือข้อมูลเก่า ต้องเลือกใหม่จากข้อมูลล่าสุด
@@ -140,6 +146,8 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
   }
   catch (problem) {
     failure.value = errorMessage(problem)
+    // หน้าต่างที่เปิดอยู่แสดงข้อความเองแล้ว
+    if (!isReviewOpen.value && !isReturnOpen.value) problems.value = { title: 'ทำรายการไม่สำเร็จ', messages: [failure.value] }
     notify('error', 'ทำรายการไม่สำเร็จ', failure.value)
   }
   finally {
@@ -150,21 +158,20 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
 
 <template>
   <div>
-    <header class="flex items-start justify-between gap-4 border-b border-slate-200 pb-5">
-      <div>
-        <BackButton v-if="studentId" fallback="/mentor/students" class="mb-3" />
-        <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
-          <span>พื้นที่พี่เลี้ยง</span>
-          <span>/</span>
-          <span class="text-slate-500">ตรวจงานนักศึกษา</span>
-        </nav>
-        <h2 class="mt-2 text-2xl font-bold text-slate-900">ตรวจบันทึกการปฏิบัติงาน</h2>
-        <p class="mt-1 text-xs text-slate-500">ดูรายการงานที่นักศึกษาส่งตรวจ</p>
-      </div>
-      <NotificationButton :count="user?.unreadNotifications" />
-    </header>
+    <PageHeader
+      title="ตรวจบันทึกการปฏิบัติงาน"
+      description="ดูรายการงานที่นักศึกษาส่งตรวจ"
+      :crumbs="[{ label: 'พื้นที่พี่เลี้ยง' }, { label: 'ตรวจงานนักศึกษา' }]"
+    >
+      <template v-if="studentId" #back>
+        <BackButton fallback="/mentor/students" />
+      </template>
+      <template #actions>
+        <NotificationButton />
+      </template>
+    </PageHeader>
 
-    <div ref="tabList" class="flex gap-2 border-b border-slate-200" role="tablist" aria-label="ตัวกรองรายการ" @keydown.left.prevent="moveTab(-1)" @keydown.right.prevent="moveTab(1)">
+    <div ref="tabList" class="flex gap-2 border-b border-line" role="tablist" aria-label="ตัวกรองรายการ" @keydown.left.prevent="moveTab(-1)" @keydown.right.prevent="moveTab(1)">
       <button
         v-for="tab in tabs"
         :id="`review-tab-${tab.key}`"
@@ -174,8 +181,8 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
         :aria-selected="filter === tab.key"
         aria-controls="review-panel"
         :tabindex="filter === tab.key ? 0 : -1"
-        class="-mb-px min-w-24 border-b-2 py-3 pr-4 text-left text-[13px] tabular-nums transition-colors"
-        :class="filter === tab.key ? 'border-indigo-600 font-semibold text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'"
+        class="-mb-px min-w-24 border-b-2 py-3 pr-4 text-left text-[0.8125rem] tabular-nums transition-colors"
+        :class="filter === tab.key ? 'border-brand font-semibold text-brand' : 'border-transparent text-ink-muted hover:text-slate-800'"
         @click="selectTab(tab.key)"
       >
         {{ tab.label }}
@@ -183,8 +190,8 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
     </div>
 
     <p v-if="studentId" class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
-      <span>แสดงเฉพาะ <strong class="font-semibold text-slate-900">{{ queue?.student ? `${queue.student.name} (${queue.student.studentId})` : studentId }}</strong></span>
-      <NuxtLink to="/mentor/reviews" class="font-semibold text-indigo-600 underline underline-offset-2">ดูนักศึกษาทุกคน</NuxtLink>
+      <span>แสดงเฉพาะ <strong class="font-semibold text-ink">{{ queue?.student ? `${queue.student.name} (${queue.student.studentId})` : studentId }}</strong></span>
+      <NuxtLink to="/mentor/reviews" class="link">ดูนักศึกษาทุกคน</NuxtLink>
     </p>
 
     <div id="review-panel" role="tabpanel" :aria-labelledby="`review-tab-${filter}`" class="mt-5">
@@ -198,11 +205,13 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
         </button>
       </div>
 
+      <ErrorNotice v-if="problems" v-bind="problems" class="mt-4" @close="problems = undefined" />
+
       <div class="mt-4">
         <AsyncState v-if="error" :loading="false" :error="error" @retry="refresh()" />
 
         <!-- โครงรายการระหว่างโหลด กันหน้าจอกระโดดตอนสลับแท็บ -->
-        <div v-else-if="!queue" class="overflow-hidden rounded-lg border border-slate-200 bg-white" role="status">
+        <div v-else-if="!queue" class="overflow-hidden rounded-lg border border-line bg-white" role="status">
           <span class="sr-only">กำลังโหลดข้อมูล...</span>
           <div v-for="row in pageSize" :key="row" class="flex items-center gap-4 border-b border-slate-100 px-4 py-4 last:border-0" aria-hidden="true">
             <span class="size-4 shrink-0 rounded bg-slate-200 motion-safe:animate-pulse" />
@@ -213,10 +222,10 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
         </div>
 
         <template v-else>
-          <div v-if="!queue.items.length" class="rounded-lg border border-slate-200 bg-white px-5 py-12 text-center">
+          <div v-if="!queue.items.length" class="rounded-lg border border-line bg-white px-5 py-12 text-center">
             <p class="text-sm font-semibold text-slate-700">{{ filter === 'pending' ? 'ไม่มีรายการรอตรวจ' : 'ยังไม่มีรายการที่ส่งเข้ามา' }}</p>
             <template v-if="filter === 'pending'">
-              <p class="mt-1 text-xs text-slate-500">รายการที่ตรวจแล้วดูได้ในแท็บ “ทั้งหมด”</p>
+              <p class="mt-1 text-xs text-ink-muted">รายการที่ตรวจแล้วดูได้ในแท็บ “ทั้งหมด”</p>
               <button type="button" class="btn btn-secondary mt-4 px-4 py-2 text-xs" @click="selectTab('all')">ดูรายการทั้งหมด</button>
             </template>
           </div>
@@ -235,11 +244,11 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
           <div
             v-if="queue.items.length"
             class="mt-4 flex flex-wrap items-center justify-between gap-3"
-            :class="selected.length ? 'sticky bottom-0 z-10 -mx-4 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:border-0 lg:px-0 lg:py-0' : ''"
+            :class="selected.length ? 'sticky bottom-0 z-10 -mx-4 border-t border-line bg-page px-4 py-3 sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:border-0 lg:px-0 lg:py-0' : ''"
           >
-            <p class="text-[11px] tabular-nums text-slate-500" :class="selected.length ? 'hidden lg:block' : ''">
+            <p class="text-2xs tabular-nums text-ink-muted" :class="selected.length ? 'hidden lg:block' : ''">
               แสดง {{ queue.items.length }} จาก {{ queue.total }} รายการ · ค้างตรวจเกิน {{ queue.overdueDays }} วันจะแจ้งเตือนอัตโนมัติ
-              <button v-if="queue.items.length < queue.total" type="button" :disabled="status === 'pending'" class="ml-2 min-h-8 font-semibold text-indigo-600 underline underline-offset-2 disabled:text-slate-400" @click="limit += pageSize">
+              <button v-if="queue.items.length < queue.total" type="button" :disabled="status === 'pending'" class="ml-2 min-h-8 link disabled:text-slate-400" @click="limit += pageSize">
                 {{ status === 'pending' ? 'กำลังโหลด...' : 'แสดงเพิ่ม' }}
               </button>
             </p>

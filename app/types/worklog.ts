@@ -16,7 +16,6 @@ export interface UserProfile {
   initials: string
   studentId?: string
   role: UserRole
-  unreadNotifications: number
   /** วันที่ตั้งต้นของหน้ารายงานรายสัปดาห์ (ปกติคือวันนี้ของเซิร์ฟเวอร์) */
   defaultReportDate: string
 }

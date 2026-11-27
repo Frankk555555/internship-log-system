@@ -31,9 +31,12 @@ async function send(address: string) {
   }
 }
 
-function submit() {
+const form = useTemplateRef<HTMLFormElement>('form')
+
+async function submit() {
   if (!isEmail(email.value)) {
     fail(email.value.trim() ? 'รูปแบบอีเมลไม่ถูกต้อง' : 'กรุณากรอกอีเมล', 'ยังส่งลิงก์ไม่ได้')
+    await focusFirstInvalid(form.value)
     return
   }
   send(email.value.trim())
@@ -45,7 +48,7 @@ function submit() {
     <template v-if="!ticket">
       <AuthHeading title="ลืมรหัสผ่าน">ระบุอีเมลที่ใช้เข้าสู่ระบบเพื่อรับลิงก์ตั้งรหัสผ่านใหม่</AuthHeading>
 
-      <form novalidate @submit.prevent="submit">
+      <form ref="form" novalidate @submit.prevent="submit">
         <TextField id="forgot-email" v-model="email" label="อีเมลผู้ใช้งาน" type="email" autocomplete="username" required :error="failure" />
         <AuthButton label="ยืนยันอีเมล" :pending="pending" class="mt-5" />
       </form>
@@ -61,15 +64,15 @@ function submit() {
       <button
         type="button"
         :disabled="pending || remaining > 0"
-        class="btn btn-primary h-10 w-full rounded-xl text-[13px]"
+        class="btn btn-primary h-10 w-full rounded-xl text-[0.8125rem]"
         @click="send(sentTo)"
       >
         {{ remaining > 0 ? `ส่งลิงก์อีกครั้ง (รอ ${remaining} วินาที)` : pending ? 'กำลังส่ง...' : 'ส่งลิงก์อีกครั้ง' }}
       </button>
-      <p v-if="failure" class="mt-2 text-[11px] font-semibold text-red-600" role="alert">{{ failure }}</p>
+      <p v-if="failure" class="mt-2 text-2xs font-semibold text-danger" role="alert">{{ failure }}</p>
     </template>
 
-    <NuxtLink to="/login" class="mt-6 inline-block text-[13px] font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800">
+    <NuxtLink to="/login" class="mt-6 inline-block text-[0.8125rem] link">
       กลับหน้าเข้าสู่ระบบ
     </NuxtLink>
   </div>

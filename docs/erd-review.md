@@ -86,5 +86,5 @@
 | `InternshipInfo.company`, `startDate`, `endDate` | `internships.organization_name`, `intern_start`, `intern_end` |
 | `InternshipInfo.position`, `semester`, `workEndTime` | **ยังไม่มี** |
 | `DailyWorklogs.mentorUnavailable` | `mentor_busy.start_busy`, `end_busy` |
-| `UserProfile.unreadNotifications` | **ยังไม่มี** (`notifications`) |
+| `AppNotification` | **ยังไม่มี** (`notifications`) ชนิดที่หน้าจอใช้เพิ่ม `returned`, `approved` จากรายการในตารางที่เสนอ และต้องมี `title`, `message` หรือสร้างจาก `type` กับ `work_id` |
 | `HistoryEvent` | **ยังไม่ครบ** ต้องใช้ `work_list_history` ร่วมกับ `work_list_reviews` |

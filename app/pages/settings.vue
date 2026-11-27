@@ -50,12 +50,15 @@ function cancel() {
   if (hadInput) notify('info', 'ยกเลิกแล้ว', 'ล้างข้อมูลที่กรอก รหัสผ่านยังเป็นรหัสเดิม')
 }
 
+const form = useTemplateRef<HTMLFormElement>('form')
+
 async function save() {
   if (pending.value) return
   checked.value = true
   clear()
   if (currentError.value || passwordError.value || confirmationError.value) {
     notify('error', 'ยังเปลี่ยนรหัสผ่านไม่ได้', 'กรุณาตรวจสอบข้อมูลในช่องที่มีข้อความเตือน')
+    await focusFirstInvalid(form.value)
     return
   }
 
@@ -69,6 +72,7 @@ async function save() {
     if (error instanceof ApiError && error.code === 'wrong_password') {
       currentPasswordFailure.value = error.message
       notify('error', 'เปลี่ยนรหัสผ่านไม่สำเร็จ', error.message)
+      await focusFirstInvalid(form.value)
     }
     else {
       fail(errorMessage(error), 'เปลี่ยนรหัสผ่านไม่สำเร็จ')
@@ -82,19 +86,16 @@ async function save() {
 
 <template>
   <div>
-    <header class="mb-4 border-b border-slate-200 pb-5">
-      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
-        <span>พื้นที่{{ user ? roleLabels[user.role] : '' }}</span>
-        <span>/</span>
-        <span class="text-slate-500">ตั้งค่าบัญชี</span>
-      </nav>
-      <h2 class="mt-2 text-2xl font-bold text-slate-900">ตั้งค่าบัญชี</h2>
-      <p class="mt-1 text-xs text-slate-500">เปลี่ยนรหัสผ่าน</p>
-    </header>
+    <PageHeader
+      class="mb-4"
+      title="ตั้งค่าบัญชี"
+      description="เปลี่ยนรหัสผ่าน"
+      :crumbs="[{ label: `พื้นที่${user ? roleLabels[user.role] : ''}` }, { label: 'ตั้งค่าบัญชี' }]"
+    />
 
     <div class="grid gap-4 lg:min-h-[38rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
-      <form class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" novalidate @submit.prevent="save">
-        <h3 class="text-base font-bold text-slate-900">รหัสผ่านของฉัน</h3>
+      <form ref="form" class="card p-5" novalidate @submit.prevent="save">
+        <h2 class="text-base font-bold text-ink">รหัสผ่านของฉัน</h2>
 
         <!-- ช่วยให้ตัวจัดการรหัสผ่านรู้ว่าเป็นบัญชีใด -->
         <input type="email" :value="user?.email" autocomplete="username" readonly tabindex="-1" aria-hidden="true" class="sr-only">
@@ -105,7 +106,7 @@ async function save() {
           <TextField id="confirm-password" v-model="confirmation" label="ยืนยันรหัสผ่านใหม่" type="password" autocomplete="new-password" required :error="confirmationError" />
         </div>
 
-        <p v-if="formError" class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-[11px] font-medium text-red-700">
+        <p v-if="formError" class="mt-4 notice-error">
           {{ formError }}
         </p>
 
@@ -119,20 +120,20 @@ async function save() {
         </div>
       </form>
 
-      <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 class="text-base font-bold text-slate-900">บัญชีที่กำลังใช้งาน</h3>
+      <section class="card p-5">
+        <h2 class="text-base font-bold text-ink">บัญชีที่กำลังใช้งาน</h2>
         <dl v-if="user" class="mt-4 space-y-4">
           <div>
-            <dt class="text-[11px] text-slate-500">ชื่อผู้ใช้งาน</dt>
-            <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ user.name }}</dd>
+            <dt class="text-2xs text-ink-muted">ชื่อผู้ใช้งาน</dt>
+            <dd class="mt-0.5 text-sm font-semibold text-ink">{{ user.name }}</dd>
           </div>
           <div>
-            <dt class="text-[11px] text-slate-500">บทบาท</dt>
-            <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ roleLabels[user.role] }}</dd>
+            <dt class="text-2xs text-ink-muted">บทบาท</dt>
+            <dd class="mt-0.5 text-sm font-semibold text-ink">{{ roleLabels[user.role] }}</dd>
           </div>
           <div>
-            <dt class="text-[11px] text-slate-500">อีเมล</dt>
-            <dd class="mt-0.5 break-all text-sm font-semibold text-slate-900">{{ user.email }}</dd>
+            <dt class="text-2xs text-ink-muted">อีเมล</dt>
+            <dd class="mt-0.5 break-all text-sm font-semibold text-ink">{{ user.email }}</dd>
           </div>
         </dl>
       </section>

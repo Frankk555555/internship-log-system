@@ -63,15 +63,12 @@ const unavailable = computed(() => {
 
 <template>
   <div>
-    <header class="mb-3 border-b border-slate-200 pb-5">
-      <div class="flex items-center gap-2 text-[11px] font-medium text-slate-500">
-        <span>พื้นที่นักศึกษา</span>
-        <span>/</span>
-        <span class="text-slate-500">บันทึกงานประจำวัน</span>
-      </div>
-      <h2 class="mt-2 text-2xl font-bold text-slate-900">บันทึกการปฏิบัติงานประจำวัน</h2>
-      <p class="mt-1 text-xs text-slate-500">{{ data?.semester }}</p>
-    </header>
+    <PageHeader
+      class="mb-3"
+      title="บันทึกการปฏิบัติงานประจำวัน"
+      :description="data?.semester"
+      :crumbs="[{ label: 'พื้นที่นักศึกษา' }, { label: 'บันทึกงานประจำวัน' }]"
+    />
 
     <AsyncState :loading="!data && status !== 'error'" :error="error" @retry="refresh()">
       <template v-if="data">

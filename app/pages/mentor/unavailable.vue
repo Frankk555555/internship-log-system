@@ -49,12 +49,15 @@ watch([date, startTime, endTime, reason], () => {
   failure.value = undefined
 })
 
+const form = useTemplateRef<HTMLFormElement>('form')
+
 async function save() {
   if (pending.value) return
   checked.value = true
   failure.value = undefined
   if (Object.values(errors.value).some(Boolean)) {
     notify('error', 'ยังบันทึกไม่ได้', 'กรุณาตรวจสอบข้อมูลให้ครบและถูกต้อง')
+    await focusFirstInvalid(form.value)
     return
   }
 
@@ -79,27 +82,24 @@ async function save() {
 
 <template>
   <div>
-    <header class="mb-4 border-b border-slate-200 pb-5">
-      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
-        <span>พื้นที่พี่เลี้ยง</span>
-        <span>/</span>
-        <span class="text-slate-500">ตารางเวลาไม่สะดวก</span>
-      </nav>
-      <h2 class="mt-2 text-2xl font-bold text-slate-900">ตารางเวลาไม่สะดวก</h2>
-      <p class="mt-1 text-xs text-slate-500">แจ้งนักศึกษาให้ทราบช่วงเวลาที่ไม่สะดวกตรวจงาน</p>
-    </header>
+    <PageHeader
+      class="mb-4"
+      title="ตารางเวลาไม่สะดวก"
+      description="แจ้งนักศึกษาให้ทราบช่วงเวลาที่ไม่สะดวกตรวจงาน"
+      :crumbs="[{ label: 'พื้นที่พี่เลี้ยง' }, { label: 'ตารางเวลาไม่สะดวก' }]"
+    />
 
     <div class="lg:w-[61%]">
       <AsyncState :loading="!today && status !== 'error'" :error="error" @retry="refresh()">
-        <form class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm" novalidate @submit.prevent="save">
-          <h3 class="mb-1 text-base font-bold text-slate-900">เวลาไม่สะดวก</h3>
+        <form ref="form" class="card flex flex-col gap-3 p-5" novalidate @submit.prevent="save">
+          <h2 class="mb-1 text-base font-bold text-ink">เวลาไม่สะดวก</h2>
 
-          <DateTimeField id="unavailable-date" v-model="date" type="date" label="วันที่" unmarked :error="errors.date" :readonly="pending" />
-          <DateTimeField id="unavailable-start" v-model="startTime" type="time" label="เริ่ม" unmarked :error="errors.start" :readonly="pending" />
-          <DateTimeField id="unavailable-end" v-model="endTime" type="time" label="สิ้นสุด" unmarked :error="errors.end" :readonly="pending" />
+          <DateTimeField id="unavailable-date" v-model="date" type="date" label="วันที่" :error="errors.date" :readonly="pending" />
+          <DateTimeField id="unavailable-start" v-model="startTime" type="time" label="เริ่ม" :error="errors.start" :readonly="pending" />
+          <DateTimeField id="unavailable-end" v-model="endTime" type="time" label="สิ้นสุด" :error="errors.end" :readonly="pending" />
           <TextField id="unavailable-reason" v-model="reason" label="เหตุผล *" type="text" required :readonly="pending" :error="errors.reason" />
 
-          <p v-if="failure" class="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-medium text-red-700" role="alert">{{ failure }}</p>
+          <p v-if="failure" class="notice-error" role="alert">{{ failure }}</p>
 
           <div class="mt-4 flex justify-end gap-5">
             <BackButton fallback="/mentor/reviews" label="กลับ" />

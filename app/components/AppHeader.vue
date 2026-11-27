@@ -1,8 +1,4 @@
 <script setup lang="ts">
-defineProps<{
-  unread?: number
-}>()
-
 const now = ref<Date | null>(null)
 let timer: ReturnType<typeof setInterval> | undefined
 
@@ -26,28 +22,27 @@ const formattedDateTime = computed(() => {
 </script>
 
 <template>
-  <header class="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-    <div>
-      <div class="flex items-center gap-2 text-[11px] font-medium text-slate-500">
-        <span>พื้นที่นักศึกษา</span>
-        <span>/</span>
-        <span class="text-slate-500">หน้าหลัก</span>
+  <PageHeader
+    class="mb-5"
+    plain
+    stack-actions
+    title="หน้าหลัก"
+    description="แดชบอร์ดภาพรวม"
+    :crumbs="[{ label: 'พื้นที่นักศึกษา' }, { label: 'หน้าหลัก' }]"
+  >
+    <template #actions>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="rounded-full border border-line bg-white px-4 py-2 text-2xs font-medium text-ink-muted shadow-sm">
+          <span>เวลาปัจจุบัน: </span>
+          <span v-if="formattedDateTime" class="text-slate-700">{{ formattedDateTime }}</span>
+          <span v-else>กำลังโหลด...</span>
+        </div>
+        <NuxtLink to="/worklogs/new" class="btn btn-primary px-4 py-2.5 text-xs">
+          <UIcon name="i-lucide-plus" class="size-4" />
+          สร้างรายการงานใหม่
+        </NuxtLink>
+        <NotificationButton />
       </div>
-      <h2 class="mt-2 text-2xl font-bold text-slate-900">หน้าหลัก</h2>
-      <p class="mt-1 text-xs text-slate-500">แดชบอร์ดภาพรวม</p>
-    </div>
-
-    <div class="flex flex-wrap items-center gap-3">
-      <div class="rounded-full border border-slate-200 bg-white px-4 py-2 text-[11px] font-medium text-slate-500 shadow-sm">
-        <span>เวลาปัจจุบัน: </span>
-        <span v-if="formattedDateTime" class="text-slate-700">{{ formattedDateTime }}</span>
-        <span v-else class="text-slate-500">กำลังโหลด...</span>
-      </div>
-      <NuxtLink to="/worklogs/new" class="btn btn-primary px-4 py-2.5 text-xs">
-        <UIcon name="i-lucide-plus" class="size-4" />
-        สร้างรายการงานใหม่
-      </NuxtLink>
-      <NotificationButton :count="unread" />
-    </div>
-  </header>
+    </template>
+  </PageHeader>
 </template>

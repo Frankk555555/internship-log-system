@@ -6,11 +6,12 @@ definePageMeta({ role: 'student' })
 useHead({ title: 'หน้าหลัก' })
 
 const api = useApi()
-const user = useSessionUser()
 const notify = useNotify()
 const { data, status, error, refresh } = await useLazyAsyncData('dashboard', () => api.getDashboard())
 
 const busyId = ref<number>()
+// ข้อความผิดพลาดของการบันทึกเวลา ค้างไว้เหนือตารางจนกว่าจะปิดหรือทำรายการใหม่
+const actionError = ref<string>()
 
 const clock = useServerClock()
 
@@ -49,6 +50,7 @@ async function recordTime(action: 'start' | 'finish', log: WorkLog) {
   if (busyId.value !== undefined) return
 
   busyId.value = log.id
+  actionError.value = undefined
   try {
     if (action === 'start') {
       const saved = await api.startWorklog(log.id)
@@ -61,6 +63,7 @@ async function recordTime(action: 'start' | 'finish', log: WorkLog) {
     }
   }
   catch (problem) {
+    actionError.value = `${log.title}: ${errorMessage(problem)}`
     notify('error', 'บันทึกเวลาไม่สำเร็จ', errorMessage(problem))
   }
   // โหลดใหม่แม้ไม่สำเร็จ ข้อมูลบนจออาจเก่ากว่าเซิร์ฟเวอร์
@@ -71,7 +74,7 @@ async function recordTime(action: 'start' | 'finish', log: WorkLog) {
 
 <template>
   <div>
-    <AppHeader :unread="user?.unreadNotifications" />
+    <AppHeader />
 
     <AsyncState :loading="!data && status !== 'error'" :error="error" @retry="refresh()">
       <template v-if="data">
@@ -91,6 +94,8 @@ async function recordTime(action: 'start' | 'finish', log: WorkLog) {
             tone="orange"
           />
         </div>
+
+        <ErrorNotice v-if="actionError" title="บันทึกเวลาไม่สำเร็จ" :messages="[actionError]" class="mt-5" @close="actionError = undefined" />
 
         <WorklogTable
           :logs="data.recentWorklogs"

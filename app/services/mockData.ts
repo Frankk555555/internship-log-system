@@ -31,7 +31,6 @@ export const student: UserProfile = {
   initials: 'สช',
   studentId: '66011233466',
   role: 'student',
-  unreadNotifications: 3,
   defaultReportDate: TODAY,
 }
 
@@ -40,7 +39,6 @@ export const mentor: UserProfile = {
   email: 'wichai.p@university.ac.th',
   initials: 'วพ',
   role: 'supervisor',
-  unreadNotifications: 3,
   defaultReportDate: daysAgo(4),
 }
 

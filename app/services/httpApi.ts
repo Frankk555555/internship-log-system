@@ -31,6 +31,10 @@ export function createHttpApi(baseURL: string, headers?: Record<string, string>,
     changePassword: async (body) => {
       await request('/auth/change-password', { method: 'POST', body })
     },
+    getNotifications: () => request('/notifications'),
+    markNotificationsRead: async (ids) => {
+      await request('/notifications/read', { method: 'POST', body: { ids } })
+    },
     getDashboard: () => request('/me/dashboard'),
     getInternship: () => request('/me/internship'),
     getDailyWorklogs: date => request('/me/worklogs/daily', { query: { date } }),

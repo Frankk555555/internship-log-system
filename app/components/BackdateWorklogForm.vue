@@ -270,10 +270,10 @@ async function save(mode: 'draft' | 'submit') {
 
 <template>
   <div ref="root" class="grid gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
-    <form class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm" novalidate @submit.prevent>
-      <h3 class="text-base font-bold text-slate-900">{{ isEditing ? 'แก้ไขรายการ' : 'รายการย้อนหลัง' }}</h3>
+    <form class="flex flex-col gap-3 card p-5" novalidate @submit.prevent>
+      <h2 class="text-base font-bold text-ink">{{ isEditing ? 'แก้ไขรายการ' : 'รายการย้อนหลัง' }}</h2>
 
-      <p v-if="timeNotice" id="time-notice" class="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
+      <p v-if="timeNotice" id="time-notice" class="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-2xs font-medium text-amber-700">
         <UIcon :name="policy.date || policy.end ? 'i-lucide-info' : 'i-lucide-lock'" class="mt-px size-3.5 shrink-0" />
         {{ timeNotice }}
       </p>
@@ -292,9 +292,9 @@ async function save(mode: 'draft' | 'submit') {
           :readonly="isLocked"
           :aria-invalid="Boolean(errors.title)"
           :aria-describedby="errors.title ? 'backdate-title-error' : undefined"
-          class="mt-1.5 rounded-lg border border-control px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 read-only:bg-slate-50 aria-invalid:border-danger"
+          class="field mt-1.5 px-3 py-2 text-xs"
         >
-        <p v-if="errors.title" id="backdate-title-error" class="mt-1 text-[11px] font-medium text-red-600">{{ errors.title }}</p>
+        <p v-if="errors.title" id="backdate-title-error" class="mt-1 field-error">{{ errors.title }}</p>
       </div>
 
       <div class="flex flex-col">
@@ -302,53 +302,53 @@ async function save(mode: 'draft' | 'submit') {
         <textarea
           id="backdate-description"
           v-model="description"
-          :rows="isEditing ? 4 : 1"
+          rows="4"
           required
           :readonly="isLocked"
           :aria-invalid="Boolean(errors.description)"
           :aria-describedby="errors.description ? 'backdate-description-error' : undefined"
-          class="mt-1.5 resize-y rounded-lg border border-control px-3 py-2 text-xs leading-relaxed text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 read-only:bg-slate-50 aria-invalid:border-danger"
+          class="field mt-1.5 resize-y px-3 py-2 text-xs leading-relaxed"
         />
-        <p v-if="errors.description" id="backdate-description-error" class="mt-1 text-[11px] font-medium text-red-600">{{ errors.description }}</p>
+        <p v-if="errors.description" id="backdate-description-error" class="mt-1 field-error">{{ errors.description }}</p>
       </div>
 
       <section v-if="hours" class="mt-1">
-        <h3 class="text-base font-bold text-slate-900">ชั่วโมงการทำงาน</h3>
+        <h2 class="text-base font-bold text-ink">ชั่วโมงการทำงาน</h2>
         <dl class="mt-3 grid gap-4 sm:grid-cols-[1fr_1.4fr_1.8fr]">
           <div>
-            <dt class="text-[11px] text-slate-500">ชั่วโมงของรายการนี้</dt>
+            <dt class="text-2xs text-ink-muted">ชั่วโมงของรายการนี้</dt>
             <dd class="mt-1 text-xs font-semibold text-slate-800">{{ formatDuration(hours.entry) }}</dd>
           </div>
           <div>
-            <dt class="text-[11px] text-slate-500">รวมทั้งวันที่ {{ workDate ? formatThaiDate(workDate) : date }} (ทุกสถานะ)</dt>
+            <dt class="text-2xs text-ink-muted">รวมทั้งวันที่ {{ workDate ? formatThaiDate(workDate) : date }} (ทุกสถานะ)</dt>
             <dd class="mt-1 text-xs font-semibold text-slate-800">
               <template v-if="hours.dayTotal !== undefined">{{ formatDuration(hours.dayTotal) }}</template>
-              <button v-else-if="sameDayError" type="button" class="text-red-600 underline" @click="refreshSameDay()">โหลดไม่สำเร็จ ลองอีกครั้ง</button>
-              <span v-else class="text-slate-500">กำลังโหลด...</span>
+              <button v-else-if="sameDayError" type="button" class="text-danger underline" @click="refreshSameDay()">โหลดไม่สำเร็จ ลองอีกครั้ง</button>
+              <span v-else class="text-ink-muted">กำลังโหลด...</span>
             </dd>
           </div>
           <div v-if="policy.date">
-            <dt class="text-[11px] text-slate-500">ช่วงวันย้อนหลัง</dt>
+            <dt class="text-2xs text-ink-muted">ช่วงวันย้อนหลัง</dt>
             <dd class="mt-1 text-xs font-semibold text-slate-800">{{ formatThaiDateRange(allowedFrom, allowedTo) }} ({{ earliestDate < windowStart ? 'รวมวันเดิมของรายการ' : `ย้อนหลัง ${backdateLimitDays} วัน` }})</dd>
           </div>
         </dl>
 
         <template v-if="hours.dayTotal !== undefined">
-          <div v-if="countedOthers.length" class="mt-3 rounded-lg bg-slate-50 px-3 py-2.5">
-            <p class="text-[11px] font-semibold text-slate-600">รายการอื่นในวันเดียวกันที่รวมอยู่ในยอด</p>
+          <div v-if="countedOthers.length" class="mt-3 rounded-lg bg-page px-3 py-2.5">
+            <p class="text-2xs font-semibold text-slate-600">รายการอื่นในวันเดียวกันที่รวมอยู่ในยอด</p>
             <ul class="mt-1.5 space-y-1.5">
-              <li v-for="log in countedOthers" :key="log.id" class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-600">
+              <li v-for="log in countedOthers" :key="log.id" class="flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-slate-600">
                 <span class="font-medium text-slate-800">{{ log.title }}</span>
                 <span>{{ log.startTime }}–{{ log.endTime }} น. · {{ formatDuration(log.minutes) }}</span>
                 <StatusBadge v-bind="reviewStatusMeta[log.reviewStatus]" />
               </li>
             </ul>
           </div>
-          <p v-else class="mt-3 text-[11px] text-slate-500">ไม่มีรายการอื่นที่มีเวลาครบในวันที่เลือก</p>
+          <p v-else class="mt-3 text-2xs text-ink-muted">ไม่มีรายการอื่นที่มีเวลาครบในวันที่เลือก</p>
         </template>
       </section>
 
-      <ul v-if="overlaps.length" class="space-y-1 rounded-lg border border-red-400 bg-red-50 px-3 py-2 text-[11px] font-medium text-red-700" role="alert">
+      <ul v-if="overlaps.length" class="space-y-1 rounded-lg border border-red-400 bg-red-50 px-3 py-2 text-2xs font-medium text-red-700" role="alert">
         <li v-for="log in overlaps" :key="log.id" class="flex items-center gap-1.5">
           <UIcon name="i-lucide-triangle-alert" class="size-3.5 shrink-0" />
           {{ overlapMessage(log) }}
@@ -356,13 +356,13 @@ async function save(mode: 'draft' | 'submit') {
         <li>บันทึกไม่ได้ กรุณาแก้ไขเวลา</li>
       </ul>
 
-      <p v-if="formError" class="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-medium text-red-700">
+      <p v-if="formError" class="notice-error">
         {{ formError }}
       </p>
 
-      <p v-if="canShowFinish && finishBlock" id="finish-hint" class="text-[11px] font-medium text-amber-700">{{ finishBlock }}</p>
+      <p v-if="canShowFinish && finishBlock" id="finish-hint" class="text-2xs font-medium text-amber-700">{{ finishBlock }}</p>
 
-      <p v-if="afterWorkHint" class="text-[11px] font-medium text-amber-700">{{ afterWorkHint }}</p>
+      <p v-if="afterWorkHint" class="text-2xs font-medium text-amber-700">{{ afterWorkHint }}</p>
 
       <div class="mt-auto flex flex-wrap justify-end gap-3 pt-5">
         <!-- ปุ่มของหน้าที่เรียกใช้ เช่น ลบรายการ -->
@@ -372,7 +372,7 @@ async function save(mode: 'draft' | 'submit') {
           type="button"
           :disabled="isLocked || Boolean(finishBlock)"
           :aria-describedby="finishBlock ? 'finish-hint' : undefined"
-          class="btn btn-done px-3 py-2.5 text-[11px]"
+          class="btn btn-done px-3 py-2.5 text-2xs"
           @click="finishWork"
         >
           {{ pending === 'finish' ? 'กำลังบันทึกเวลา...' : 'ทำงานนี้เสร็จสิ้น (บันทึกเวลาปัจจุบัน)' }}
@@ -380,7 +380,7 @@ async function save(mode: 'draft' | 'submit') {
         <button
           type="button"
           :disabled="isLocked"
-          class="btn btn-secondary px-3 py-2.5 text-[11px]"
+          class="btn btn-secondary px-3 py-2.5 text-2xs"
           @click="save('draft')"
         >
           {{ pending === 'draft' ? 'กำลังบันทึก...' : isResubmit ? 'บันทึกการแก้ไข' : 'บันทึกฉบับร่าง' }}
@@ -388,7 +388,7 @@ async function save(mode: 'draft' | 'submit') {
         <button
           type="button"
           :disabled="isLocked"
-          class="btn btn-primary px-3 py-2.5 text-[11px]"
+          class="btn btn-primary px-3 py-2.5 text-2xs"
           @click="save('submit')"
         >
           {{ pending === 'submit' ? 'กำลังส่ง...' : isResubmit ? 'ส่งตรวจใหม่' : 'ส่งตรวจ' }}

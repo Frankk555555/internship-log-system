@@ -8,6 +8,7 @@ import { earliestEntryDate, editDeadline, findOverlaps, futureTimeError, isAfter
 import { ApiError, type Api } from './api'
 import { createMockAuth, currentAccount, requireRole } from './mockAuth'
 import type { MockSession } from './mockSession'
+import { addNotification, addOverdueNotifications, markRead, notificationsFor } from './mockNotifications'
 import * as db from './mockData'
 
 // ข้อมูลอยู่ในหน่วยความจำ การเปลี่ยนแปลงหายเมื่อโหลดหน้าเว็บใหม่
@@ -219,6 +220,8 @@ async function review(targets: ReviewTarget[], decision: 'approved' | 'returned'
     addHistory(id, decision === 'approved'
       ? { type: 'approval', title: comment ? `อนุมัติ: ${comment}` : 'ผู้อนุมัติ', actorName: db.mentor.name, before: 'รอตรวจ', after: 'อนุมัติแล้ว' }
       : { type: 'return', title: `ส่งกลับ${allowTimeEdit ? ' (เปิดให้แก้เวลา)' : ''}: ${comment}`, actorName: db.mentor.name, before: 'รอตรวจ', after: 'ส่งกลับแก้ไข' })
+    // มีบัญชีนักศึกษาทดสอบคนเดียว แจ้งเตือนเฉพาะรายการของบัญชีนั้น
+    if (found.student.studentId === db.student.studentId) addNotification(decision, found.student, found.worklog, serverNow())
     result.succeededIds.push(id)
   }
 
@@ -250,7 +253,7 @@ function runningSummary() {
   return running && { id: running.id, title: running.title, startTime: running.startTime! }
 }
 
-const dataApi: Omit<Api, keyof AuthApi> = {
+const dataApi: Omit<Api, keyof AuthApi | 'getNotifications' | 'markNotificationsRead'> = {
   getDashboard: () => {
     const count = (status: WorkLog['reviewStatus']) => db.studentWorklogs.filter(log => log.reviewStatus === status).length
 
@@ -342,6 +345,7 @@ const dataApi: Omit<Api, keyof AuthApi> = {
     const change = existing ? describeChange(existing, saved) : undefined
     if (change) addHistory(saved.id, { type: 'edit', actorName: db.student.name, ...change })
     if (input.submit) {
+      addNotification('new_submission', { studentId: db.student.studentId!, name: db.student.name }, saved, serverNow())
       addHistory(saved.id, { type: 'status', title: 'ส่งตรวจ', actorName: db.student.name, before: existing?.reviewStatus === 'returned' ? 'ส่งกลับแก้ไข' : 'ฉบับร่าง', after: 'รอตรวจ' })
     }
 
@@ -504,8 +508,32 @@ export function createMockApi(session: MockSession): Api {
     return respond({ worklog: found.worklog, events: db.histories[id] ?? [] })
   }
 
+  /** การแจ้งเตือนแยกตามบทบาทของผู้ที่เข้าสู่ระบบ */
+  async function getNotifications() {
+    const { role } = currentAccount(session).profile
+    db.refreshToday()
+    if (role === 'supervisor') {
+      addOverdueNotifications(mentoredStudents().flatMap(student => student.worklogs
+        .filter(log => log.reviewStatus === 'submitted')
+        .map(log => toReviewItem(student.studentId, student.name, log))))
+    }
+
+    return respond(notificationsFor(role).map(({ recipient, ...notification }) => {
+      const worklog = db.studentWorklogs.find(log => log.id === notification.worklogId)
+      const canEdit = notification.type === 'returned' && worklog?.reviewStatus === 'returned' && !isOutsideEditWindow(worklog)
+      return { ...notification, canEdit }
+    }))
+  }
+
+  async function markNotificationsRead(ids?: number[]) {
+    markRead(currentAccount(session).profile.role, ids)
+    await respond(null)
+  }
+
   return {
     ...createMockAuth(session),
+    getNotifications,
+    markNotificationsRead,
 
     getDashboard: guard('student', dataApi.getDashboard),
     getInternship: guard('student', dataApi.getInternship),

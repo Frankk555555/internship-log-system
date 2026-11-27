@@ -19,9 +19,9 @@ const icons: Record<UserRole, string> = {
 </script>
 
 <template>
-  <section v-if="accounts.length" class="mt-6 border-t border-slate-200 pt-5" aria-labelledby="demo-login-title">
-    <h3 id="demo-login-title" class="text-[13px] font-semibold text-slate-700">บัญชีทดสอบ</h3>
-    <p class="mt-0.5 text-[11px] text-slate-500">กดเพื่อเข้าสู่ระบบด้วยข้อมูลจำลอง</p>
+  <section v-if="accounts.length" class="mt-6 border-t border-line pt-5" aria-labelledby="demo-login-title">
+    <h3 id="demo-login-title" class="text-[0.8125rem] font-semibold text-slate-700">บัญชีทดสอบ</h3>
+    <p class="mt-0.5 text-2xs text-ink-muted">กดเพื่อเข้าสู่ระบบด้วยข้อมูลจำลอง</p>
 
     <div class="mt-3 grid gap-2 sm:grid-cols-2">
       <button
@@ -36,7 +36,7 @@ const icons: Record<UserRole, string> = {
           <UIcon :name="icons[account.role]" class="size-4 shrink-0" />
           เข้าในฐานะ{{ roleLabels[account.role] }}
         </span>
-        <span class="text-[11px] font-medium text-slate-500">{{ account.name }}</span>
+        <span class="text-2xs font-medium text-ink-muted">{{ account.name }}</span>
       </button>
     </div>
   </section>

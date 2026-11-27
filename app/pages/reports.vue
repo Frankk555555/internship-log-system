@@ -52,19 +52,12 @@ function downloadExcel() {
 
 <template>
   <div>
-    <header class="mb-4 border-b border-slate-200 pb-3 print:hidden">
-      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
-        <span>พื้นที่นักศึกษา</span>
-        <span>/</span>
-        <span class="text-slate-500">รายงานประจำสัปดาห์</span>
-      </nav>
-      <h2 class="mt-2 text-2xl font-bold text-slate-900">รายงานประจำสัปดาห์</h2>
-
-      <div class="mt-3 flex flex-wrap items-end justify-between gap-3">
+    <PageHeader class="mb-4 print:hidden" title="รายงานประจำสัปดาห์" :crumbs="[{ label: 'พื้นที่นักศึกษา' }, { label: 'รายงานประจำสัปดาห์' }]">
+      <div class="flex flex-wrap items-end justify-between gap-3">
         <WeekSelector v-model="weekStart" />
         <ReportDownloadButtons :disabled="!report" @excel="downloadExcel" />
       </div>
-    </header>
+    </PageHeader>
 
     <AsyncState :loading="!report && status !== 'error'" :error="error" @retry="refresh()">
       <WeeklyReportCard v-if="report" :report="report" :week-label="weekLabel" />

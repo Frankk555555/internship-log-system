@@ -18,7 +18,7 @@ const toneClasses: Record<BadgeTone, string> = {
 </script>
 
 <template>
-  <span class="inline-flex whitespace-nowrap rounded-full border border-transparent px-2.5 py-1 text-[10px] font-semibold" :class="toneClasses[tone]">
+  <span class="inline-flex whitespace-nowrap rounded-full border border-transparent px-2.5 py-1 text-2xs font-semibold" :class="toneClasses[tone]">
     {{ label }}
   </span>
 </template>

@@ -17,7 +17,7 @@ defineEmits<{
       ลองอีกครั้ง
     </button>
   </div>
-  <div v-else-if="loading" class="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-12 text-sm text-slate-500" role="status">
+  <div v-else-if="loading" class="flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-5 py-12 text-sm text-ink-muted" role="status">
     <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
     กำลังโหลดข้อมูล...
   </div>

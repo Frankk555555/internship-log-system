@@ -26,14 +26,21 @@ function redirectTarget() {
   return typeof target === 'string' && /^\/(?![/\\])/.test(target) ? target : undefined
 }
 
+/** ย้ายโฟกัสไปช่องที่ต้องแก้ */
+function focusField(id: 'login-email' | 'login-password') {
+  document.getElementById(id)?.focus()
+}
+
 async function submit() {
   if (pending.value) return
   if (!email.value.trim() || !password.value) {
     fail('กรุณากรอกอีเมลและรหัสผ่าน', 'เข้าสู่ระบบไม่สำเร็จ')
+    focusField(email.value.trim() ? 'login-password' : 'login-email')
     return
   }
   if (!isEmail(email.value)) {
     fail('รูปแบบอีเมลไม่ถูกต้อง', 'เข้าสู่ระบบไม่สำเร็จ')
+    focusField('login-email')
     return
   }
 
@@ -96,17 +103,17 @@ function backToForm() {
           <TextField id="login-password" v-model="password" label="รหัสผ่าน" type="password" autocomplete="current-password" required />
         </div>
 
-        <p v-if="failure" class="mt-2.5 text-[11px] font-semibold text-red-600" role="alert">{{ failure }}</p>
+        <p v-if="failure" class="mt-2.5 text-2xs font-semibold text-danger" role="alert">{{ failure }}</p>
 
-        <label class="mt-3 flex w-fit items-center gap-2 text-[11px] text-slate-500">
-          <input v-model="remember" type="checkbox" class="size-3.5 accent-blue-600">
+        <label class="mt-3 flex w-fit items-center gap-2 text-2xs text-ink-muted">
+          <input v-model="remember" type="checkbox" class="size-3.5 accent-brand">
           จดจำการเข้าสู่ระบบ
         </label>
 
-        <AuthButton label="เข้าสู่ระบบ (Sign In)" :pending="pending" class="mt-2.5" />
+        <AuthButton label="เข้าสู่ระบบ" :pending="pending" class="mt-2.5" />
       </form>
 
-      <NuxtLink to="/forgot-password" class="mt-4 inline-block text-[13px] font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800">
+      <NuxtLink to="/forgot-password" class="mt-4 inline-block text-[0.8125rem] link">
         ลืมรหัสผ่าน ?
       </NuxtLink>
 
@@ -124,13 +131,13 @@ function backToForm() {
 
       <AuthHeading v-else title="บัญชีถูกระงับ" mark="alert">
         <p>ติดต่อผู้ดูแลระบบเพื่อสอบถามหรือขอเปิดใช้งานบัญชี</p>
-        <p class="mt-5 flex items-center justify-center gap-1.5 text-[13px] font-semibold text-rose-700">
+        <p class="mt-5 flex items-center justify-center gap-1.5 text-[0.8125rem] font-semibold text-rose-700">
           <UIcon name="i-lucide-triangle-alert" class="size-4" />
           บัญชีอยู่ในสถานะระงับการใช้งาน
         </p>
       </AuthHeading>
 
-      <button type="button" class="text-[13px] font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800" @click="backToForm">
+      <button type="button" class="text-[0.8125rem] link" @click="backToForm">
         กลับหน้าเข้าสู่ระบบ
       </button>
     </template>
