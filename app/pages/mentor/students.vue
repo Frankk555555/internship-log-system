@@ -37,7 +37,7 @@ const period = computed(() => {
 
 function submittedLabel(value: string) {
   const { date, time } = toThaiTimeParts(value)
-  return `${formatThaiDayMonth(date)} ${time} น.`
+  return `${formatThaiDayMonth(date)} • ${time} น.`
 }
 </script>
 
@@ -45,7 +45,7 @@ function submittedLabel(value: string) {
   <div>
     <header class="flex items-start justify-between gap-4 border-b border-slate-200 pb-5">
       <div>
-        <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-400" aria-label="breadcrumb">
+        <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
           <span>พื้นที่พี่เลี้ยง</span>
           <span>/</span>
           <span class="text-slate-500">นักศึกษาในความดูแล</span>
@@ -68,30 +68,30 @@ function submittedLabel(value: string) {
             <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div class="flex items-center justify-between gap-2">
                 <p class="text-[11px] font-medium text-slate-500">ระยะเวลาฝึกงาน</p>
-                <span class="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">วว-ดด-ปปปป</span>
+                <span class="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">วว-เดือน-ปปปป</span>
               </div>
               <p v-if="period" class="mt-2 text-lg font-semibold text-slate-900">
                 {{ formatThaiDate(period.start) }} <span class="mx-1 text-sm">ถึง</span> {{ formatThaiDate(period.end) }}
               </p>
-              <p v-else class="mt-2 text-lg font-semibold text-slate-400">–</p>
-              <p v-if="period?.isMixed" class="mt-1 text-[10px] text-slate-400">ช่วงฝึกงานต่างกันรายคน ดูในตาราง</p>
+              <p v-else class="mt-2 text-lg font-semibold text-slate-500">–</p>
+              <p v-if="period?.isMixed" class="mt-1 text-[10px] text-slate-500">ช่วงฝึกงานต่างกันรายคน ดูในตาราง</p>
             </section>
 
             <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <p class="text-[11px] font-medium text-slate-500">รายการรอตรวจ</p>
-              <p class="mt-3 text-xs font-semibold text-slate-900"><span class="text-2xl text-orange-500">{{ totals.pending }}</span> รายการ</p>
-              <p class="mt-1 text-[10px]" :class="totals.overdue ? 'font-semibold text-red-500' : 'text-slate-400'">ค้างตรวจเกิน {{ data.overdueDays }} วัน {{ totals.overdue }} รายการ</p>
+              <p class="mt-3 text-xs font-semibold text-slate-900"><span class="text-2xl text-amber-700">{{ totals.pending }}</span> รายการ</p>
+              <p class="mt-1 text-[10px]" :class="totals.overdue ? 'font-semibold text-red-600' : 'text-slate-500'">ค้างตรวจเกิน {{ data.overdueDays }} วัน {{ totals.overdue }} รายการ</p>
               <NuxtLink v-if="totals.pending" to="/mentor/reviews" class="mt-1 inline-block text-[11px] font-semibold text-indigo-600 underline underline-offset-2">ไปตรวจงาน</NuxtLink>
             </section>
           </div>
 
           <section class="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" aria-labelledby="student-list-title">
             <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-              <h3 id="student-list-title" class="text-base font-semibold text-slate-900">รายชื่อนักศึกษา</h3>
+              <h3 id="student-list-title" class="text-base font-bold text-slate-900">รายชื่อนักศึกษา</h3>
               <label class="relative block">
                 <span class="sr-only">ค้นหาชื่อหรือรหัสนักศึกษา</span>
-                <UIcon name="i-lucide-search" class="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
-                <input v-model="search" type="search" placeholder="ค้นหาชื่อหรือรหัสนักศึกษา" class="h-9 w-64 rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100">
+                <UIcon name="i-lucide-search" class="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-500" />
+                <input v-model="search" type="search" placeholder="ค้นหาชื่อหรือรหัสนักศึกษา" class="h-9 w-64 rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs text-slate-800 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100">
               </label>
             </div>
 
@@ -113,12 +113,12 @@ function submittedLabel(value: string) {
                   <tr v-for="student in visibleStudents" :key="student.studentId" class="border-t border-slate-100 align-top">
                     <td class="px-5 py-3.5">
                       <p class="font-semibold text-slate-900">{{ student.name }}</p>
-                      <a :href="`mailto:${student.email}`" class="mt-0.5 block break-all text-[11px] text-slate-400 hover:text-indigo-600">{{ student.email }}</a>
+                      <a :href="`mailto:${student.email}`" class="mt-0.5 block break-all text-[11px] text-slate-500 hover:text-indigo-600">{{ student.email }}</a>
                     </td>
                     <td class="px-2 py-3.5">{{ student.studentId }}</td>
                     <td class="px-2 py-3.5">
                       {{ student.company }}
-                      <span class="mt-0.5 block text-[11px] text-slate-400">{{ student.position }}</span>
+                      <span class="mt-0.5 block text-[11px] text-slate-500">{{ student.position }}</span>
                     </td>
                     <td class="px-2 py-3.5">
                       <span class="whitespace-nowrap">{{ formatThaiDate(student.startDate) }}</span>
@@ -130,11 +130,11 @@ function submittedLabel(value: string) {
                         <NuxtLink v-if="student.pendingCount" :to="{ path: '/mentor/reviews', query: { student: student.studentId } }" :aria-label="`ตรวจรายการรอตรวจของ ${student.name}`">
                           <StatusBadge :label="`รอตรวจ ${student.pendingCount}`" tone="amber" class="hover:brightness-95" />
                         </NuxtLink>
-                        <StatusBadge v-if="student.overdueCount" :label="`ค้างตรวจ ${student.overdueCount}`" tone="pink" />
-                        <StatusBadge v-if="student.returnedCount" :label="`ส่งกลับ ${student.returnedCount}`" tone="pink" />
-                        <span v-if="!student.pendingCount && !student.returnedCount" class="text-[11px] text-slate-400">ไม่มีรายการค้าง</span>
+                        <StatusBadge v-if="student.overdueCount" :label="`ค้างตรวจ ${student.overdueCount}`" tone="rose" />
+                        <StatusBadge v-if="student.returnedCount" :label="`ส่งกลับแก้ไข ${student.returnedCount}`" tone="rose" />
+                        <span v-if="!student.pendingCount && !student.returnedCount" class="text-[11px] text-slate-500">ไม่มีรายการค้าง</span>
                       </div>
-                      <p class="mt-1.5 text-[10px] text-slate-400">
+                      <p class="mt-1.5 text-[10px] text-slate-500">
                         {{ student.lastSubmittedAt ? `ส่งล่าสุด ${submittedLabel(student.lastSubmittedAt)}` : 'ยังไม่เคยส่งตรวจ' }}
                       </p>
                     </td>
@@ -150,7 +150,7 @@ function submittedLabel(value: string) {
                     </td>
                   </tr>
                   <tr v-if="!visibleStudents.length" class="border-t border-slate-100">
-                    <td colspan="7" class="px-5 py-12 text-center text-sm text-slate-400">{{ students.length ? 'ไม่พบนักศึกษาที่ตรงกับคำค้น' : 'ยังไม่มีนักศึกษาที่ได้รับมอบหมาย' }}</td>
+                    <td colspan="7" class="px-5 py-12 text-center text-sm text-slate-500">{{ students.length ? 'ไม่พบนักศึกษาที่ตรงกับคำค้น' : 'ยังไม่มีนักศึกษาที่ได้รับมอบหมาย' }}</td>
                   </tr>
                 </tbody>
               </table>

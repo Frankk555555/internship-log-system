@@ -1,21 +1,27 @@
 import type { ReviewStatus, WorkHours, WorkLog } from '~/types/worklog'
 import { formatThaiDayMonth } from './date'
 import { toMinutes } from './time'
+import { reviewStatusMeta } from './worklogStatus'
 
-/** สีและชื่อสถานะการตรวจบนปฏิทิน (ตามภาพออกแบบ) */
+/** สีบล็อกบนปฏิทิน ชื่อสถานะใช้ชุดเดียวกับป้าย (docs/design-pattern.md ข้อ 4) */
 export const calendarStatusMeta: Record<ReviewStatus, { label: string, block: string, chip: string, text: string }> = {
-  draft: { label: 'ฉบับร่าง', block: 'border-slate-600 bg-slate-100', chip: 'bg-slate-100', text: 'text-slate-600' },
-  submitted: { label: 'ส่งตรวจ', block: 'border-amber-700 bg-amber-100', chip: 'bg-amber-100', text: 'text-amber-700' },
-  approved: { label: 'อนุมัติแล้ว', block: 'border-green-600 bg-green-100', chip: 'bg-green-100', text: 'text-green-700' },
-  returned: { label: 'ส่งกลับ', block: 'border-red-600 bg-red-100', chip: 'bg-red-100', text: 'text-red-600' },
+  draft: { label: reviewStatusMeta.draft.label, block: 'border-slate-600 bg-slate-100', chip: 'bg-slate-100', text: 'text-slate-600' },
+  submitted: { label: reviewStatusMeta.submitted.label, block: 'border-amber-700 bg-amber-100', chip: 'bg-amber-100', text: 'text-amber-700' },
+  approved: { label: reviewStatusMeta.approved.label, block: 'border-done bg-emerald-100', chip: 'bg-emerald-100', text: 'text-emerald-700' },
+  returned: { label: reviewStatusMeta.returned.label, block: 'border-rose-700 bg-rose-100', chip: 'bg-rose-100', text: 'text-rose-700' },
 }
 
 const weekdays = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.']
 const weekdayIndex = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay()
 
-/** เช่น "จ. 10 ส.ค." */
+/** เช่น "จ." */
+export function formatWeekday(iso: string) {
+  return weekdays[weekdayIndex(iso)]!
+}
+
+/** เช่น "จ. 10-ส.ค." ใช้ในที่แคบ */
 export function formatCalendarDay(iso: string) {
-  return `${weekdays[weekdayIndex(iso)]} ${formatThaiDayMonth(iso)}`
+  return `${formatWeekday(iso)} ${formatThaiDayMonth(iso)}`
 }
 
 export function isWeekend(iso: string) {

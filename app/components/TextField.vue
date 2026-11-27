@@ -19,8 +19,8 @@ const model = defineModel<string>({ required: true })
       :aria-invalid="Boolean(error)"
       :aria-describedby="error ? `${id}-error` : undefined"
       v-bind="$attrs"
-      class="mt-1.5 h-10 rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 read-only:bg-slate-50 aria-invalid:border-red-400"
+      class="mt-1.5 h-10 rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 read-only:bg-slate-50 aria-invalid:border-red-400"
     >
-    <p v-if="error" :id="`${id}-error`" class="mt-1 text-[11px] font-medium text-red-500">{{ error }}</p>
+    <p v-if="error" :id="`${id}-error`" class="mt-1 text-[11px] font-medium text-red-600">{{ error }}</p>
   </div>
 </template>

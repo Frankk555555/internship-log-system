@@ -172,7 +172,7 @@ export const histories: Record<number, HistoryEvent[]> = {
     { id: 2041, type: 'status', changedAt: thaiTime(earlier('2026-09-16'), '17:00'), title: 'ส่งตรวจ', actorName: student.name, before: 'ฉบับร่าง', after: 'รอตรวจ' },
   ],
   101: [
-    { id: 5, type: 'approval', changedAt: at('14:20'), title: 'ผู้อนุมัติ', actorName: mentor.name, before: 'รอตรวจ', after: 'อนุมัติ' },
+    { id: 5, type: 'approval', changedAt: at('14:20'), title: 'ผู้อนุมัติ', actorName: mentor.name, before: 'รอตรวจ', after: 'อนุมัติแล้ว' },
     { id: 4, type: 'edit', changedAt: at('14:05'), title: 'แก้ไขหลักฐานและส่งตรวจใหม่', actorName: student.name, before: 'form-v1.png · 240 KB', after: 'form-v2.png · 820 KB' },
     { id: 3, type: 'return', changedAt: at('13:45'), title: 'ส่งกลับให้แนบภาพความละเอียดสูง', actorName: mentor.name, before: 'รอตรวจ', after: 'ส่งกลับแก้ไข' },
     { id: 2, type: 'status', changedAt: at('12:00'), title: 'กำลังดำเนินการ → เสร็จสิ้น', actorName: student.name, before: 'กำลังดำเนินการ', after: 'เสร็จสิ้น' },

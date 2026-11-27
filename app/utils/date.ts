@@ -14,8 +14,14 @@ export function parseThaiDate(text: string) {
   return date.toISOString().slice(0, 10)
 }
 
-/** แปลง "YYYY-MM-DD" เป็น "วว-ดด-ปปปป" (พ.ศ.) */
+/** วันที่สำหรับแสดงผล "วว-เดือนย่อ-ปปปป" (พ.ศ.) เช่น "26-พ.ย.-2569" */
 export function formatThaiDate(iso: string) {
+  const [year = 0, month = 1, day = 1] = iso.split('-').map(Number)
+  return `${String(day).padStart(2, '0')}-${thaiMonths[month - 1]}-${year + 543}`
+}
+
+/** วันที่ในช่องกรอก "วว-ดด-ปปปป" (พ.ศ.) เป็นตัวเลขเพื่อให้พิมพ์แก้ได้ */
+export function formatThaiInputDate(iso: string) {
   const [year, month, day] = iso.split('-')
   return `${day}-${month}-${Number(year) + 543}`
 }
@@ -47,28 +53,13 @@ export function startOfWeek(iso: string) {
   return addDays(iso, -daysSinceMonday)
 }
 
-/** วันและเดือนแบบย่อ เช่น "10 ส.ค." */
+/** วันและเดือนสำหรับที่แคบ เช่น "10-ส.ค." */
 export function formatThaiDayMonth(iso: string) {
   const [, month = 1, day = 1] = iso.split('-').map(Number)
-  return `${day} ${thaiMonths[month - 1]}`
+  return `${String(day).padStart(2, '0')}-${thaiMonths[month - 1]}`
 }
 
-/** วันที่แบบย่อ ปี 2 หลัก เช่น "10 ส.ค. 69" */
-export function formatThaiShortDate(iso: string) {
-  const [year = 0, month = 1, day = 1] = iso.split('-').map(Number)
-  return `${day} ${thaiMonths[month - 1]} ${String((year + 543) % 100).padStart(2, '0')}`
-}
-
-/** ช่วงวันที่แบบย่อ เช่น "21–24 พ.ย. 2569" */
+/** ช่วงวันที่ เช่น "23-พ.ย.-2569 – 29-พ.ย.-2569" */
 export function formatThaiDateRange(from: string, to: string) {
-  const parts = (iso: string) => {
-    const [year = 0, month = 1, day = 1] = iso.split('-').map(Number)
-    return { day, monthYear: `${thaiMonths[month - 1]} ${year + 543}` }
-  }
-  const start = parts(from)
-  const end = parts(to)
-
-  if (from === to) return `${end.day} ${end.monthYear}`
-  if (start.monthYear === end.monthYear) return `${start.day}–${end.day} ${end.monthYear}`
-  return `${start.day} ${start.monthYear} – ${end.day} ${end.monthYear}`
+  return from === to ? formatThaiDate(from) : `${formatThaiDate(from)} – ${formatThaiDate(to)}`
 }

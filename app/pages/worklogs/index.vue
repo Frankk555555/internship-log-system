@@ -55,14 +55,14 @@ const returnedCount = computed(() => logs.value.filter(log => log.reviewStatus =
 
 const unavailable = computed(() => {
   const range = data.value?.mentorUnavailable
-  return range ? `${range.startTime}-${range.endTime}` : '–'
+  return range ? `${range.startTime}–${range.endTime}` : '–'
 })
 </script>
 
 <template>
   <div>
     <header class="mb-3 border-b border-slate-200 pb-5">
-      <div class="flex items-center gap-2 text-[11px] font-medium text-slate-400">
+      <div class="flex items-center gap-2 text-[11px] font-medium text-slate-500">
         <span>พื้นที่นักศึกษา</span>
         <span>/</span>
         <span class="text-slate-500">บันทึกงานประจำวัน</span>
@@ -89,13 +89,13 @@ const unavailable = computed(() => {
             title="รอตรวจ / ส่งกลับแก้ไข"
             :value="submittedCount"
             :secondary-value="returnedCount"
-            meta="ส่งตรวจ / ส่งกลับแก้ไข"
+            meta="รอตรวจ / ส่งกลับแก้ไข"
             tone="orange"
           />
           <SummaryStatCard
             title="พี่เลี้ยงไม่สะดวกตรวจงาน"
             :value="unavailable"
-            meta="เวลา"
+            meta="น."
             tone="amber"
             compact
           />
@@ -118,10 +118,10 @@ const unavailable = computed(() => {
     />
 
     <div class="mt-7 flex flex-wrap justify-end gap-3">
-      <NuxtLink to="/worklogs/backdate" class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50">
+      <NuxtLink to="/worklogs/backdate" class="btn btn-secondary px-4 py-2.5 text-xs">
         บันทึกย้อนหลัง
       </NuxtLink>
-      <NuxtLink to="/worklogs/new" class="flex items-center gap-2 rounded-lg bg-[linear-gradient(90deg,#7048f5_0%,#3f5beb_100%)] px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-indigo-200 transition hover:brightness-110">
+      <NuxtLink to="/worklogs/new" class="btn btn-primary px-4 py-2.5 text-xs">
         <UIcon name="i-lucide-plus" class="size-4" />
         สร้างรายการงานใหม่
       </NuxtLink>

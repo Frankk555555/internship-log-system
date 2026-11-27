@@ -18,7 +18,7 @@ const pending = ref(false)
 const failure = ref<string>()
 
 watch(today, (value) => {
-  if (value && !date.value) date.value = formatThaiDate(value)
+  if (value && !date.value) date.value = formatThaiInputDate(value)
 }, { immediate: true })
 
 const day = computed(() => parseThaiDate(date.value))
@@ -75,7 +75,7 @@ async function save() {
 <template>
   <div>
     <header class="mb-4 border-b border-slate-200 pb-5">
-      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-400" aria-label="breadcrumb">
+      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
         <span>พื้นที่พี่เลี้ยง</span>
         <span>/</span>
         <span class="text-slate-500">ตารางเวลาไม่สะดวก</span>
@@ -87,18 +87,18 @@ async function save() {
     <div class="lg:w-[61%]">
       <AsyncState :loading="!today && status !== 'error'" :error="error" @retry="refresh()">
         <form class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm" novalidate @submit.prevent="save">
-          <h3 class="mb-1 text-base font-semibold text-slate-900">เวลาไม่สะดวก</h3>
+          <h3 class="mb-1 text-base font-bold text-slate-900">เวลาไม่สะดวก</h3>
 
           <DateTimeField id="unavailable-date" v-model="date" type="date" label="วันที่" unmarked :error="errors.date" :readonly="pending" />
           <DateTimeField id="unavailable-start" v-model="startTime" type="time" label="เริ่ม" unmarked :error="errors.start" :readonly="pending" />
           <DateTimeField id="unavailable-end" v-model="endTime" type="time" label="สิ้นสุด" unmarked :error="errors.end" :readonly="pending" />
           <TextField id="unavailable-reason" v-model="reason" label="เหตุผล *" type="text" required :readonly="pending" :error="errors.reason" />
 
-          <p v-if="failure" class="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-medium text-red-600" role="alert">{{ failure }}</p>
+          <p v-if="failure" class="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-medium text-red-700" role="alert">{{ failure }}</p>
 
           <div class="mt-4 flex justify-end gap-5">
             <BackButton fallback="/mentor/reviews" label="กลับ" />
-            <button type="submit" :disabled="pending" class="rounded-lg bg-indigo-600 px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-wait disabled:bg-indigo-400">
+            <button type="submit" :disabled="pending" class="btn btn-primary px-3.5 py-2.5 text-xs">
               {{ pending ? 'กำลังบันทึก...' : 'บันทึก' }}
             </button>
           </div>

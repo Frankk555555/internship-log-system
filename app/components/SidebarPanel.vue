@@ -44,7 +44,7 @@ function isActive(to: string) {
 </script>
 
 <template>
-  <div class="flex h-full flex-col overflow-y-auto bg-[linear-gradient(180deg,#191642_0%,#100d31_100%)] text-white">
+  <div class="flex h-full flex-col overflow-y-auto bg-sidebar text-white">
     <div class="flex items-start justify-between gap-2 border-b border-white/10 px-4 pb-4 pt-5">
       <div>
         <h1 class="text-[12px] font-semibold leading-tight">Internship Work Log System</h1>
@@ -61,7 +61,7 @@ function isActive(to: string) {
         :key="item.label"
         :to="item.to"
         class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium text-slate-200 transition hover:bg-white/10 hover:text-white"
-        :class="isActive(item.to) ? 'bg-[linear-gradient(90deg,#6548f3_0%,#4156e8_100%)] text-white shadow-lg shadow-indigo-950/20' : ''"
+        :class="isActive(item.to) ? 'bg-brand text-white hover:bg-brand' : ''"
         :aria-current="isActive(item.to) ? 'page' : undefined"
         @click="$emit('close')"
       >

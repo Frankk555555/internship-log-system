@@ -68,8 +68,8 @@ onBeforeUnmount(() => {
 <template>
   <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:p-7">
     <div class="flex items-center justify-between gap-3">
-      <h3 class="text-[13px] font-semibold text-slate-800">ไฟล์แนบหลักฐาน *</h3>
-      <span class="text-[10px] text-slate-400 underline underline-offset-2">max 5MB</span>
+      <h3 class="text-base font-bold text-slate-900">ไฟล์แนบหลักฐาน *</h3>
+      <span class="text-[10px] text-slate-500 underline underline-offset-2">max 5MB</span>
     </div>
 
     <label
@@ -86,7 +86,7 @@ onBeforeUnmount(() => {
         <UIcon name="i-lucide-upload" class="size-5" />
       </span>
       <span class="mt-3 text-xs font-semibold text-slate-700">ลากไฟล์วางที่นี่ หรือ คลิกเลือกไฟล์</span>
-      <span class="mt-1 text-[11px] text-slate-400">รองรับ PNG, JPG, JPEG, PDF, DOCX</span>
+      <span class="mt-1 text-[11px] text-slate-500">รองรับ PNG, JPG, JPEG, PDF, DOCX</span>
       <input
         type="file"
         multiple
@@ -97,7 +97,7 @@ onBeforeUnmount(() => {
       >
     </label>
 
-    <ul v-if="rejected.length || error" class="mt-2 space-y-1 text-[11px] font-medium text-red-500" role="alert">
+    <ul v-if="rejected.length || error" class="mt-2 space-y-1 text-[11px] font-medium text-red-600" role="alert">
       <li v-if="error">{{ error }}</li>
       <li v-for="reason in rejected" :key="reason" class="break-all">{{ reason }}</li>
     </ul>
@@ -108,7 +108,7 @@ onBeforeUnmount(() => {
           <span class="rounded-md bg-indigo-100 px-2 py-1 text-[10px] font-bold uppercase text-indigo-600">{{ extensionOf(file.name) }}</span>
           <div class="min-w-0 flex-1">
             <p class="truncate text-xs font-semibold text-slate-700" :title="file.name">{{ file.name }}</p>
-            <p class="text-[10px] text-slate-400">{{ formatFileSize(file.size) }} - uploaded_at: {{ toThaiTimeParts(file.uploadedAt).time }}</p>
+            <p class="text-[10px] text-slate-500">{{ formatFileSize(file.size) }} - uploaded_at: {{ toThaiTimeParts(file.uploadedAt).time }}</p>
           </div>
 
           <a
@@ -126,14 +126,14 @@ onBeforeUnmount(() => {
           <button
             v-if="!disabled"
             type="button"
-            class="text-[11px] font-semibold text-red-500 underline underline-offset-2 hover:text-red-600"
+            class="text-[11px] font-semibold text-red-600 underline underline-offset-2 hover:text-red-600"
             :aria-label="`ลบ ${file.name}`"
             @click="remove(file)"
           >
             ลบ
           </button>
         </div>
-        <p v-if="file.error" class="mt-1.5 text-[11px] font-medium text-red-500" role="alert">{{ file.error }}</p>
+        <p v-if="file.error" class="mt-1.5 text-[11px] font-medium text-red-600" role="alert">{{ file.error }}</p>
       </li>
     </ul>
   </section>

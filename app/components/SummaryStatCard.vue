@@ -13,9 +13,9 @@ withDefaults(defineProps<{
 })
 
 const valueClasses = {
-  green: 'text-emerald-500',
-  orange: 'text-orange-500',
-  amber: 'text-amber-600',
+  green: 'text-emerald-700',
+  orange: 'text-amber-700',
+  amber: 'text-amber-700',
   slate: 'text-slate-900',
 }
 </script>
@@ -28,7 +28,7 @@ const valueClasses = {
         <span class="font-semibold leading-none" :class="[valueClasses[tone], compact ? 'text-xl' : 'text-3xl']">{{ value }}</span>
         <template v-if="secondaryValue !== undefined">
           <span class="text-xl font-medium text-slate-300">/</span>
-          <span class="text-2xl font-semibold leading-none text-red-500">{{ secondaryValue }}</span>
+          <span class="text-2xl font-semibold leading-none text-rose-700">{{ secondaryValue }}</span>
         </template>
       </div>
       <span v-if="meta" class="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">{{ meta }}</span>

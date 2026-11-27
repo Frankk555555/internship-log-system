@@ -56,7 +56,7 @@ function confirm() {
     <template #body>
       <p class="text-sm font-semibold text-slate-900">
         คุณต้องการลบ
-        <span class="text-xs font-normal text-slate-400">{{ props.log?.title }} / {{ props.log ? formatThaiDate(props.log.date) : '' }}</span>
+        <span class="text-xs font-normal text-slate-500">{{ props.log?.title }} / {{ props.log ? formatThaiDate(props.log.date) : '' }}</span>
         ใช่หรือไม่
       </p>
 
@@ -74,17 +74,17 @@ function confirm() {
         placeholder="ระบุเหตุผล..."
         :aria-invalid="Boolean(error)"
         :aria-describedby="error ? 'delete-reason-error' : undefined"
-        class="mt-2 mb-1 block w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-red-400"
+        class="mt-2 mb-1 block w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-red-400"
       />
-      <p v-if="error" id="delete-reason-error" class="text-[11px] font-medium text-red-500">{{ error }}</p>
-      <p v-if="serverError" class="mt-1 text-[11px] font-medium text-red-500" role="alert">{{ serverError }}</p>
+      <p v-if="error" id="delete-reason-error" class="text-[11px] font-medium text-red-600">{{ error }}</p>
+      <p v-if="serverError" class="mt-1 text-[11px] font-medium text-red-600" role="alert">{{ serverError }}</p>
     </template>
 
     <template #footer>
-      <button type="button" :disabled="pending" class="rounded-lg border border-slate-200 bg-white px-6 py-2.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:text-slate-400" @click="open = false">
+      <button type="button" :disabled="pending" class="btn btn-secondary px-6 py-2.5 text-xs" @click="open = false">
         ยกเลิก
       </button>
-      <button type="button" :disabled="pending" class="rounded-lg bg-red-600 px-7 py-2.5 text-xs font-medium text-white shadow-sm hover:bg-red-700 disabled:bg-red-300" @click="confirm">
+      <button type="button" :disabled="pending" class="btn btn-danger px-7 py-2.5 text-xs" @click="confirm">
         {{ pending ? 'กำลังลบ...' : 'ยืนยัน' }}
       </button>
     </template>

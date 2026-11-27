@@ -16,7 +16,7 @@ withDefaults(defineProps<{
       <path d="M25 56V47a7 7 0 0 1 14 0v9" fill="none" stroke="#fcc419" stroke-width="5.5" stroke-linecap="round" />
     </svg>
     <UIcon v-else-if="mark === 'alert'" name="i-lucide-circle-alert" class="size-14 text-red-600" />
-    <span v-else class="flex size-12 items-center justify-center rounded-full bg-green-700 text-white">
+    <span v-else class="flex size-12 items-center justify-center rounded-full bg-done text-white">
       <UIcon name="i-lucide-check" class="size-8" />
     </span>
 

@@ -60,12 +60,12 @@ function submit() {
       <button
         type="button"
         :disabled="pending || remaining > 0"
-        class="h-10 w-full rounded-xl bg-indigo-600 text-[13px] font-semibold text-white shadow-md shadow-indigo-100 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+        class="btn btn-primary h-10 w-full rounded-xl text-[13px]"
         @click="send(sentTo)"
       >
         {{ remaining > 0 ? `ส่งลิงก์อีกครั้ง (รอ ${remaining} วินาที)` : pending ? 'กำลังส่ง...' : 'ส่งลิงก์อีกครั้ง' }}
       </button>
-      <p v-if="failure" class="mt-2 text-[11px] font-semibold text-red-500" role="alert">{{ failure }}</p>
+      <p v-if="failure" class="mt-2 text-[11px] font-semibold text-red-600" role="alert">{{ failure }}</p>
     </template>
 
     <NuxtLink to="/login" class="mt-6 inline-block text-[13px] font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800">

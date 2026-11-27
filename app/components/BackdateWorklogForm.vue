@@ -19,7 +19,7 @@ const initial = props.worklog ?? props.context.defaults
 // ข้อมูลล่าสุดที่บันทึกไว้ ใช้กำหนดว่าช่องเวลาใดถูกล็อก
 const current = shallowRef(props.worklog)
 const worklogId = ref<number | undefined>(props.worklog?.id)
-const date = ref(initial.date ? formatThaiDate(initial.date) : '')
+const date = ref(initial.date ? formatThaiInputDate(initial.date) : '')
 const startTime = ref(initial.startTime ? `${initial.startTime} น.` : '')
 const endTime = ref(initial.endTime ? `${initial.endTime} น.` : '')
 const title = ref(initial.title)
@@ -265,7 +265,7 @@ async function save(mode: 'draft' | 'submit') {
 <template>
   <div class="grid gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
     <form class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm" novalidate @submit.prevent>
-      <h3 class="text-base font-semibold text-slate-900">{{ isEditing ? 'แก้ไขรายการ' : 'รายการย้อนหลัง' }}</h3>
+      <h3 class="text-base font-bold text-slate-900">{{ isEditing ? 'แก้ไขรายการ' : 'รายการย้อนหลัง' }}</h3>
 
       <p v-if="timeNotice" id="time-notice" class="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
         <UIcon :name="policy.date || policy.end ? 'i-lucide-info' : 'i-lucide-lock'" class="mt-px size-3.5 shrink-0" />
@@ -285,9 +285,9 @@ async function save(mode: 'draft' | 'submit') {
           required
           :readonly="isLocked"
           :aria-invalid="Boolean(errors.title)"
-          class="mt-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 read-only:bg-slate-50 aria-invalid:border-red-400"
+          class="mt-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 read-only:bg-slate-50 aria-invalid:border-red-400"
         >
-        <p v-if="errors.title" class="mt-1 text-[11px] font-medium text-red-500">{{ errors.title }}</p>
+        <p v-if="errors.title" class="mt-1 text-[11px] font-medium text-red-600">{{ errors.title }}</p>
       </div>
 
       <div class="flex flex-col">
@@ -299,28 +299,28 @@ async function save(mode: 'draft' | 'submit') {
           required
           :readonly="isLocked"
           :aria-invalid="Boolean(errors.description)"
-          class="mt-1.5 resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs leading-relaxed text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 read-only:bg-slate-50 aria-invalid:border-red-400"
+          class="mt-1.5 resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs leading-relaxed text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 read-only:bg-slate-50 aria-invalid:border-red-400"
         />
-        <p v-if="errors.description" class="mt-1 text-[11px] font-medium text-red-500">{{ errors.description }}</p>
+        <p v-if="errors.description" class="mt-1 text-[11px] font-medium text-red-600">{{ errors.description }}</p>
       </div>
 
       <section v-if="hours" class="mt-1">
-        <h3 class="text-base font-semibold text-slate-900">ชั่วโมงการทำงาน</h3>
+        <h3 class="text-base font-bold text-slate-900">ชั่วโมงการทำงาน</h3>
         <dl class="mt-3 grid gap-4 sm:grid-cols-[1fr_1.4fr_1.8fr]">
           <div>
-            <dt class="text-[11px] text-slate-400">ชั่วโมงของรายการนี้</dt>
+            <dt class="text-[11px] text-slate-500">ชั่วโมงของรายการนี้</dt>
             <dd class="mt-1 text-xs font-semibold text-slate-800">{{ formatDuration(hours.entry) }}</dd>
           </div>
           <div>
-            <dt class="text-[11px] text-slate-400">รวมทั้งวันที่ {{ date }} (ทุกสถานะ)</dt>
+            <dt class="text-[11px] text-slate-500">รวมทั้งวันที่ {{ workDate ? formatThaiDate(workDate) : date }} (ทุกสถานะ)</dt>
             <dd class="mt-1 text-xs font-semibold text-slate-800">
               <template v-if="hours.dayTotal !== undefined">{{ formatDuration(hours.dayTotal) }}</template>
-              <button v-else-if="sameDayError" type="button" class="text-red-500 underline" @click="refreshSameDay()">โหลดไม่สำเร็จ ลองอีกครั้ง</button>
-              <span v-else class="text-slate-400">กำลังโหลด...</span>
+              <button v-else-if="sameDayError" type="button" class="text-red-600 underline" @click="refreshSameDay()">โหลดไม่สำเร็จ ลองอีกครั้ง</button>
+              <span v-else class="text-slate-500">กำลังโหลด...</span>
             </dd>
           </div>
           <div v-if="policy.date">
-            <dt class="text-[11px] text-slate-400">ช่วงวันย้อนหลัง</dt>
+            <dt class="text-[11px] text-slate-500">ช่วงวันย้อนหลัง</dt>
             <dd class="mt-1 text-xs font-semibold text-slate-800">{{ formatThaiDateRange(allowedFrom, allowedTo) }} ({{ earliestDate < windowStart ? 'รวมวันเดิมของรายการ' : `ย้อนหลัง ${backdateLimitDays} วัน` }})</dd>
           </div>
         </dl>
@@ -336,11 +336,11 @@ async function save(mode: 'draft' | 'submit') {
               </li>
             </ul>
           </div>
-          <p v-else class="mt-3 text-[11px] text-slate-400">ไม่มีรายการอื่นที่มีเวลาครบในวันที่เลือก</p>
+          <p v-else class="mt-3 text-[11px] text-slate-500">ไม่มีรายการอื่นที่มีเวลาครบในวันที่เลือก</p>
         </template>
       </section>
 
-      <ul v-if="overlaps.length" class="space-y-1 rounded-lg border border-red-400 bg-red-50 px-3 py-2 text-[11px] font-medium text-red-600" role="alert">
+      <ul v-if="overlaps.length" class="space-y-1 rounded-lg border border-red-400 bg-red-50 px-3 py-2 text-[11px] font-medium text-red-700" role="alert">
         <li v-for="log in overlaps" :key="log.id" class="flex items-center gap-1.5">
           <UIcon name="i-lucide-triangle-alert" class="size-3.5 shrink-0" />
           {{ overlapMessage(log) }}
@@ -351,7 +351,7 @@ async function save(mode: 'draft' | 'submit') {
       <p
         v-if="notice"
         class="rounded-lg px-3 py-2 text-[11px] font-medium"
-        :class="notice.tone === 'error' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'"
+        :class="notice.tone === 'error' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'"
         role="status"
       >
         {{ notice.text }}
@@ -369,7 +369,7 @@ async function save(mode: 'draft' | 'submit') {
           type="button"
           :disabled="isLocked || Boolean(finishBlock)"
           :aria-describedby="finishBlock ? 'finish-hint' : undefined"
-          class="rounded-lg bg-emerald-700 px-3 py-2.5 text-[11px] font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+          class="btn btn-done px-3 py-2.5 text-[11px]"
           @click="finishWork"
         >
           {{ pending === 'finish' ? 'กำลังบันทึกเวลา...' : 'ทำงานนี้เสร็จสิ้น (บันทึกเวลาปัจจุบัน)' }}
@@ -377,7 +377,7 @@ async function save(mode: 'draft' | 'submit') {
         <button
           type="button"
           :disabled="isLocked"
-          class="rounded-lg bg-indigo-600 px-3 py-2.5 text-[11px] font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+          class="btn btn-secondary px-3 py-2.5 text-[11px]"
           @click="save('draft')"
         >
           {{ pending === 'draft' ? 'กำลังบันทึก...' : isResubmit ? 'บันทึกการแก้ไข' : 'บันทึกฉบับร่าง' }}
@@ -385,7 +385,7 @@ async function save(mode: 'draft' | 'submit') {
         <button
           type="button"
           :disabled="isLocked"
-          class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
+          class="btn btn-primary px-3 py-2.5 text-[11px]"
           @click="save('submit')"
         >
           {{ pending === 'submit' ? 'กำลังส่ง...' : isResubmit ? 'ส่งตรวจใหม่' : 'ส่งตรวจ' }}

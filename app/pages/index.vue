@@ -89,7 +89,7 @@ async function recordTime(action: 'start' | 'finish', log: WorkLog) {
             title="รอตรวจ / ส่งกลับแก้ไข"
             :value="data.summary.waitingReviewCount"
             :secondary-value="data.summary.returnedCount"
-            meta="ส่งตรวจ / ส่งกลับแก้ไข"
+            meta="รอตรวจ / ส่งกลับแก้ไข"
             tone="orange"
           />
         </div>

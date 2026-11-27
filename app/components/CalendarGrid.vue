@@ -73,7 +73,7 @@ function blockStyle({ start, end, lane, lanes }: CalendarBlock) {
       </div>
 
       <div v-if="hasUntimed" class="grid border-b border-slate-200" :style="gridStyle">
-        <div class="px-2 py-2 text-[10px] text-slate-400">ไม่มีเวลา</div>
+        <div class="px-2 py-2 text-[10px] text-slate-500">ไม่มีเวลา</div>
         <div v-for="column in columns" :key="column.date" class="space-y-1 border-l border-slate-200 p-1" :class="column.isWeekend ? 'bg-slate-100' : ''">
           <NuxtLink
             v-for="log in column.untimed"

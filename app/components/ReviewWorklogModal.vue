@@ -34,7 +34,7 @@ const attachments = computed(() => worklog.value?.attachments ?? [])
 const summary = computed(() => {
   const log = worklog.value
   if (!log?.startTime || !log.endTime) return ''
-  return `${formatThaiShortDate(log.date)} · ${log.startTime}–${log.endTime} · ${formatHours(toMinutes(log.endTime) - toMinutes(log.startTime))} ชม.`
+  return `${formatThaiDate(log.date)} · ${log.startTime}–${log.endTime} · ${formatHours(toMinutes(log.endTime) - toMinutes(log.startTime))} ชม.`
 })
 
 function approve() {
@@ -78,7 +78,7 @@ function sendBack() {
             <dt class="text-[11px] font-semibold text-slate-500">หัวข้อ</dt>
             <dd class="text-xs font-semibold text-slate-900">{{ worklog.title }}</dd>
           </div>
-          <div class="ml-auto flex flex-col items-end gap-1 text-[11px] text-slate-400">
+          <div class="ml-auto flex flex-col items-end gap-1 text-[11px] text-slate-500">
             <span>{{ summary }}</span>
             <TimeFlagBadges :worklog="worklog" />
           </div>
@@ -91,7 +91,7 @@ function sendBack() {
         <ul class="mt-1.5 space-y-1.5">
           <li v-for="file in attachments" :key="file.id" class="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">
             <span class="min-w-0 flex-1 truncate text-[11px] font-medium text-slate-700" :title="file.name">{{ file.name }}</span>
-            <span class="text-[10px] text-slate-400">{{ formatFileSize(file.size) }}</span>
+            <span class="text-[10px] text-slate-500">{{ formatFileSize(file.size) }}</span>
             <template v-if="file.url">
               <!-- DOCX เปิดดูในเบราว์เซอร์ไม่ได้ ให้ดาวน์โหลดอย่างเดียว (6.3) -->
               <a v-if="extensionOf(file.name) !== 'docx'" :href="file.url" target="_blank" rel="noopener" class="text-[11px] font-semibold text-indigo-600 underline underline-offset-2">ดูตัวอย่าง</a>
@@ -99,7 +99,7 @@ function sendBack() {
             </template>
             <span v-else class="text-[11px] font-semibold text-slate-300" title="ไฟล์ตัวอย่าง ยังไม่มีเนื้อหา">ดูตัวอย่าง ดาวน์โหลด</span>
           </li>
-          <li v-if="!attachments.length" class="text-[11px] text-slate-400">ไม่มีไฟล์แนบ</li>
+          <li v-if="!attachments.length" class="text-[11px] text-slate-500">ไม่มีไฟล์แนบ</li>
         </ul>
 
         <NuxtLink :to="`/worklogs/${worklog.id}/history`" class="mt-3 inline-block text-[11px] font-semibold text-indigo-600 underline underline-offset-2">
@@ -116,9 +116,9 @@ function sendBack() {
             :readonly="Boolean(pending)"
             :aria-invalid="Boolean(commentError)"
             :aria-describedby="commentError ? 'review-comment-error' : undefined"
-            class="mt-1.5 block w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-red-400"
+            class="mt-1.5 block w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-red-400"
           />
-          <p v-if="commentError" id="review-comment-error" class="mt-1 text-[11px] font-medium text-red-500">{{ commentError }}</p>
+          <p v-if="commentError" id="review-comment-error" class="mt-1 text-[11px] font-medium text-red-600">{{ commentError }}</p>
           <label class="mt-2 flex items-start gap-2 text-[11px] text-slate-600">
             <input id="review-allow-time" v-model="allowTimeEdit" type="checkbox" class="mt-px size-3.5 accent-indigo-600" :disabled="Boolean(pending)">
             เปิดให้นักศึกษาแก้วันที่และเวลา (ใช้เมื่อส่งกลับเพราะเวลาไม่ถูกต้อง)
@@ -131,19 +131,19 @@ function sendBack() {
           <span v-if="worklog.reviewComment">ความคิดเห็น: {{ worklog.reviewComment }}</span>
         </div>
 
-        <p v-if="serverError" class="mt-2 text-[11px] font-medium text-red-500" role="alert">{{ serverError }}</p>
+        <p v-if="serverError" class="mt-2 text-[11px] font-medium text-red-600" role="alert">{{ serverError }}</p>
       </div>
     </template>
 
     <template #footer>
-      <button type="button" :disabled="Boolean(pending)" class="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-medium text-slate-700 hover:bg-slate-50 disabled:text-slate-400" @click="open = false">
+      <button type="button" :disabled="Boolean(pending)" class="btn btn-secondary px-3.5 py-2 text-[11px]" @click="open = false">
         {{ canReview ? 'ยกเลิก' : 'ปิด' }}
       </button>
       <template v-if="canReview">
-        <button type="button" :disabled="Boolean(pending)" class="rounded-lg bg-red-600 px-3.5 py-2 text-[11px] font-semibold text-white hover:bg-red-700 disabled:bg-red-300" @click="sendBack">
+        <button type="button" :disabled="Boolean(pending)" class="btn btn-sendback px-3.5 py-2 text-[11px]" @click="sendBack">
           {{ pending === 'return' ? 'กำลังส่งกลับ...' : 'ส่งกลับแก้ไข' }}
         </button>
-        <button type="button" :disabled="Boolean(pending)" class="rounded-lg bg-indigo-600 px-3.5 py-2 text-[11px] font-semibold text-white hover:bg-indigo-700 disabled:bg-indigo-300" @click="approve">
+        <button type="button" :disabled="Boolean(pending)" class="btn btn-primary px-3.5 py-2 text-[11px]" @click="approve">
           {{ pending === 'approve' ? 'กำลังอนุมัติ...' : 'อนุมัติ' }}
         </button>
       </template>

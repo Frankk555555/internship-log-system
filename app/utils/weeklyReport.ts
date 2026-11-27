@@ -1,14 +1,8 @@
 import type { ReviewStatus, WeeklyReportData } from '~/types/worklog'
-import { addDays, formatThaiDateRange, formatThaiShortDate } from './date'
+import { addDays, formatThaiDate, formatThaiDateRange } from './date'
 import { toMinutes } from './time'
+import { reviewStatusMeta } from './worklogStatus'
 import { createXlsx, type SheetCell } from './xlsx'
-
-export const reportStatusLabels: Record<ReviewStatus, string> = {
-  draft: 'ฉบับร่าง',
-  submitted: 'ส่งตรวจ',
-  returned: 'ส่งกลับแก้ไข',
-  approved: 'อนุมัติแล้ว',
-}
 
 export interface ReportRow {
   id: number
@@ -31,9 +25,9 @@ export function formatHours(minutes: number) {
   return (minutes / 60).toFixed(2).replace(/0$/, '')
 }
 
-/** เช่น "10 – 16 ส.ค. 2569" */
+/** เช่น "10-ส.ค.-2569 – 16-ส.ค.-2569" */
 export function formatWeekLabel(weekStart: string) {
-  return formatThaiDateRange(weekStart, addDays(weekStart, 6)).replace(/\s*–\s*/, ' – ')
+  return formatThaiDateRange(weekStart, addDays(weekStart, 6))
 }
 
 /**
@@ -48,7 +42,7 @@ export function buildWeeklyReport(data: WeeklyReportData, weekStart: string) {
     .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime ?? '99:99').localeCompare(b.startTime ?? '99:99'))
     .map(log => ({
       id: log.id,
-      date: formatThaiShortDate(log.date),
+      date: formatThaiDate(log.date),
       title: log.title,
       time: log.startTime ? `${log.startTime}–${log.endTime ?? ''}` : 'ยังไม่เริ่ม',
       minutes: log.startTime && log.endTime ? toMinutes(log.endTime) - toMinutes(log.startTime) : undefined,
@@ -86,7 +80,7 @@ export function downloadWeeklyReportExcel(options: {
       ['ช่วงวันที่', weekLabel],
       [],
       ['วันที่', 'รายการงาน', 'เวลา', 'ชม.', 'สถานะการตรวจสอบ'],
-      ...report.rows.map(row => [row.date, row.title, row.time, row.minutes === undefined ? '–' : row.minutes / 60, reportStatusLabels[row.status]]),
+      ...report.rows.map(row => [row.date, row.title, row.time, row.minutes === undefined ? '–' : row.minutes / 60, reviewStatusMeta[row.status].label]),
     )
     if (!report.rows.length) sheet.push(['ไม่มีรายการงานในสัปดาห์นี้'])
     sheet.push([], ['ชั่วโมงรวม (นับเฉพาะรายการที่อนุมัติแล้ว)', '', '', report.approvedMinutes / 60])

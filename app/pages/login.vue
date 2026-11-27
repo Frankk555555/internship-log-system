@@ -83,7 +83,7 @@ function backToForm() {
           <TextField id="login-password" v-model="password" label="รหัสผ่าน" type="password" autocomplete="current-password" required />
         </div>
 
-        <p v-if="failure" class="mt-2.5 text-[11px] font-semibold text-red-500" role="alert">{{ failure }}</p>
+        <p v-if="failure" class="mt-2.5 text-[11px] font-semibold text-red-600" role="alert">{{ failure }}</p>
 
         <label class="mt-3 flex w-fit items-center gap-2 text-[11px] text-slate-500">
           <input v-model="remember" type="checkbox" class="size-3.5 accent-blue-600">

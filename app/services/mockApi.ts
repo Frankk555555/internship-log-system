@@ -217,7 +217,7 @@ async function review(targets: ReviewTarget[], decision: 'approved' | 'returned'
 
     Object.assign(found.worklog, { reviewStatus: decision, reviewComment: comment, reviewedBy: db.mentor.name, reviewedAt: serverNow(), timeEditAllowed: allowTimeEdit || undefined, version: version + 1 })
     addHistory(id, decision === 'approved'
-      ? { type: 'approval', title: comment ? `อนุมัติ: ${comment}` : 'ผู้อนุมัติ', actorName: db.mentor.name, before: 'รอตรวจ', after: 'อนุมัติ' }
+      ? { type: 'approval', title: comment ? `อนุมัติ: ${comment}` : 'ผู้อนุมัติ', actorName: db.mentor.name, before: 'รอตรวจ', after: 'อนุมัติแล้ว' }
       : { type: 'return', title: `ส่งกลับ${allowTimeEdit ? ' (เปิดให้แก้เวลา)' : ''}: ${comment}`, actorName: db.mentor.name, before: 'รอตรวจ', after: 'ส่งกลับแก้ไข' })
     result.succeededIds.push(id)
   }

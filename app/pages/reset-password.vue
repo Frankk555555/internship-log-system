@@ -56,7 +56,7 @@ async function submit() {
       <form class="space-y-5" novalidate @submit.prevent="submit">
         <TextField id="reset-password" v-model="password" label="รหัสผ่านใหม่" type="password" autocomplete="new-password" required :error="passwordError" />
         <TextField id="reset-confirmation" v-model="confirmation" label="ยืนยันรหัสผ่านใหม่" type="password" autocomplete="new-password" required :error="confirmationError" />
-        <p v-if="failure" class="text-[11px] font-semibold text-red-500" role="alert">{{ failure }}</p>
+        <p v-if="failure" class="text-[11px] font-semibold text-red-600" role="alert">{{ failure }}</p>
         <AuthButton label="ยืนยันรหัสผ่าน" :pending="pending" />
       </form>
     </template>

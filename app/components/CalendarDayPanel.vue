@@ -28,35 +28,35 @@ const statuses = computed(() => (Object.keys(calendarStatusMeta) as ReviewStatus
 <template>
   <aside class="space-y-3">
     <section class="rounded-xl border border-slate-200 bg-white p-4">
-      <h3 class="text-sm font-semibold text-slate-900">สรุปของวัน</h3>
+      <h3 class="text-base font-bold text-slate-900">สรุปของวัน</h3>
 
       <dl class="mt-3 grid grid-cols-2 gap-3">
         <div>
-          <dt class="text-[11px] text-slate-400">ชั่วโมงทั้งหมด</dt>
+          <dt class="text-[11px] text-slate-500">ชั่วโมงทั้งหมด</dt>
           <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ formatDuration(totalMinutes) }}</dd>
         </div>
         <div>
-          <dt class="text-[11px] text-slate-400">อนุมัติแล้ว</dt>
-          <dd class="mt-0.5 text-sm font-semibold text-green-700">{{ formatDuration(approvedMinutes) }}</dd>
+          <dt class="text-[11px] text-slate-500">อนุมัติแล้ว</dt>
+          <dd class="mt-0.5 text-sm font-semibold text-done">{{ formatDuration(approvedMinutes) }}</dd>
         </div>
       </dl>
 
       <ul v-if="logs.length" class="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
         <li v-for="item in statuses" :key="item.status" class="flex items-center justify-between text-[11px]">
-          <span class="rounded-full px-2.5 py-1 font-semibold" :class="[item.chip, item.text]">{{ item.label }}</span>
+          <StatusBadge v-bind="reviewStatusMeta[item.status]" />
           <span class="font-semibold text-slate-700">{{ item.count }} รายการ</span>
         </li>
       </ul>
-      <p v-else class="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-400">ไม่มีรายการในวันนี้</p>
+      <p v-else class="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">ไม่มีรายการในวันนี้</p>
 
-      <NuxtLink v-if="date === today" to="/worklogs/new" class="mt-3 flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-[11px] font-semibold text-white hover:bg-indigo-700">
+      <NuxtLink v-if="date === today" to="/worklogs/new" class="btn btn-primary mt-3 flex px-3 py-2 text-[11px]">
         <UIcon name="i-lucide-plus" class="size-3.5" />
         สร้างรายการงานใหม่
       </NuxtLink>
     </section>
 
     <section v-if="untimed.length" class="rounded-xl border border-slate-200 bg-white p-4">
-      <h3 class="text-sm font-semibold text-slate-900">ยังไม่ได้กำหนดเวลา</h3>
+      <h3 class="text-base font-bold text-slate-900">ยังไม่ได้กำหนดเวลา</h3>
       <ul class="mt-2 space-y-2">
         <li v-for="log in untimed" :key="log.id">
           <NuxtLink :to="calendarLink(log)" class="block rounded-md border-l-4 px-2.5 py-2 hover:brightness-95" :class="calendarStatusMeta[log.reviewStatus].block">

@@ -8,7 +8,7 @@ export type WorkStatus = 'pending' | 'in_progress' | 'done'
 
 export type ReviewStatus = 'draft' | 'submitted' | 'returned' | 'approved'
 
-export type BadgeTone = 'slate' | 'blue' | 'green' | 'pink' | 'amber'
+export type BadgeTone = 'slate' | 'draft' | 'blue' | 'green' | 'amber' | 'rose' | 'approved'
 
 export interface UserProfile {
   name: string

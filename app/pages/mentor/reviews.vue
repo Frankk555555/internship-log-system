@@ -78,7 +78,7 @@ function minutesOf({ worklog }: ReviewItem) {
 
 function submittedLabel(item: ReviewItem) {
   const { date, time } = toThaiTimeParts(item.submittedAt)
-  return `${formatThaiDayMonth(date)} ${time} น.`
+  return `${formatThaiDayMonth(date)} • ${time} น.`
 }
 
 function announce(kind: 'approve' | 'return', items: ReviewItem[]) {
@@ -144,7 +144,7 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
     <header class="flex items-start justify-between gap-4 border-b border-slate-200 pb-5">
       <div>
         <BackButton v-if="studentId" fallback="/mentor/students" class="mb-3" />
-        <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-400" aria-label="breadcrumb">
+        <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
           <span>พื้นที่พี่เลี้ยง</span>
           <span>/</span>
           <span class="text-slate-500">ตรวจงานนักศึกษา</span>
@@ -185,10 +185,10 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
           <div class="relative overflow-x-auto rounded-lg border border-slate-200 bg-white">
             <table class="w-full min-w-[860px] table-fixed border-collapse text-left">
               <thead>
-                <tr class="bg-slate-100 text-[11px] font-semibold text-slate-500">
+                <tr class="bg-slate-50 text-[11px] font-semibold text-slate-500">
                   <th class="w-[5%] px-3.5 py-3"><span class="sr-only">เลือก</span></th>
                   <th class="w-[15%] px-2 py-3">นักศึกษา</th>
-                  <th class="w-[9%] px-2 py-3">วันที่</th>
+                  <th class="w-[11%] px-2 py-3">วันที่</th>
                   <th class="px-2 py-3">รายละเอียดงาน</th>
                   <th class="w-[12%] px-2 py-3">เวลา</th>
                   <th class="w-[9%] px-2 py-3">จำนวนชั่วโมง</th>
@@ -211,7 +211,7 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
                     >
                   </td>
                   <td class="px-2 py-3.5">{{ item.studentName }}</td>
-                  <td class="px-2 py-3.5">{{ formatThaiDateRange(item.worklog.date, item.worklog.date) }}</td>
+                  <td class="whitespace-nowrap px-2 py-3.5">{{ formatThaiDate(item.worklog.date) }}</td>
                   <td class="px-2 py-3.5">{{ item.worklog.title }}</td>
                   <td class="px-2 py-3.5">
                     {{ item.worklog.startTime }}–{{ item.worklog.endTime }} น.
@@ -220,12 +220,8 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
                   <td class="px-2 py-3.5">{{ formatHours(minutesOf(item)) }}</td>
                   <td class="px-2 py-3.5">{{ submittedLabel(item) }}</td>
                   <td class="px-2 py-3.5">
-                    <StatusBadge v-if="item.isOverdue" :label="`ค้างตรวจ ${item.pendingDays} วัน`" tone="pink" />
-                    <StatusBadge
-                      v-else
-                      v-bind="reviewStatusMeta[item.worklog.reviewStatus]"
-                      :solid="item.worklog.reviewStatus !== 'returned'"
-                    />
+                    <StatusBadge v-if="item.isOverdue" :label="`ค้างตรวจ ${item.pendingDays} วัน`" tone="rose" />
+                    <StatusBadge v-else v-bind="reviewStatusMeta[item.worklog.reviewStatus]" />
                   </td>
                   <td class="px-2 py-3.5">
                     <button type="button" class="text-[11px] font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800" :aria-label="`ตรวจ ${item.studentName} ${item.worklog.title}`" @click="openReview(item)">
@@ -234,14 +230,14 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
                   </td>
                 </tr>
                 <tr v-if="!queue.items.length" class="border-t border-slate-200">
-                  <td colspan="9" class="px-5 py-12 text-center text-sm text-slate-400">{{ filter === 'pending' ? 'ไม่มีรายการรอตรวจ' : 'ยังไม่มีรายการที่ส่งเข้ามา' }}</td>
+                  <td colspan="9" class="px-5 py-12 text-center text-sm text-slate-500">{{ filter === 'pending' ? 'ไม่มีรายการรอตรวจ' : 'ยังไม่มีรายการที่ส่งเข้ามา' }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
           <div class="mt-5 flex flex-wrap items-start justify-between gap-3">
-            <p class="order-2 text-[11px] text-slate-400 sm:order-1 sm:pt-9">
+            <p class="order-2 text-[11px] text-slate-500 sm:order-1 sm:pt-9">
               แสดง {{ queue.items.length }} จาก {{ queue.total }} รายการ · ค้างตรวจเกิน {{ queue.overdueDays }} วันจะแจ้งเตือนอัตโนมัติ
               <button v-if="queue.items.length < queue.total" type="button" class="ml-2 font-semibold text-indigo-600 underline underline-offset-2" @click="limit += pageSize">
                 แสดงเพิ่ม
@@ -249,10 +245,10 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
             </p>
 
             <div class="order-1 ml-auto flex gap-3 sm:order-2">
-              <button type="button" :disabled="!selected.length || Boolean(pending)" class="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-xs font-medium text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400" @click="openBulkReturn">
+              <button type="button" :disabled="!selected.length || Boolean(pending)" class="btn btn-sendback px-5 py-2.5 text-xs" @click="openBulkReturn">
                 ส่งกลับแก้ไข
               </button>
-              <button type="button" :disabled="!selected.length || Boolean(pending)" class="rounded-lg bg-indigo-600 px-7 py-2.5 text-xs font-medium text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300" @click="decide('approve', selected, '')">
+              <button type="button" :disabled="!selected.length || Boolean(pending)" class="btn btn-primary px-7 py-2.5 text-xs" @click="decide('approve', selected, '')">
                 {{ pending === 'approve' ? 'กำลังอนุมัติ...' : 'อนุมัติที่เลือก' }}
               </button>
             </div>

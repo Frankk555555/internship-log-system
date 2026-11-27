@@ -17,7 +17,7 @@ const picker = useTemplateRef<HTMLInputElement>('picker')
 function normalize(text: string) {
   if (props.type === 'date') {
     const iso = parseThaiDate(text)
-    return iso ? formatThaiDate(iso) : text
+    return iso ? formatThaiInputDate(iso) : text
   }
   const clock = parseClock(text)
   return clock ? `${clock} น.` : text
@@ -36,7 +36,7 @@ function openPicker() {
 function onPick(event: Event) {
   const { value } = event.target as HTMLInputElement
   if (!value) return
-  model.value = props.type === 'date' ? formatThaiDate(value) : `${value.slice(0, 5)} น.`
+  model.value = props.type === 'date' ? formatThaiInputDate(value) : `${value.slice(0, 5)} น.`
 }
 </script>
 
@@ -46,7 +46,7 @@ function onPick(event: Event) {
     <div
       class="relative mt-1.5 flex items-center rounded-lg border focus-within:ring-2"
       :class="[
-        error ? 'border-red-400 focus-within:ring-red-100' : 'border-slate-200 focus-within:border-indigo-400 focus-within:ring-indigo-100',
+        error ? 'border-red-400 focus-within:ring-red-100' : 'border-slate-200 focus-within:border-indigo-600 focus-within:ring-indigo-100',
         readonly ? 'bg-slate-50' : 'bg-white',
       ]"
     >
@@ -73,6 +73,6 @@ function onPick(event: Event) {
       </button>
       <input ref="picker" :type="type" tabindex="-1" aria-hidden="true" class="pointer-events-none absolute bottom-0 right-0 size-px opacity-0" @change="onPick">
     </div>
-    <p v-if="error" :id="`${id}-error`" class="mt-1 text-[11px] font-medium text-red-500">{{ error }}</p>
+    <p v-if="error" :id="`${id}-error`" class="mt-1 text-[11px] font-medium text-red-600">{{ error }}</p>
   </div>
 </template>

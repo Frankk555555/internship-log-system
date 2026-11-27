@@ -70,7 +70,7 @@ async function save() {
 <template>
   <div>
     <header class="mb-4 border-b border-slate-200 pb-5">
-      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-400" aria-label="breadcrumb">
+      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
         <span>พื้นที่{{ user ? roleLabels[user.role] : '' }}</span>
         <span>/</span>
         <span class="text-slate-500">ตั้งค่าบัญชี</span>
@@ -81,7 +81,7 @@ async function save() {
 
     <div class="grid gap-4 lg:min-h-[38rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
       <form class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" novalidate @submit.prevent="save">
-        <h3 class="text-base font-semibold text-slate-900">รหัสผ่านของฉัน</h3>
+        <h3 class="text-base font-bold text-slate-900">รหัสผ่านของฉัน</h3>
 
         <!-- ช่วยให้ตัวจัดการรหัสผ่านรู้ว่าเป็นบัญชีใด -->
         <input type="email" :value="user?.email" autocomplete="username" readonly tabindex="-1" aria-hidden="true" class="sr-only">
@@ -95,35 +95,35 @@ async function save() {
         <p
           v-if="notice"
           class="mt-4 rounded-lg px-3 py-2 text-[11px] font-medium"
-          :class="notice.tone === 'error' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'"
+          :class="notice.tone === 'error' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'"
           role="status"
         >
           {{ notice.text }}
         </p>
 
         <div class="mt-5 flex gap-3">
-          <button type="submit" :disabled="pending" class="rounded-lg bg-indigo-600 px-7 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-wait disabled:bg-indigo-400">
+          <button type="submit" :disabled="pending" class="btn btn-primary px-7 py-2.5 text-xs">
             {{ pending ? 'กำลังบันทึก...' : 'บันทึก' }}
           </button>
-          <button type="button" :disabled="pending" class="rounded-lg border border-slate-200 bg-white px-7 py-2.5 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:text-slate-400" @click="cancel">
+          <button type="button" :disabled="pending" class="btn btn-secondary px-7 py-2.5 text-xs" @click="cancel">
             ยกเลิก
           </button>
         </div>
       </form>
 
       <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 class="text-base font-semibold text-slate-900">บัญชีที่กำลังใช้งาน</h3>
+        <h3 class="text-base font-bold text-slate-900">บัญชีที่กำลังใช้งาน</h3>
         <dl v-if="user" class="mt-4 space-y-4">
           <div>
-            <dt class="text-[11px] text-slate-400">ชื่อผู้ใช้งาน</dt>
+            <dt class="text-[11px] text-slate-500">ชื่อผู้ใช้งาน</dt>
             <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ user.name }}</dd>
           </div>
           <div>
-            <dt class="text-[11px] text-slate-400">บทบาท</dt>
+            <dt class="text-[11px] text-slate-500">บทบาท</dt>
             <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ roleLabels[user.role] }}</dd>
           </div>
           <div>
-            <dt class="text-[11px] text-slate-400">อีเมล</dt>
+            <dt class="text-[11px] text-slate-500">อีเมล</dt>
             <dd class="mt-0.5 break-all text-sm font-semibold text-slate-900">{{ user.email }}</dd>
           </div>
         </dl>

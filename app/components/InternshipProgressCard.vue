@@ -11,7 +11,7 @@ defineProps<{
     <div class="flex items-start justify-between gap-3">
       <div>
         <p class="text-[11px] font-medium text-slate-500">สถานที่ฝึกงาน</p>
-        <h3 class="mt-1 text-sm font-semibold text-slate-800">{{ internship.company }}</h3>
+        <h3 class="mt-1 text-base font-bold text-slate-900">{{ internship.company }}</h3>
       </div>
       <span class="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold text-indigo-600">
         {{ internship.progress }}% ของระยะเวลาฝึก
@@ -19,7 +19,7 @@ defineProps<{
     </div>
 
     <div class="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
-      <div class="h-full rounded-full bg-[linear-gradient(90deg,#7048f5_0%,#405ce9_100%)]" :style="{ width: `${internship.progress}%` }" />
+      <div class="h-full rounded-full bg-brand" :style="{ width: `${internship.progress}%` }" />
     </div>
 
     <div class="mt-1 flex flex-col gap-1 text-[11px] font-medium text-slate-500 sm:flex-row sm:items-center sm:justify-between">

@@ -74,7 +74,7 @@ async function deleteLog(reason: string) {
   <div>
     <header class="mb-4 border-b border-slate-200 pb-5">
       <BackButton :fallback="isMentor ? '/mentor/reviews' : '/worklogs'" class="mb-3" />
-      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-400" aria-label="breadcrumb">
+      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
         <span>พื้นที่{{ isMentor ? 'พี่เลี้ยง' : 'นักศึกษา' }}</span>
         <span>/</span>
         <NuxtLink :to="isMentor ? '/mentor/reviews' : '/worklogs'" class="hover:text-slate-600">{{ isMentor ? 'ตรวจงานนักศึกษา' : 'บันทึกงานประจำวัน' }}</NuxtLink>
@@ -89,21 +89,21 @@ async function deleteLog(reason: string) {
       <div v-if="data && deletion" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
         <p class="font-semibold">รายการ “{{ data.worklog.title }}” ถูกลบแล้ว</p>
         <p class="mt-1">
-          ลบโดย {{ deletion.deletedBy }} เมื่อ {{ formatThaiDate(toThaiTimeParts(deletion.deletedAt).date) }} · {{ toThaiTimeParts(deletion.deletedAt).time }} น.
+          ลบโดย {{ deletion.deletedBy }} เมื่อ {{ formatThaiDate(toThaiTimeParts(deletion.deletedAt).date) }} • {{ toThaiTimeParts(deletion.deletedAt).time }} น.
         </p>
         <p class="mt-1 break-words">เหตุผล: {{ deletion.reason }}</p>
       </div>
 
       <div class="grid gap-4 lg:min-h-[38rem] lg:grid-cols-[minmax(0,1.36fr)_minmax(0,1fr)]">
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 class="text-base font-semibold text-slate-900">ประวัติรายการ</h3>
+          <h3 class="text-base font-bold text-slate-900">ประวัติรายการ</h3>
 
           <ol v-if="events.length" class="mt-3">
             <li v-for="(event, index) in events" :key="event.id" class="relative pb-2">
               <span v-if="index < events.length - 1" class="absolute -bottom-2 left-[7px] top-5 w-0.5 bg-slate-100" aria-hidden="true" />
               <span
                 class="absolute left-0 top-2 size-4 rounded-full"
-                :class="event.type === 'approval' ? 'bg-emerald-500' : event.type === 'delete' ? 'bg-red-500' : 'bg-indigo-50'"
+                :class="event.type === 'approval' ? 'bg-done' : event.type === 'delete' ? 'bg-danger' : 'bg-indigo-50'"
                 aria-hidden="true"
               />
               <button
@@ -113,54 +113,49 @@ async function deleteLog(reason: string) {
                 :aria-pressed="event.id === selected?.id"
                 @click="pickedId = event.id"
               >
-                <span class="block text-[11px] text-slate-400">{{ formatThaiDate(event.at.date) }} · {{ event.at.time }} น.</span>
+                <span class="block text-[11px] text-slate-500">{{ formatThaiDate(event.at.date) }} • {{ event.at.time }} น.</span>
                 <span class="mt-0.5 block text-sm font-semibold text-slate-900">{{ event.title }}</span>
                 <span class="mt-0.5 block text-[11px] text-slate-500">{{ event.actorName }}</span>
               </button>
             </li>
           </ol>
-          <p v-else class="py-12 text-center text-sm text-slate-400">ยังไม่มีประวัติของรายการนี้</p>
+          <p v-else class="py-12 text-center text-sm text-slate-500">ยังไม่มีประวัติของรายการนี้</p>
         </section>
 
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-live="polite">
-          <h3 class="text-base font-semibold text-slate-900">รายละเอียดการแก้ไข</h3>
+          <h3 class="text-base font-bold text-slate-900">รายละเอียดการแก้ไข</h3>
 
           <template v-if="selected && reviewStatus">
             <dl class="mt-4 space-y-4">
               <div>
-                <dt class="text-[11px] text-slate-400">ผู้แก้ไข</dt>
+                <dt class="text-[11px] text-slate-500">ผู้แก้ไข</dt>
                 <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ selected.actorName }}</dd>
               </div>
               <div>
-                <dt class="text-[11px] text-slate-400">วันที่และเวลา</dt>
-                <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ formatThaiDate(selected.at.date) }} · {{ selected.at.time }} น.</dd>
+                <dt class="text-[11px] text-slate-500">วันที่และเวลา</dt>
+                <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ formatThaiDate(selected.at.date) }} • {{ selected.at.time }} น.</dd>
               </div>
               <div>
-                <dt class="text-[11px] text-slate-400">ก่อนแก้ไข</dt>
+                <dt class="text-[11px] text-slate-500">ก่อนแก้ไข</dt>
                 <dd class="mt-0.5 break-words text-sm font-semibold text-slate-900">{{ selected.before }}</dd>
               </div>
               <div>
-                <dt class="text-[11px] text-slate-400">หลังแก้ไข</dt>
+                <dt class="text-[11px] text-slate-500">หลังแก้ไข</dt>
                 <dd class="mt-0.5 break-words text-sm font-semibold text-slate-900">{{ selected.after }}</dd>
               </div>
             </dl>
 
             <div class="mt-2 flex items-center gap-2">
-              <span class="text-[11px] text-slate-400">สถานะ:</span>
-              <StatusBadge v-if="deletion" label="ถูกลบ" tone="pink" />
-              <StatusBadge
-                v-else
-                :label="isApproved ? 'อนุมัติแล้ว' : reviewStatusMeta[reviewStatus].label"
-                :tone="reviewStatusMeta[reviewStatus].tone"
-                :solid="reviewStatus === 'approved' || reviewStatus === 'submitted'"
-              />
+              <span class="text-[11px] text-slate-500">สถานะ:</span>
+              <StatusBadge v-if="deletion" label="ถูกลบ" tone="rose" />
+              <StatusBadge v-else v-bind="reviewStatusMeta[reviewStatus]" />
             </div>
           </template>
 
           <p v-if="isApproved" class="mt-5 border-t border-slate-100 pt-5 text-xs text-slate-500">รายการที่อนุมัติแล้วเปิดดูได้อย่างเดียว</p>
 
           <div v-if="canDelete" class="mt-5 flex justify-end border-t border-slate-100 pt-5">
-            <button type="button" class="rounded-lg border border-red-200 bg-white px-3 py-2 text-[11px] font-semibold text-red-600 hover:bg-red-50" @click="askDelete">
+            <button type="button" class="btn btn-danger-outline px-3 py-2 text-[11px]" @click="askDelete">
               ลบรายการ
             </button>
           </div>

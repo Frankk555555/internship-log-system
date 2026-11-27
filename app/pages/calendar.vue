@@ -48,7 +48,7 @@ const label = computed(() => {
   if (!shown) return '...'
   return view.value === 'week'
     ? formatWeekLabel(shown.dates[0]!)
-    : `${formatCalendarDay(shown.date)} ${Number(shown.date.slice(0, 4)) + 543}`
+    : `${formatWeekday(shown.date)} ${formatThaiDate(shown.date)}`
 })
 const unit = computed(() => view.value === 'week' ? 'สัปดาห์' : 'วัน')
 
@@ -95,7 +95,7 @@ const tabs: { view: CalendarView, label: string }[] = [
   <div>
     <header class="mb-4 border-b border-slate-200 pb-3">
       <BackButton v-if="canReturn" fallback="/calendar" class="mb-3" />
-      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-400" aria-label="breadcrumb">
+      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
         <span>พื้นที่นักศึกษา</span>
         <span>/</span>
         <span class="text-slate-500">ปฏิทินการทำงาน</span>
@@ -130,7 +130,7 @@ const tabs: { view: CalendarView, label: string }[] = [
           <input ref="picker" type="date" tabindex="-1" aria-hidden="true" class="pointer-events-none absolute bottom-0 left-1/2 size-px opacity-0" @change="onPick">
         </div>
 
-        <button type="button" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50" @click="show({ date: undefined })">
+        <button type="button" class="btn btn-secondary px-3 py-1.5 text-xs" @click="show({ date: undefined })">
           วันนี้
         </button>
       </div>

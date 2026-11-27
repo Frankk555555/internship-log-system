@@ -77,7 +77,7 @@ async function deleteLog(reason: string) {
   <div>
     <header class="mb-4 border-b border-slate-200 pb-5">
       <BackButton fallback="/worklogs" class="mb-3" />
-      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-400" aria-label="breadcrumb">
+      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
         <span>พื้นที่นักศึกษา</span>
         <span>/</span>
         <NuxtLink to="/worklogs" class="hover:text-slate-600">บันทึกงานประจำวัน</NuxtLink>
@@ -94,22 +94,22 @@ async function deleteLog(reason: string) {
           <p class="text-sm font-medium text-slate-700">{{ initialBlock }}</p>
           <div class="mt-4 flex items-center justify-center gap-4">
             <NuxtLink :to="`/worklogs/${worklogId}/history`" class="text-xs font-semibold text-indigo-600 underline underline-offset-2">ดูประวัติ</NuxtLink>
-            <button v-if="canDelete" type="button" class="rounded-lg border border-red-200 bg-white px-3 py-2 text-[11px] font-semibold text-red-600 hover:bg-red-50" @click="askDelete">
+            <button v-if="canDelete" type="button" class="btn btn-danger-outline px-3 py-2 text-[11px]" @click="askDelete">
               ลบรายการ
             </button>
           </div>
         </div>
 
         <template v-else>
-          <blockquote v-if="isReturned" class="mb-4 rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-xs text-slate-700">
-            <span class="font-semibold text-pink-700">ความคิดเห็นของพี่เลี้ยง:</span>
-            <span class="whitespace-pre-line">{{ data.worklog.reviewComment ?? 'ไม่ได้ระบุ' }}</span>
+          <blockquote v-if="isReturned" class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-slate-700">
+            <span class="font-semibold text-rose-700">ความคิดเห็นของพี่เลี้ยง:</span>
+            <span class="ml-1 whitespace-pre-line">{{ data.worklog.reviewComment ?? 'ไม่ได้ระบุ' }}</span>
             <span class="mt-1 block text-[11px] text-slate-500">แก้ไขและส่งตรวจใหม่ได้ถึง {{ formatThaiDate(editDeadline(data.worklog, data.context.backdateLimitDays)) }}</span>
           </blockquote>
 
           <BackdateWorklogForm :context="data.context" :worklog="data.worklog">
             <template #secondary-actions="{ disabled, submitted }">
-              <button v-if="canDelete && !submitted" type="button" :disabled="disabled" class="mr-auto rounded-lg border border-red-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400" @click="askDelete">
+              <button v-if="canDelete && !submitted" type="button" :disabled="disabled" class="btn btn-danger-outline mr-auto px-3 py-2.5 text-[11px]" @click="askDelete">
                 ลบรายการ
               </button>
             </template>

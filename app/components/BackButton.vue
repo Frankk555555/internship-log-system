@@ -9,7 +9,7 @@ const goBack = useGoBack()
 </script>
 
 <template>
-  <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 print:hidden" @click="goBack(props.fallback)">
+  <button type="button" class="btn btn-secondary gap-1.5 px-3 py-2 text-xs print:hidden" @click="goBack(props.fallback)">
     <UIcon name="i-lucide-arrow-left" class="size-3.5" />
     {{ label }}
   </button>

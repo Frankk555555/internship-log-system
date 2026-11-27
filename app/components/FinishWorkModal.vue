@@ -42,10 +42,10 @@ const open = defineModel<boolean>('open', { required: true })
     </template>
 
     <template #footer>
-      <button type="button" :disabled="pending" class="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-medium text-slate-700 hover:bg-slate-50 disabled:text-slate-400" @click="open = false">
+      <button type="button" :disabled="pending" class="btn btn-secondary px-3.5 py-2 text-[11px]" @click="open = false">
         ยกเลิก
       </button>
-      <button type="button" :disabled="pending" class="rounded-lg bg-emerald-600 px-3.5 py-2 text-[11px] font-semibold text-white hover:bg-emerald-700 disabled:bg-emerald-300" @click="emit('confirm')">
+      <button type="button" :disabled="pending" class="btn btn-done px-3.5 py-2 text-[11px]" @click="emit('confirm')">
         {{ pending ? 'กำลังบันทึก...' : 'ยืนยันเสร็จสิ้น' }}
       </button>
     </template>

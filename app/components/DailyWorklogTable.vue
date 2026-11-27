@@ -22,7 +22,7 @@ function timeRange(log: WorkLog) {
 
 <template>
   <section class="rounded-xl border border-slate-200 bg-white pb-5 shadow-sm">
-    <h3 class="px-5 py-4 text-base font-semibold text-slate-800">รายการงานในวันนี้</h3>
+    <h3 class="px-5 py-4 text-base font-bold text-slate-900">รายการงานในวันนี้</h3>
 
     <div class="overflow-x-auto">
       <table class="w-full min-w-[680px] table-fixed border-collapse text-left">
@@ -43,18 +43,18 @@ function timeRange(log: WorkLog) {
               <StatusBadge v-bind="workStatusMeta[log.workStatus]" />
             </td>
             <td class="px-3 py-3.5">
-              <StatusBadge v-bind="reviewStatusMeta[log.reviewStatus]" :solid="log.reviewStatus === 'approved' || log.reviewStatus === 'submitted'" />
+              <StatusBadge v-bind="reviewStatusMeta[log.reviewStatus]" />
             </td>
             <td class="px-5 py-3.5">
               <div class="flex justify-end gap-3 text-[11px] font-semibold underline underline-offset-2">
                 <NuxtLink v-if="log.reviewStatus === 'approved'" :to="`/worklogs/${log.id}/history`" class="text-slate-500 hover:text-slate-700">ดูประวัติ</NuxtLink>
-                <NuxtLink v-if="deletableStatuses.includes(log.reviewStatus) && log.canEdit !== false" :to="`/worklogs/${log.id}/edit`" class="text-amber-600 hover:text-amber-700" :aria-label="`แก้ไข ${log.title}`">แก้ไข</NuxtLink>
-                <button v-if="deletableStatuses.includes(log.reviewStatus)" type="button" class="text-red-500 hover:text-red-600" :aria-label="`ลบ ${log.title}`" @click="$emit('delete', log)">ลบ</button>
+                <NuxtLink v-if="deletableStatuses.includes(log.reviewStatus) && log.canEdit !== false" :to="`/worklogs/${log.id}/edit`" class="text-indigo-600 hover:text-indigo-700" :aria-label="`แก้ไข ${log.title}`">แก้ไข</NuxtLink>
+                <button v-if="deletableStatuses.includes(log.reviewStatus)" type="button" class="text-red-600 hover:text-red-700" :aria-label="`ลบ ${log.title}`" @click="$emit('delete', log)">ลบ</button>
               </div>
             </td>
           </tr>
           <tr v-if="logs.length === 0">
-            <td colspan="5" class="px-5 py-12 text-center text-sm text-slate-400">ยังไม่มีรายการงานในวันนี้</td>
+            <td colspan="5" class="px-5 py-12 text-center text-sm text-slate-500">ยังไม่มีรายการงานในวันนี้</td>
           </tr>
         </tbody>
       </table>
