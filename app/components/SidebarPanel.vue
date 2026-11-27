@@ -73,8 +73,8 @@ function isActive(to: string) {
       </NuxtLink>
     </nav>
 
-    <div class="p-2.5">
-      <div class="rounded-xl border border-white/10 bg-white/10 p-2.5 backdrop-blur">
+    <div class="p-2">
+      <div class="rounded-xl border border-white/10 bg-white/10 px-1.5 py-2.5 backdrop-blur">
         <div class="flex items-center gap-2">
           <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-indigo-400/70 text-xs font-semibold">
             {{ props.user?.initials }}
@@ -84,12 +84,10 @@ function isActive(to: string) {
             <p v-if="props.user?.studentId" class="text-2xs text-slate-300">{{ props.user.studentId }}</p>
           </div>
         </div>
-        <div class="mt-2.5 border-t border-white/10 pt-1.5 text-2xs">
-          <p class="py-0.5 text-slate-300">บทบาท: {{ workspace.roleLabel }}</p>
-          <button type="button" :disabled="isLoggingOut" class="flex min-h-6 w-full items-center gap-1.5 font-medium text-red-300 hover:text-red-200 disabled:opacity-50" @click="onLogout">
-            <UIcon name="i-lucide-log-out" class="size-3.5" />
-            ออกจากระบบ
-          </button>
+        <!-- บทบาทและปุ่มออกจากระบบอยู่แถวเดียวกัน ตัวอักษรใหญ่จนไม่พอจึงขึ้นบรรทัดใหม่ -->
+        <div class="mt-2.5 flex flex-wrap items-center justify-between gap-x-1 border-t border-white/10 pt-1.5 text-2xs">
+          <p class="whitespace-nowrap text-slate-300">บทบาท: {{ workspace.roleLabel }}</p>
+          <button type="button" :disabled="isLoggingOut" class="min-h-6 whitespace-nowrap font-medium text-red-300 underline underline-offset-2 hover:text-red-200 disabled:opacity-50" @click="onLogout">ออกจากระบบ</button>
         </div>
         <p v-if="logoutFailed" class="mt-1 text-2xs text-red-300" role="alert">ออกจากระบบไม่สำเร็จ ลองอีกครั้ง</p>
       </div>

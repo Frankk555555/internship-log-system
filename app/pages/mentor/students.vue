@@ -56,26 +56,46 @@ function submittedLabel(value: string) {
     <div class="mt-4">
       <AsyncState :loading="!data && status !== 'error'" :error="error" @retry="refresh()">
         <template v-if="data">
-          <div class="grid gap-4 md:grid-cols-[1fr_1.5fr_1fr]">
-            <section class="card p-4">
+          <div class="grid gap-4 md:grid-cols-[1fr_1.4fr_1.2fr]">
+            <!-- ค่าอยู่กึ่งกลางพื้นที่ใต้ชื่อการ์ด -->
+            <section class="card flex flex-col p-4">
               <p class="text-2xs font-medium text-ink-muted">นักศึกษาที่อยู่ในความดูแล</p>
-              <p class="mt-3 text-xs font-semibold text-ink"><span class="text-2xl">{{ students.length }}</span> คน</p>
+              <div class="flex flex-1 flex-col justify-center pt-3">
+                <p class="text-xs font-semibold text-ink"><span class="text-2xl">{{ students.length }}</span> คน</p>
+              </div>
             </section>
 
-            <section class="card p-4">
+            <section class="card flex flex-col p-4">
               <p class="text-2xs font-medium text-ink-muted">ระยะเวลาฝึกงาน</p>
-              <p v-if="period" class="mt-2 text-lg font-semibold text-ink">
-                {{ formatThaiDate(period.start) }} <span class="mx-1 text-sm">ถึง</span> {{ formatThaiDate(period.end) }}
-              </p>
-              <p v-else class="mt-2 text-lg font-semibold text-ink-muted">–</p>
-              <p v-if="period?.isMixed" class="mt-1 text-2xs text-ink-muted">ช่วงฝึกงานต่างกันรายคน ดูในตาราง</p>
+              <div class="flex flex-1 flex-col justify-center pt-3">
+                <p v-if="period" class="text-lg font-semibold text-ink">
+                  <span class="whitespace-nowrap">{{ formatThaiDate(period.start) }}</span>
+                  <span class="mx-1 text-sm">ถึง</span>
+                  <span class="whitespace-nowrap">{{ formatThaiDate(period.end) }}</span>
+                </p>
+                <p v-else class="text-lg font-semibold text-ink-muted">–</p>
+                <p v-if="period?.isMixed" class="mt-1 text-2xs text-ink-muted">ช่วงฝึกงานต่างกันรายคน ดูในตาราง</p>
+              </div>
             </section>
 
-            <section class="card p-4">
-              <p class="text-2xs font-medium text-ink-muted">รายการรอตรวจ</p>
-              <p class="mt-3 text-xs font-semibold text-ink"><span class="text-2xl text-amber-700">{{ totals.pending }}</span> รายการ</p>
-              <p class="mt-1 text-2xs" :class="totals.overdue ? 'font-semibold text-danger' : 'text-ink-muted'">ค้างตรวจเกิน {{ data.overdueDays }} วัน {{ totals.overdue }} รายการ</p>
-              <NuxtLink v-if="totals.pending" to="/mentor/reviews" class="mt-1 inline-block text-2xs link">ไปตรวจงาน</NuxtLink>
+            <section class="card p-4" aria-labelledby="pending-title">
+              <p id="pending-title" class="text-2xs font-medium text-ink-muted">รายการรอตรวจ</p>
+              <div class="mt-2 flex flex-wrap items-center justify-between gap-3">
+                <p class="text-xs font-semibold text-ink"><span class="text-3xl font-bold tabular-nums" :class="totals.pending ? 'text-amber-700' : ''">{{ totals.pending }}</span> รายการ</p>
+                <NuxtLink v-if="totals.pending" to="/mentor/reviews" class="btn btn-primary min-h-9 px-4 text-xs">ไปตรวจงาน</NuxtLink>
+              </div>
+              <!-- สองแถวรวมกันเท่ากับจำนวนรอตรวจด้านบน -->
+              <dl v-if="totals.pending" class="mt-3 space-y-1 text-xs">
+                <div class="flex items-center justify-between gap-3 rounded-lg px-3 py-1.5" :class="totals.overdue ? 'bg-rose-100 font-bold text-rose-700' : 'bg-page text-slate-600'">
+                  <dt>ค้างตรวจเกิน {{ data.overdueDays }} วัน</dt>
+                  <dd class="whitespace-nowrap tabular-nums">{{ totals.overdue }} รายการ</dd>
+                </div>
+                <div class="flex items-center justify-between gap-3 rounded-lg bg-page px-3 py-1.5 text-slate-600">
+                  <dt>รอตรวจไม่เกิน {{ data.overdueDays }} วัน</dt>
+                  <dd class="whitespace-nowrap tabular-nums">{{ totals.pending - totals.overdue }} รายการ</dd>
+                </div>
+              </dl>
+              <p v-else class="mt-3 text-xs text-ink-muted">ไม่มีรายการรอตรวจ</p>
             </section>
           </div>
 
@@ -91,48 +111,55 @@ function submittedLabel(value: string) {
 
             <!-- relative: ข้อความสำหรับโปรแกรมอ่านหน้าจอในตารางไม่ดันหน้าให้กว้างเกิน -->
             <div class="relative overflow-x-auto border-t border-line">
-              <table class="w-full min-w-[58.75rem] table-fixed border-collapse text-left">
+              <table class="w-full min-w-[50rem] table-fixed border-collapse text-left">
                 <thead>
-                  <tr class="bg-page text-2xs font-semibold text-ink-muted">
-                    <th class="w-[18%] px-5 py-3">นักศึกษา</th>
-                    <th class="w-[11%] px-2 py-3">รหัสนักศึกษา</th>
-                    <th class="px-2 py-3">ชื่อหน่วยงาน</th>
-                    <th class="w-[17%] px-2 py-3">ระยะเวลาฝึกงาน</th>
-                    <th class="w-[9%] px-2 py-3">ชม. อนุมัติ</th>
-                    <th class="w-[16%] px-2 py-3">งานที่ส่ง</th>
+                  <tr class="bg-page text-2xs font-semibold text-slate-600">
+                    <th class="w-[22%] px-5 py-3">นักศึกษา</th>
+                    <th class="px-2 py-3">ที่ฝึกงาน</th>
+                    <th class="w-[9%] px-1 py-3 text-center">รอตรวจ</th>
+                    <th class="w-[9%] px-1 py-3 text-center">ค้างตรวจ<span class="block font-medium">เกิน {{ data.overdueDays }} วัน</span></th>
+                    <th class="w-[11%] px-1 py-3 text-center">ส่งกลับแก้ไข</th>
+                    <th class="w-[10%] px-1 py-3 text-center">ชั่วโมงอนุมัติ</th>
                     <th class="w-[8rem] px-3 py-3"><span class="sr-only">การดำเนินการ</span></th>
                   </tr>
                 </thead>
                 <tbody class="text-xs text-slate-600">
-                  <tr v-for="student in visibleStudents" :key="student.studentId" class="border-t border-slate-100 align-top">
-                    <td class="px-5 py-3.5">
-                      <p class="font-semibold text-ink">{{ student.name }}</p>
-                      <a :href="`mailto:${student.email}`" class="mt-0.5 block break-all text-2xs text-ink-muted hover:text-brand">{{ student.email }}</a>
-                    </td>
-                    <td class="px-2 py-3.5">{{ student.studentId }}</td>
-                    <td class="px-2 py-3.5">
-                      {{ student.company }}
-                      <span class="mt-0.5 block text-2xs text-ink-muted">{{ student.position }}</span>
-                    </td>
-                    <td class="px-2 py-3.5">
-                      <span class="whitespace-nowrap">{{ formatThaiDate(student.startDate) }}</span>
-                      ถึง <span class="whitespace-nowrap">{{ formatThaiDate(student.endDate) }}</span>
-                    </td>
-                    <td class="px-2 py-3.5 font-semibold text-ink">{{ formatHours(student.approvedMinutes) }}</td>
-                    <td class="px-2 py-3.5">
-                      <div class="flex flex-wrap gap-1.5">
-                        <NuxtLink v-if="student.pendingCount" :to="{ path: '/mentor/reviews', query: { student: student.studentId } }" :aria-label="`ตรวจรายการรอตรวจของ ${student.name}`">
-                          <StatusBadge :label="`รอตรวจ ${student.pendingCount}`" tone="amber" class="hover:border-amber-700" />
-                        </NuxtLink>
-                        <StatusBadge v-if="student.overdueCount" :label="`ค้างตรวจ ${student.overdueCount}`" tone="rose" />
-                        <StatusBadge v-if="student.returnedCount" :label="`ส่งกลับแก้ไข ${student.returnedCount}`" tone="rose" />
-                        <span v-if="!student.pendingCount && !student.returnedCount" class="text-2xs text-ink-muted">ไม่มีรายการค้าง</span>
-                      </div>
-                      <p class="mt-1.5 text-2xs text-ink-muted">
+                  <tr v-for="student in visibleStudents" :key="student.studentId" class="border-t border-line align-middle hover:bg-page">
+                    <td class="px-5 py-4">
+                      <p class="text-sm font-bold text-ink">{{ student.name }}</p>
+                      <p class="mt-0.5 tabular-nums">รหัส {{ student.studentId }}</p>
+                      <a :href="`mailto:${student.email}`" class="mt-0.5 block break-all text-2xs text-slate-600 hover:text-brand">{{ student.email }}</a>
+                      <p class="mt-1.5 text-2xs text-slate-600">
                         {{ student.lastSubmittedAt ? `ส่งล่าสุด ${submittedLabel(student.lastSubmittedAt)}` : 'ยังไม่เคยส่งตรวจ' }}
                       </p>
                     </td>
-                    <td class="px-3 py-3.5">
+                    <td class="px-2 py-4">
+                      <p class="font-semibold text-ink">{{ student.company }}</p>
+                      <p class="mt-0.5">{{ student.position }}</p>
+                      <p class="mt-1.5 text-2xs">
+                        <span class="whitespace-nowrap">{{ formatThaiDate(student.startDate) }}</span>
+                        ถึง <span class="whitespace-nowrap">{{ formatThaiDate(student.endDate) }}</span>
+                      </p>
+                    </td>
+                    <!-- จำนวนงานแยกคอลัมน์ เทียบระหว่างนักศึกษาได้ในแนวตั้ง -->
+                    <td class="px-1 py-4 text-center">
+                      <NuxtLink
+                        v-if="student.pendingCount"
+                        :to="{ path: '/mentor/reviews', query: { student: student.studentId } }"
+                        class="inline-flex min-h-8 min-w-14 items-center justify-center gap-1 rounded-full border border-amber-700/40 bg-amber-100 pl-3 pr-2 text-sm font-bold tabular-nums text-amber-700 hover:border-amber-700"
+                        :aria-label="`ตรวจรายการรอตรวจของ ${student.name} จำนวน ${student.pendingCount} รายการ`"
+                      >
+                        {{ student.pendingCount }}
+                        <UIcon name="i-lucide-chevron-right" class="size-3.5" />
+                      </NuxtLink>
+                      <span v-else class="text-sm tabular-nums text-slate-600">0</span>
+                    </td>
+                    <td v-for="(count, index) in [student.overdueCount, student.returnedCount]" :key="index" class="px-1 py-4 text-center">
+                      <span v-if="count" class="inline-flex min-h-8 min-w-10 items-center justify-center rounded-full bg-rose-100 px-3 text-sm font-bold tabular-nums text-rose-700">{{ count }}</span>
+                      <span v-else class="text-sm tabular-nums text-slate-600">0</span>
+                    </td>
+                    <td class="px-1 py-4 text-center text-sm font-bold tabular-nums text-ink">{{ formatHours(student.approvedMinutes) }}</td>
+                    <td class="px-3 py-4">
                       <!-- ปุ่มแบบเดียวกับปุ่ม "ตรวจ" ในหน้าตรวจงาน สองปุ่มกว้างเท่ากัน -->
                       <div class="ml-auto flex w-fit flex-col gap-1.5">
                         <NuxtLink :to="{ path: '/mentor/reviews', query: { student: student.studentId, tab: 'all' } }" class="btn btn-secondary min-w-12 whitespace-nowrap px-3 py-1.5 text-2xs" :aria-label="`ดูบันทึกงานของ ${student.name}`">
