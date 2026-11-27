@@ -69,6 +69,8 @@ export const internship: InternshipInfo = {
 }
 
 const thaiTime = (date: string, time: string) => `${date}T${time}:00+07:00`
+/** เวลาของข้อมูลตั้งต้น นับย้อนจากวันนี้ */
+export const seedTime = (days: number, time: string) => thaiTime(daysAgo(days), time)
 
 /** ค่าที่แอดมินปรับได้ อ่านจากที่นี่ทุกครั้งเพื่อให้ได้ค่าล่าสุด */
 export const settings: SystemSettings = {
@@ -217,6 +219,8 @@ export function renameUser(profile: UserProfile, firstName: string, lastName: st
   const renamed = (value?: string) => value === previous ? name : value
 
   Object.assign(profile, { firstName, lastName, name, initials: initialsOf(firstName, lastName) })
+  const other = profile.role === 'student' ? otherStudents.find(item => item.studentId === profile.studentId) : undefined
+  if (other) other.name = name
   internship.mentorName = renamed(internship.mentorName)!
   settings.updatedBy = renamed(settings.updatedBy)
   for (const log of [studentWorklogs, ...otherStudents.map(other => other.worklogs)].flat()) {
@@ -226,5 +230,18 @@ export function renameUser(profile: UserProfile, firstName: string, lastName: st
   for (const item of deletedWorklogs) {
     item.studentName = renamed(item.studentName)!
     if (item.worklog.deletion) item.worklog.deletion.deletedBy = renamed(item.worklog.deletion.deletedBy)!
+  }
+}
+
+/** แอดมินแก้บัญชี รวมสำเนาอีเมลและรหัสนักศึกษาในข้อมูลการฝึกงาน */
+export function applyUserChange(profile: UserProfile, next: { firstName: string, lastName: string, email: string, studentId?: string }) {
+  const previousId = profile.studentId
+  renameUser(profile, next.firstName, next.lastName)
+  Object.assign(profile, { email: next.email, studentId: next.studentId })
+  if (profile.role !== 'student') return
+  const other = otherStudents.find(item => item.studentId === previousId)
+  if (other) Object.assign(other, { email: next.email, studentId: next.studentId })
+  for (const item of deletedWorklogs) {
+    if (item.studentId === previousId) item.studentId = next.studentId!
   }
 }

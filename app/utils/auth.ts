@@ -3,10 +3,19 @@ import type { UserRole } from '~/types/worklog'
 // ขอบเขตงานไม่ได้กำหนดเงื่อนไขรหัสผ่าน ใช้ขั้นต่ำนี้จนกว่าจะตกลงกัน (backend ต้องตรวจซ้ำ)
 export const minPasswordLength = 8
 
-export function newPasswordError(password: string) {
+/** studentId: นักศึกษาห้ามตั้งรหัสผ่านเป็นรหัสนักศึกษา ซึ่งเป็นรหัสเริ่มต้นและคนอื่นรู้ได้ */
+export function newPasswordError(password: string, studentId?: string) {
   if (!password) return 'กรุณากรอกรหัสผ่านใหม่'
   if (password.length < minPasswordLength) return `รหัสผ่านต้องมีอย่างน้อย ${minPasswordLength} ตัวอักษร`
+  if (studentId && password === studentId) return 'รหัสผ่านใหม่ต้องไม่ใช่รหัสนักศึกษา'
   return undefined
+}
+
+export const firstPasswordPath = '/first-password'
+
+/** รับเฉพาะเส้นทางภายในเว็บ กันการพาไปเว็บอื่น */
+export function safeRedirect(target: unknown) {
+  return typeof target === 'string' && /^\/(?![/\\])/.test(target) ? target : undefined
 }
 
 // ขอบเขตงานไม่ได้กำหนดความยาวชื่อ ใช้ค่านี้จนกว่าจะตกลงกัน (backend ต้องตรวจซ้ำ)

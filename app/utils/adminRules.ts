@@ -1,7 +1,34 @@
+import type { UserInput } from '~/types/admin'
+import { isEmail, nameError } from '~/utils/auth'
+
 // ช่วงจำนวนวันที่ตั้งได้ในหน้าตั้งค่าระบบ (backend ต้องตรวจซ้ำ)
 // แยกเป็นค่าเดี่ยว: auto-import ของ Nuxt มองไม่เห็นฟังก์ชันที่ต่อจาก export const แบบ object
 export const minSettingDays = 1
 export const maxSettingDays = 30
+
+/** ขอบเขตงานไม่ได้กำหนดรูปแบบรหัสนักศึกษา ใช้เงื่อนไขนี้จนกว่าจะตกลงกัน (backend ต้องตรวจซ้ำ) */
+export function studentIdError(value: string) {
+  const text = value.trim()
+  if (!text) return 'กรุณากรอกรหัสนักศึกษา'
+  if (!/^\d{8,20}$/.test(text)) return 'รหัสนักศึกษาเป็นตัวเลข 8–20 หลัก'
+  return undefined
+}
+
+function emailError(value: string) {
+  if (!value.trim()) return 'กรุณากรอกอีเมล'
+  if (!isEmail(value)) return 'รูปแบบอีเมลไม่ถูกต้อง'
+  return undefined
+}
+
+/** ข้อความผิดพลาดรายช่องของฟอร์มผู้ใช้ ช่องที่ถูกต้องไม่มีค่า */
+export function userInputErrors(input: UserInput) {
+  return {
+    firstName: nameError(input.firstName, 'ชื่อ'),
+    lastName: nameError(input.lastName, 'นามสกุล'),
+    email: emailError(input.email),
+    studentId: input.role === 'student' ? studentIdError(input.studentId ?? '') : undefined,
+  }
+}
 
 export function settingDayError(value: string) {
   const text = value.trim()

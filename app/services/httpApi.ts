@@ -4,7 +4,7 @@ import { ApiError, type Api } from './api'
  * เรียก REST API จริง เส้นทางและรูปแบบข้อมูลเป็นข้อเสนอ ดู docs/api-contract.md
  * เมื่อ backend กำหนดต่างจากนี้ ให้แก้ที่ไฟล์นี้ไฟล์เดียว
  */
-export function createHttpApi(baseURL: string, headers?: Record<string, string>, onSessionExpired?: () => void): Api {
+export function createHttpApi(baseURL: string, headers?: Record<string, string>, onSessionExpired?: () => void, onPasswordChangeRequired?: () => void): Api {
   async function request<T>(path: string, options: NonNullable<Parameters<typeof $fetch>[1]> = {}) {
     try {
       // credentials: ส่ง session cookie ไปด้วย
@@ -15,6 +15,7 @@ export function createHttpApi(baseURL: string, headers?: Record<string, string>,
       // 401 จากเส้นทางข้อมูล = session หมดอายุ (เส้นทาง /auth และการอ่าน /me ให้ผู้เรียกจัดการเอง)
       const isSessionCheck = path === '/me' && !options.method
       if (statusCode === 401 && !isSessionCheck && !path.startsWith('/auth/')) onSessionExpired?.()
+      if (statusCode === 403 && data?.code === 'password_change_required') onPasswordChangeRequired?.()
       throw new ApiError(data?.message ?? 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่', statusCode ?? 503, data)
     }
   }
@@ -35,6 +36,13 @@ export function createHttpApi(baseURL: string, headers?: Record<string, string>,
     updateProfile: body => request('/me', { method: 'PATCH', body }),
     getSystemSettings: () => request('/admin/settings'),
     saveSystemSettings: body => request('/admin/settings', { method: 'PUT', body }),
+    getUsers: ({ role, status, q, page }) => request('/admin/users', {
+      query: { role: role === 'all' ? undefined : role, status: status === 'all' ? undefined : status, q: q || undefined, page },
+    }),
+    createUser: body => request('/admin/users', { method: 'POST', body }),
+    updateUser: (id, body) => request(`/admin/users/${id}`, { method: 'PATCH', body }),
+    setUserSuspended: (id, suspended) => request(`/admin/users/${id}`, { method: 'PATCH', body: { suspended } }),
+    unlockUser: id => request(`/admin/users/${id}/unlock`, { method: 'POST' }),
     getNotifications: () => request('/notifications'),
     markNotificationsRead: async (ids) => {
       await request('/notifications/read', { method: 'POST', body: { ids } })

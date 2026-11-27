@@ -20,12 +20,6 @@ const { remaining, startUntil } = useCountdown()
 const unlockTime = computed(() => lockedUntil.value?.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }))
 const remainingLabel = computed(() => `${Math.floor(remaining.value / 60)}:${String(remaining.value % 60).padStart(2, '0')}`)
 
-/** รับเฉพาะเส้นทางภายในเว็บ กันการพาไปเว็บอื่น */
-function redirectTarget() {
-  const target = route.query.redirect
-  return typeof target === 'string' && /^\/(?![/\\])/.test(target) ? target : undefined
-}
-
 /** ย้ายโฟกัสไปช่องที่ต้องแก้ */
 function focusField(id: 'login-email' | 'login-password') {
   document.getElementById(id)?.focus()
@@ -44,7 +38,7 @@ async function submit() {
     return
   }
 
-  await signIn({ email: email.value.trim(), password: password.value }, redirectTarget())
+  await signIn({ email: email.value.trim(), password: password.value }, safeRedirect(route.query.redirect))
 }
 
 /** บัญชีทดสอบไปหน้าหลักของบทบาทนั้นเสมอ เพราะหน้าที่ค้างอยู่อาจเป็นของบทบาทอื่น */

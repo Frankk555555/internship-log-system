@@ -19,6 +19,8 @@ export interface UserProfile {
   initials: string
   studentId?: string
   role: UserRole
+  /** ยังใช้รหัสผ่านเริ่มต้น ต้องตั้งรหัสใหม่ก่อนใช้งานส่วนอื่น */
+  mustChangePassword?: boolean
   /** วันที่ตั้งต้นของหน้ารายงานรายสัปดาห์ (ปกติคือวันนี้ของเซิร์ฟเวอร์) */
   defaultReportDate: string
 }

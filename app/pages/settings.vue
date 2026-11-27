@@ -81,7 +81,7 @@ const currentError = computed(() => currentPasswordFailure.value
   ?? (checked.value && !currentPassword.value ? 'กรุณากรอกรหัสผ่านปัจจุบัน' : undefined))
 const passwordError = computed(() => {
   if (!checked.value) return undefined
-  return newPasswordError(password.value)
+  return newPasswordError(password.value, user.value?.studentId)
     ?? (password.value === currentPassword.value ? 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านปัจจุบัน' : undefined)
 })
 const confirmationError = computed(() => checked.value && confirmation.value !== password.value ? 'รหัสผ่านยืนยันไม่ตรงกัน' : undefined)

@@ -59,6 +59,13 @@ export function notificationsFor(role: UserRole) {
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
 }
 
+/** รหัสนักศึกษาถูกแก้ ลิงก์ในแจ้งเตือนต้องชี้รหัสใหม่ */
+export function reassignStudent(from: string, to: string) {
+  for (const entry of stored) {
+    if (entry.studentId === from) entry.studentId = to
+  }
+}
+
 /** ไม่ระบุ ids = ทุกรายการของบทบาทนั้น */
 export function markRead(role: UserRole, ids?: number[]) {
   for (const entry of stored) {

@@ -34,7 +34,7 @@ const icons: Record<UserRole, string> = {
       >
         <span class="flex items-center gap-1.5 text-xs">
           <UIcon :name="icons[account.role]" class="size-4 shrink-0" />
-          เข้าในฐานะ{{ roleLabels[account.role] }}
+          เข้าในฐานะ{{ roleLabels[account.role] }}{{ account.note ? ` (${account.note})` : '' }}
         </span>
         <span class="text-2xs font-medium text-ink-muted">{{ account.name }}</span>
       </button>

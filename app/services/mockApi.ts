@@ -8,7 +8,7 @@ import { toMinutes } from '~/utils/time'
 import { earliestEntryDate, editDeadline, findOverlaps, futureTimeError, isAfterWork, overlapMessage, startTimeError, timePolicy, timerFinishError, timerStartError, timeRangeError } from '~/utils/worklogRules'
 import { ApiError, type Api } from './api'
 import { createMockAdmin } from './mockAdmin'
-import { createMockAuth, currentAccount, requireRole } from './mockAuth'
+import { activeAccount, createMockAuth, requireRole } from './mockAuth'
 import type { MockSession } from './mockSession'
 import { addNotification, addOverdueNotifications, markRead, notificationsFor } from './mockNotifications'
 import * as db from './mockData'
@@ -495,16 +495,30 @@ export function createMockApi(session: MockSession): Api {
   const guard = <Args extends unknown[], Result>(role: UserRole, method: (...args: Args) => Promise<Result>) =>
     async (...args: Args) => {
       requireRole(session, role)
+      requireSampleData(role)
       db.refreshToday()
       return method(...args)
     }
 
+  /** ข้อมูลจำลองมีบันทึกงานของนักศึกษาและพี่เลี้ยงตัวอย่างอย่างละคน บัญชีอื่นยังไม่มีข้อมูลการฝึกงาน */
+  function hasSampleData() {
+    const { profile } = activeAccount(session)
+    return profile.role === 'admin' || profile === db.student || profile === db.mentor
+  }
+
+  function requireSampleData(role: UserRole) {
+    if (hasSampleData()) return
+    throw new ApiError(role === 'supervisor' ? 'ยังไม่มีนักศึกษาที่ได้รับมอบหมายให้บัญชีนี้' : 'บัญชีนี้ยังไม่มีข้อมูลการฝึกงาน กรุณาติดต่อแอดมิน', 404)
+  }
+
   /** นักศึกษาดูของตนเอง พี่เลี้ยงดูของนักศึกษาในความดูแล (ขอบเขตงานข้อ 2.3) */
   async function getWorklogHistory(id: number) {
-    if (currentAccount(session).profile.role !== 'supervisor') {
+    if (activeAccount(session).profile.role !== 'supervisor') {
       requireRole(session, 'student')
+      requireSampleData('student')
       return dataApi.getWorklogHistory(id)
     }
+    requireSampleData('supervisor')
     const found = findReviewable(id) ?? deletedReturns().find(item => item.worklog.id === id)
     if (!found) throw new ApiError('รายการที่ขออยู่นอกขอบเขตข้อมูลที่คุณมีสิทธิ์ดู', 403)
     return respond({ worklog: found.worklog, events: db.histories[id] ?? [] })
@@ -512,8 +526,9 @@ export function createMockApi(session: MockSession): Api {
 
   /** การแจ้งเตือนแยกตามบทบาทของผู้ที่เข้าสู่ระบบ */
   async function getNotifications() {
-    const { role } = currentAccount(session).profile
+    const { role } = activeAccount(session).profile
     db.refreshToday()
+    if (!hasSampleData()) return respond([])
     if (role === 'supervisor') {
       addOverdueNotifications(mentoredStudents().flatMap(student => student.worklogs
         .filter(log => log.reviewStatus === 'submitted')
@@ -528,7 +543,7 @@ export function createMockApi(session: MockSession): Api {
   }
 
   async function markNotificationsRead(ids?: number[]) {
-    markRead(currentAccount(session).profile.role, ids)
+    markRead(activeAccount(session).profile.role, ids)
     await respond(null)
   }
 
@@ -546,7 +561,7 @@ export function createMockApi(session: MockSession): Api {
     getWorklogFormContext: guard('student', dataApi.getWorklogFormContext),
     // ต้องเข้าสู่ระบบ แต่ไม่จำกัดบทบาท
     getServerTime: async () => {
-      currentAccount(session)
+      activeAccount(session)
       db.refreshToday()
       return dataApi.getServerTime()
     },

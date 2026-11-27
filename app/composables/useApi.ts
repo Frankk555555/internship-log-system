@@ -23,5 +23,8 @@ export function useApi(): Api {
   return createHttpApi(apiBase, headers, () => {
     user.value = null
     router.push('/login')
+  }, () => {
+    if (user.value) user.value = { ...user.value, mustChangePassword: true }
+    router.push(firstPasswordPath)
   })
 }
