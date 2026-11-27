@@ -42,6 +42,12 @@ function toggle(item: ReviewItem) {
     : [...selected.value, item]
 }
 
+function toggleAll(items: ReviewItem[], checked: boolean) {
+  const ids = new Set(items.map(item => item.worklog.id))
+  const others = selected.value.filter(item => !ids.has(item.worklog.id))
+  selected.value = checked ? [...others, ...items] : others
+}
+
 // เปลี่ยนนักศึกษาแล้วต้องเลือกรายการใหม่
 watch(studentId, () => {
   limit.value = pageSize
@@ -53,6 +59,17 @@ function selectTab(next: ReviewFilter) {
   filter.value = next
   limit.value = pageSize
   selected.value = []
+}
+
+// แท็บเลื่อนด้วยปุ่มลูกศรได้ตามรูปแบบแท็บมาตรฐาน
+const tabList = useTemplateRef<HTMLElement>('tabList')
+
+async function moveTab(step: number) {
+  const keys = tabs.value.map(tab => tab.key)
+  const next = keys[(keys.indexOf(filter.value) + step + keys.length) % keys.length]!
+  selectTab(next)
+  await nextTick()
+  tabList.value?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus()
 }
 
 const viewing = ref<ReviewItem>()
@@ -72,19 +89,10 @@ function openBulkReturn() {
   isReturnOpen.value = true
 }
 
-function minutesOf({ worklog }: ReviewItem) {
-  return worklog.startTime && worklog.endTime ? toMinutes(worklog.endTime) - toMinutes(worklog.startTime) : 0
-}
-
-function submittedLabel(item: ReviewItem) {
-  const { date, time } = toThaiTimeParts(item.submittedAt)
-  return `${formatThaiDayMonth(date)} • ${time} น.`
-}
-
 function announce(kind: 'approve' | 'return', items: ReviewItem[]) {
   const first = items[0]!
   if (kind === 'approve') {
-    const hours = formatHours(items.reduce((total, item) => total + minutesOf(item), 0))
+    const hours = formatHours(items.reduce((total, item) => total + reviewMinutes(item), 0))
     notify(
       'success',
       items.length === 1 ? 'อนุมัติรายการแล้ว' : `อนุมัติ ${items.length} รายการแล้ว`,
@@ -155,14 +163,17 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
       <NotificationButton :count="user?.unreadNotifications" />
     </header>
 
-    <div class="flex gap-2 border-b border-slate-200" role="tablist" aria-label="ตัวกรองรายการ">
+    <div ref="tabList" class="flex gap-2 border-b border-slate-200" role="tablist" aria-label="ตัวกรองรายการ" @keydown.left.prevent="moveTab(-1)" @keydown.right.prevent="moveTab(1)">
       <button
         v-for="tab in tabs"
+        :id="`review-tab-${tab.key}`"
         :key="tab.key"
         type="button"
         role="tab"
         :aria-selected="filter === tab.key"
-        class="-mb-px min-w-24 border-b-2 py-3 pr-4 text-left text-[13px] transition"
+        aria-controls="review-panel"
+        :tabindex="filter === tab.key ? 0 : -1"
+        class="-mb-px min-w-24 border-b-2 py-3 pr-4 text-left text-[13px] tabular-nums transition-colors"
         :class="filter === tab.key ? 'border-indigo-600 font-semibold text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'"
         @click="selectTab(tab.key)"
       >
@@ -175,88 +186,76 @@ async function decide(kind: 'approve' | 'return', items: ReviewItem[], comment: 
       <NuxtLink to="/mentor/reviews" class="font-semibold text-indigo-600 underline underline-offset-2">ดูนักศึกษาทุกคน</NuxtLink>
     </p>
 
-    <p class="mt-5 rounded-lg bg-indigo-50 px-4 py-3.5 text-xs font-semibold text-indigo-600" role="status">
-      เลือกแล้ว {{ selected.length }} รายการ
-    </p>
+    <div id="review-panel" role="tabpanel" :aria-labelledby="`review-tab-${filter}`" class="mt-5">
+      <div
+        class="flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg px-4 py-2 text-xs transition-colors"
+        :class="selected.length ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-600'"
+      >
+        <p class="font-semibold tabular-nums" role="status">เลือกแล้ว {{ selected.length }} รายการ</p>
+        <button v-if="selected.length" type="button" :disabled="Boolean(pending)" class="min-h-8 font-semibold underline underline-offset-2 hover:text-indigo-900" @click="selected = []">
+          ล้างการเลือก
+        </button>
+      </div>
 
-    <div class="mt-4">
-      <AsyncState :loading="!queue && status !== 'error'" :error="error" @retry="refresh()">
-        <template v-if="queue">
-          <div class="relative overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table class="w-full min-w-[860px] table-fixed border-collapse text-left">
-              <thead>
-                <tr class="bg-slate-50 text-[11px] font-semibold text-slate-500">
-                  <th class="w-[5%] px-3.5 py-3"><span class="sr-only">เลือก</span></th>
-                  <th class="w-[15%] px-2 py-3">นักศึกษา</th>
-                  <th class="w-[11%] px-2 py-3">วันที่</th>
-                  <th class="px-2 py-3">รายละเอียดงาน</th>
-                  <th class="w-[12%] px-2 py-3">เวลา</th>
-                  <th class="w-[9%] px-2 py-3">จำนวนชั่วโมง</th>
-                  <th class="w-[11%] px-2 py-3">ส่งเมื่อ</th>
-                  <th class="w-[10%] px-2 py-3">สถานะ</th>
-                  <th class="w-[5%] px-2 py-3"><span class="sr-only">การดำเนินการ</span></th>
-                </tr>
-              </thead>
-              <tbody class="text-xs text-slate-800">
-                <tr v-for="item in queue.items" :key="item.worklog.id" class="border-t border-slate-200">
-                  <td class="px-3.5 py-3.5">
-                    <input
-                      v-if="item.worklog.reviewStatus === 'submitted'"
-                      type="checkbox"
-                      class="size-4 align-middle accent-indigo-600"
-                      :checked="isSelected(item.worklog.id)"
-                      :disabled="Boolean(pending)"
-                      :aria-label="`เลือก ${item.studentName} ${item.worklog.title}`"
-                      @change="toggle(item)"
-                    >
-                  </td>
-                  <td class="px-2 py-3.5">{{ item.studentName }}</td>
-                  <td class="whitespace-nowrap px-2 py-3.5">{{ formatThaiDate(item.worklog.date) }}</td>
-                  <td class="px-2 py-3.5">{{ item.worklog.title }}</td>
-                  <td class="px-2 py-3.5">
-                    {{ item.worklog.startTime }}–{{ item.worklog.endTime }} น.
-                    <TimeFlagBadges :worklog="item.worklog" class="mt-1" />
-                  </td>
-                  <td class="px-2 py-3.5">{{ formatHours(minutesOf(item)) }}</td>
-                  <td class="px-2 py-3.5">{{ submittedLabel(item) }}</td>
-                  <td class="px-2 py-3.5">
-                    <StatusBadge v-if="item.isOverdue" :label="`ค้างตรวจ ${item.pendingDays} วัน`" tone="rose" />
-                    <StatusBadge v-else v-bind="reviewStatusMeta[item.worklog.reviewStatus]" />
-                  </td>
-                  <td class="px-2 py-3.5">
-                    <button type="button" class="text-[11px] font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800" :aria-label="`ตรวจ ${item.studentName} ${item.worklog.title}`" @click="openReview(item)">
-                      {{ item.worklog.reviewStatus === 'submitted' ? 'ตรวจ' : 'ดู' }}
-                    </button>
-                  </td>
-                </tr>
-                <tr v-if="!queue.items.length" class="border-t border-slate-200">
-                  <td colspan="9" class="px-5 py-12 text-center text-sm text-slate-500">{{ filter === 'pending' ? 'ไม่มีรายการรอตรวจ' : 'ยังไม่มีรายการที่ส่งเข้ามา' }}</td>
-                </tr>
-              </tbody>
-            </table>
+      <div class="mt-4">
+        <AsyncState v-if="error" :loading="false" :error="error" @retry="refresh()" />
+
+        <!-- โครงรายการระหว่างโหลด กันหน้าจอกระโดดตอนสลับแท็บ -->
+        <div v-else-if="!queue" class="overflow-hidden rounded-lg border border-slate-200 bg-white" role="status">
+          <span class="sr-only">กำลังโหลดข้อมูล...</span>
+          <div v-for="row in pageSize" :key="row" class="flex items-center gap-4 border-b border-slate-100 px-4 py-4 last:border-0" aria-hidden="true">
+            <span class="size-4 shrink-0 rounded bg-slate-200 motion-safe:animate-pulse" />
+            <span class="h-3 w-24 rounded bg-slate-200 motion-safe:animate-pulse" />
+            <span class="h-3 flex-1 rounded bg-slate-100 motion-safe:animate-pulse" />
+            <span class="h-3 w-20 rounded bg-slate-200 motion-safe:animate-pulse" />
+          </div>
+        </div>
+
+        <template v-else>
+          <div v-if="!queue.items.length" class="rounded-lg border border-slate-200 bg-white px-5 py-12 text-center">
+            <p class="text-sm font-semibold text-slate-700">{{ filter === 'pending' ? 'ไม่มีรายการรอตรวจ' : 'ยังไม่มีรายการที่ส่งเข้ามา' }}</p>
+            <template v-if="filter === 'pending'">
+              <p class="mt-1 text-xs text-slate-500">รายการที่ตรวจแล้วดูได้ในแท็บ “ทั้งหมด”</p>
+              <button type="button" class="btn btn-secondary mt-4 px-4 py-2 text-xs" @click="selectTab('all')">ดูรายการทั้งหมด</button>
+            </template>
           </div>
 
-          <div class="mt-5 flex flex-wrap items-start justify-between gap-3">
-            <p class="order-2 text-[11px] text-slate-500 sm:order-1 sm:pt-9">
+          <ReviewQueueList
+            v-else
+            :items="queue.items"
+            :selected-ids="selected.map(item => item.worklog.id)"
+            :disabled="Boolean(pending)"
+            @toggle="toggle"
+            @toggle-all="toggleAll"
+            @open="openReview"
+          />
+
+          <!-- จอแคบ: เมื่อเลือกรายการแล้ว ปุ่มจัดการเกาะอยู่ด้านล่างจอ -->
+          <div
+            v-if="queue.items.length"
+            class="mt-4 flex flex-wrap items-center justify-between gap-3"
+            :class="selected.length ? 'sticky bottom-0 z-10 -mx-4 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:border-0 lg:px-0 lg:py-0' : ''"
+          >
+            <p class="text-[11px] tabular-nums text-slate-500" :class="selected.length ? 'hidden lg:block' : ''">
               แสดง {{ queue.items.length }} จาก {{ queue.total }} รายการ · ค้างตรวจเกิน {{ queue.overdueDays }} วันจะแจ้งเตือนอัตโนมัติ
-              <button v-if="queue.items.length < queue.total" type="button" class="ml-2 font-semibold text-indigo-600 underline underline-offset-2" @click="limit += pageSize">
-                แสดงเพิ่ม
+              <button v-if="queue.items.length < queue.total" type="button" :disabled="status === 'pending'" class="ml-2 min-h-8 font-semibold text-indigo-600 underline underline-offset-2 disabled:text-slate-400" @click="limit += pageSize">
+                {{ status === 'pending' ? 'กำลังโหลด...' : 'แสดงเพิ่ม' }}
               </button>
             </p>
 
-            <div class="order-1 ml-auto flex gap-3 sm:order-2">
-              <button type="button" :disabled="!selected.length || Boolean(pending)" class="btn btn-sendback px-5 py-2.5 text-xs" @click="openBulkReturn">
+            <div class="ml-auto flex w-full gap-3 sm:w-auto">
+              <button type="button" :disabled="!selected.length || Boolean(pending)" class="btn btn-sendback min-h-10 flex-1 px-5 text-xs sm:flex-none" @click="openBulkReturn">
                 ส่งกลับแก้ไข
               </button>
-              <button type="button" :disabled="!selected.length || Boolean(pending)" class="btn btn-primary px-7 py-2.5 text-xs" @click="decide('approve', selected, '')">
+              <button type="button" :disabled="!selected.length || Boolean(pending)" class="btn btn-primary min-h-10 flex-1 px-7 text-xs sm:flex-none" @click="decide('approve', selected, '')">
                 {{ pending === 'approve' ? 'กำลังอนุมัติ...' : 'อนุมัติที่เลือก' }}
               </button>
             </div>
           </div>
 
-          <DeletedReturnList v-if="queue.deletedReturns.length" :items="queue.deletedReturns" class="mt-6" />
+          <DeletedReturnList v-if="queue.deletedReturns.length" :items="queue.deletedReturns" class="mt-8" />
         </template>
-      </AsyncState>
+      </div>
     </div>
 
     <ReviewWorklogModal

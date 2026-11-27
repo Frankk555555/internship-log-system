@@ -34,7 +34,7 @@ const attachments = computed(() => worklog.value?.attachments ?? [])
 const summary = computed(() => {
   const log = worklog.value
   if (!log?.startTime || !log.endTime) return ''
-  return `${formatThaiDate(log.date)} · ${log.startTime}–${log.endTime} · ${formatHours(toMinutes(log.endTime) - toMinutes(log.startTime))} ชม.`
+  return `${formatThaiDate(log.date)} • ${log.startTime}–${log.endTime} น. • ${formatHours(toMinutes(log.endTime) - toMinutes(log.startTime))} ชม.`
 })
 
 function approve() {
@@ -43,10 +43,14 @@ function approve() {
 
 // ส่งกลับต้องมีความเห็นทุกครั้ง (ขอบเขตงานข้อ 10.5)
 const notify = useNotify()
+const commentBox = useTemplateRef<HTMLTextAreaElement>('commentBox')
 
 function sendBack() {
   needsComment.value = true
-  if (!comment.value.trim()) notify('error', 'ยังส่งกลับไม่ได้', 'กรุณาระบุความคิดเห็นเมื่อส่งกลับแก้ไข')
+  if (!comment.value.trim()) {
+    notify('error', 'ยังส่งกลับไม่ได้', 'กรุณาระบุความคิดเห็นเมื่อส่งกลับแก้ไข')
+    commentBox.value?.focus()
+  }
   if (!props.pending && comment.value.trim()) emit('return', comment.value.trim(), allowTimeEdit.value)
 }
 </script>
@@ -87,10 +91,10 @@ function sendBack() {
           </div>
         </dl>
 
-        <h4 class="mt-2 text-[11px] font-semibold text-slate-500">รายละเอียดงาน</h4>
+        <h4 class="mt-3 text-[11px] font-semibold text-slate-500">รายละเอียดงาน</h4>
         <p class="mt-1.5 min-h-14 whitespace-pre-line rounded-lg bg-slate-100 px-3 py-2.5 text-xs text-slate-700">{{ worklog.description || '–' }}</p>
 
-        <h4 class="mt-3 text-[11px] text-slate-500">ไฟล์แนบ ({{ attachments.length }})</h4>
+        <h4 class="mt-3 text-[11px] font-semibold text-slate-500">ไฟล์แนบ ({{ attachments.length }})</h4>
         <ul class="mt-1.5 space-y-1.5">
           <li v-for="file in attachments" :key="file.id" class="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">
             <span class="min-w-0 flex-1 truncate text-[11px] font-medium text-slate-700" :title="file.name">{{ file.name }}</span>
@@ -113,13 +117,14 @@ function sendBack() {
           <label for="review-comment" class="mt-3 block text-[11px] text-slate-600">ความคิดเห็น (จำเป็นเมื่อส่งกลับแก้ไข)</label>
           <textarea
             id="review-comment"
+            ref="commentBox"
             v-model="comment"
             rows="3"
             placeholder="เพิ่มความคิดเห็นถึงนักศึกษา..."
             :readonly="Boolean(pending)"
             :aria-invalid="Boolean(commentError)"
             :aria-describedby="commentError ? 'review-comment-error' : undefined"
-            class="mt-1.5 block w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-red-400"
+            class="mt-1.5 block w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none placeholder:text-slate-500 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-red-400"
           />
           <p v-if="commentError" id="review-comment-error" class="mt-1 text-[11px] font-medium text-red-600">{{ commentError }}</p>
           <label class="mt-2 flex items-start gap-2 text-[11px] text-slate-600">

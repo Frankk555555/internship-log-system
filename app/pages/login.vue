@@ -37,11 +37,20 @@ async function submit() {
     return
   }
 
+  await signIn({ email: email.value.trim(), password: password.value }, redirectTarget())
+}
+
+/** บัญชีทดสอบไปหน้าหลักของบทบาทนั้นเสมอ เพราะหน้าที่ค้างอยู่อาจเป็นของบทบาทอื่น */
+function signInDemo(credentials: { email: string, password: string }) {
+  if (!pending.value) signIn(credentials)
+}
+
+async function signIn(credentials: { email: string, password: string }, destination?: string) {
   pending.value = true
   clear()
   try {
-    const user = await login({ email: email.value.trim(), password: password.value, remember: remember.value })
-    await navigateTo(redirectTarget() ?? homePathFor(user.role))
+    const user = await login({ ...credentials, remember: remember.value })
+    await navigateTo(destination ?? homePathFor(user.role))
     notify('success', 'เข้าสู่ระบบแล้ว', user.name)
   }
   catch (error) {
@@ -100,6 +109,8 @@ function backToForm() {
       <NuxtLink to="/forgot-password" class="mt-4 inline-block text-[13px] font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800">
         ลืมรหัสผ่าน ?
       </NuxtLink>
+
+      <DemoLogin :disabled="pending" @select="signInDemo" />
     </template>
 
     <template v-else>

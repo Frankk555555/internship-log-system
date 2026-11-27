@@ -25,10 +25,14 @@ watch(open, (isOpen) => {
 })
 
 const notify = useNotify()
+const commentBox = useTemplateRef<HTMLTextAreaElement>('commentBox')
 
 function confirm(pending?: boolean) {
   showError.value = true
-  if (!comment.value.trim()) notify('error', 'ยังส่งกลับไม่ได้', 'กรุณาระบุความคิดเห็น')
+  if (!comment.value.trim()) {
+    notify('error', 'ยังส่งกลับไม่ได้', 'กรุณาระบุความคิดเห็น')
+    commentBox.value?.focus()
+  }
   if (!pending && comment.value.trim()) emit('confirm', comment.value.trim(), allowTimeEdit.value)
 }
 </script>
@@ -57,13 +61,14 @@ function confirm(pending?: boolean) {
       <label for="return-comment" class="mt-3 block text-[11px] font-medium text-slate-700">ความคิดเห็น *</label>
       <textarea
         id="return-comment"
+        ref="commentBox"
         v-model="comment"
         rows="3"
         required
         placeholder="เพิ่มความคิดเห็นถึงนักศึกษา..."
         :aria-invalid="Boolean(error)"
         :aria-describedby="error ? 'return-comment-error' : undefined"
-        class="mt-1.5 block w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-red-400"
+        class="mt-1.5 block w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none placeholder:text-slate-500 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-red-400"
       />
       <p v-if="error" id="return-comment-error" class="mt-1 text-[11px] font-medium text-red-600">{{ error }}</p>
       <label class="mt-2 flex items-start gap-2 text-[11px] text-slate-600">
