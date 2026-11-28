@@ -92,12 +92,7 @@ async function save(input: UserInput) {
       notify('success', 'บันทึกข้อมูลผู้ใช้แล้ว', saved.name)
     }
     else {
-      // ล้างตัวกรองให้เห็นบัญชีที่เพิ่งเพิ่ม
-      role.value = 'all'
-      accountStatus.value = 'all'
-      search.value = ''
-      keyword.value = ''
-      page.value = 1
+      showFirstPage()
       notify('success', 'เพิ่มผู้ใช้แล้ว', saved.role === 'student'
         ? `${saved.name} เข้าสู่ระบบครั้งแรกด้วยรหัสนักศึกษา`
         : `ส่งลิงก์ตั้งรหัสผ่านไปที่ ${saved.email}`)
@@ -111,6 +106,41 @@ async function save(input: UserInput) {
   finally {
     saving.value = false
   }
+}
+
+// นำเข้าจาก Excel เปิดจากหน้าภาพรวมได้ด้วย ?import=new หรือ ?import=<รหัสการนำเข้า>
+const route = useRoute()
+const importQuery = typeof route.query.import === 'string' ? route.query.import : undefined
+const importOpen = ref(false)
+/** มีค่าเมื่อเปิดดูผลการนำเข้าที่ผ่านมา */
+const viewingImport = ref<string>()
+
+function openImport(importId?: string) {
+  viewingImport.value = importId
+  importOpen.value = true
+}
+
+onMounted(() => {
+  if (importQuery) openImport(importQuery === 'new' ? undefined : importQuery)
+})
+
+// ปิดแล้วเอาคำสั่งออกจากที่อยู่หน้า โหลดใหม่จะไม่เปิดซ้ำ
+watch(importOpen, (open) => {
+  if (!open && route.query.import) useRouter().replace({ query: { ...route.query, import: undefined } })
+})
+
+function showFirstPage() {
+  // ล้างตัวกรองให้เห็นบัญชีที่เพิ่งเพิ่ม
+  role.value = 'all'
+  accountStatus.value = 'all'
+  search.value = ''
+  keyword.value = ''
+  page.value = 1
+}
+
+async function afterImport() {
+  showFirstPage()
+  await refresh()
 }
 
 // ระงับ เปิดใช้งาน และปลดล็อก
@@ -190,7 +220,13 @@ function menuFor(target: AdminUser) {
       :crumbs="[{ label: 'พื้นที่แอดมิน' }, { label: 'ผู้ใช้งาน' }]"
     >
       <template #actions>
-        <button type="button" class="btn btn-primary shrink-0 px-5 py-2.5 text-xs" @click="openForm()">เพิ่มผู้ใช้</button>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="btn btn-secondary shrink-0 gap-1.5 px-4 py-2.5 text-xs" @click="openImport()">
+            <UIcon name="i-lucide-file-spreadsheet" class="size-4" />
+            นำเข้าจาก Excel
+          </button>
+          <button type="button" class="btn btn-primary shrink-0 px-5 py-2.5 text-xs" @click="openForm()">เพิ่มผู้ใช้</button>
+        </div>
       </template>
     </PageHeader>
 
@@ -266,6 +302,8 @@ function menuFor(target: AdminUser) {
     </div>
 
     <UserFormModal v-model:open="formOpen" :user="editing" :pending="saving" :server-error="saveError" @save="save" />
+    <UserImportModal v-model:open="importOpen" :import-id="viewingImport" @imported="afterImport" />
+
     <SuspendUserModal v-model:open="suspendOpen" :user="suspending" :pending="Boolean(busyId)" :server-error="suspendError" @confirm="confirmSuspend" />
   </div>
 </template>

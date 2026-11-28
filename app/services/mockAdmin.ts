@@ -1,12 +1,14 @@
 // ข้อมูลจำลองของแอดมิน โหลดพร้อม mockApi เมื่อใช้ข้อมูลจำลองเท่านั้น
-import type { AdminApi, AdminTask, AdminUser, InternshipDetail, InternshipRow, MentorAbsence, UserInput } from '~/types/admin'
-import { internshipErrors, settingDayError, userInputErrors } from '~/utils/adminRules'
+import type { AdminApi, AdminTask, AdminUser, ImportRow, InternshipDetail, InternshipRow, MentorAbsence, UserImport, UserInput } from '~/types/admin'
+import { importFileError, internshipErrors, maxImportRows, settingDayError, userInputErrors } from '~/utils/adminRules'
+import { roleLabels } from '~/utils/auth'
 import { formatThaiDate, toThaiTimeParts } from '~/utils/date'
 import { workHoursOn } from '~/utils/worklogRules'
 import { ApiError } from './api'
 import { mockAccounts, type MockAccount } from './mockAccounts'
 import { clearFailures, currentAccount, lockedUntilFor, requireRole, sendResetLink } from './mockAuth'
 import * as db from './mockData'
+import { readUserSheet, userSheetTemplate, type SheetRecord } from './mockImport'
 import { activeAbsences, reviewWorklogs, toReviewItem } from './mockReview'
 import { reassignStudent, syncAdminAlerts, type AdminAlert } from './mockNotifications'
 import type { MockSession } from './mockSession'
@@ -127,6 +129,13 @@ const waitingFor = (mentor: db.MockAbsence['mentor']) => supervisedBy(mentor)
     .map(log => toReviewItem(profile.studentId!, profile.name, log)))
   .sort((a, b) => Date.parse(a.submittedAt) - Date.parse(b.submittedAt))
 
+function lastImportSummary() {
+  const result = lastImportId ? imports.get(lastImportId)?.result : undefined
+  if (!result) return undefined
+  const { rows: _rows, fileSize: _fileSize, ...summary } = result
+  return summary
+}
+
 /** ช่วงที่ยังไม่สิ้นสุดก่อน เรียงตามเวลาเริ่ม แล้วช่วงที่สิ้นสุดแล้ว ใหม่สุดก่อน */
 function listAbsences(now: number) {
   const all = db.absences.map(item => toAbsence(item, now))
@@ -186,6 +195,80 @@ function adminTasks(now: string) {
   return tasks
 }
 
+/** สร้างบัญชีจากข้อมูลที่ตรวจแล้ว */
+function addAccount(next: ReturnType<typeof checkUser>, role: AdminUser['role']) {
+  const isStudent = role === 'student'
+  const account: MockAccount = {
+    id: Math.max(...mockAccounts.map(item => item.id)) + 1,
+    // นักศึกษาเริ่มด้วยรหัสนักศึกษา บทบาทอื่นยังเข้าไม่ได้จนกว่าจะตั้งรหัสจากลิงก์
+    password: next.studentId ?? crypto.randomUUID(),
+    profile: {
+      ...next,
+      name: `${next.firstName} ${next.lastName}`,
+      initials: '',
+      role,
+      mustChangePassword: isStudent,
+      defaultReportDate: db.TODAY,
+    },
+  }
+  db.applyUserChange(account.profile, next)
+  mockAccounts.unshift(account)
+  if (isStudent) db.students.push({ profile: account.profile, mentorHistory: [], worklogs: [] })
+  if (!isStudent) sendResetLink(account)
+  return account
+}
+
+/** ไฟล์ที่ตรวจแล้ว เก็บไว้จนกว่าจะโหลดหน้าเว็บใหม่ */
+const imports = new Map<string, { fileName: string, fileSize: number, records: SheetRecord[], result?: UserImport }>()
+let lastImportId: string | undefined
+
+const roleOf = (text: string) => (Object.keys(roleLabels) as AdminUser['role'][]).find(role => roleLabels[role] === text)
+
+/** ตรวจทุกแถวเทียบกับบัญชีที่มีอยู่ และข้อมูลซ้ำกันภายในไฟล์ */
+function checkRows(records: SheetRecord[]) {
+  const emailOf = (record: SheetRecord) => record.email.toLowerCase()
+  const studentIdOf = (record: SheetRecord) => roleOf(record.role) === 'student' ? record.studentId : ''
+
+  return records.map((record) => {
+    const role = roleOf(record.role)
+    const found = userInputErrors({ ...record, role: role ?? 'admin' })
+    const email = emailOf(record)
+    const studentId = studentIdOf(record)
+    const sameRows = (value: string, pick: (other: SheetRecord) => string) => records
+      .filter(other => other !== record && value && pick(other) === value)
+      .map(other => other.row)
+    const sameEmail = sameRows(email, emailOf)
+    const sameStudentId = sameRows(studentId, studentIdOf)
+
+    const errors = [
+      record.firstName ? found.firstName : 'ไม่มีชื่อ',
+      record.lastName ? found.lastName : 'ไม่มีนามสกุล',
+      record.email ? found.email : 'ไม่มีอีเมล',
+      role ? undefined : record.role ? 'บทบาทไม่ถูกต้อง' : 'ไม่มีบทบาท',
+      role === 'student' ? record.studentId ? found.studentId : 'ไม่มีรหัสนักศึกษา' : undefined,
+      email && mockAccounts.some(account => account.profile.email === email) ? 'อีเมลซ้ำกับบัญชีเดิม' : undefined,
+      studentId && mockAccounts.some(account => account.profile.studentId === studentId) ? 'รหัสนักศึกษาซ้ำกับบัญชีเดิม' : undefined,
+      sameEmail.length ? `อีเมลซ้ำกับแถว ${sameEmail.join(', ')}` : undefined,
+      sameStudentId.length ? `รหัสนักศึกษาซ้ำกับแถว ${sameStudentId.join(', ')}` : undefined,
+    ].filter((error): error is string => Boolean(error))
+
+    return { record, role, errors }
+  })
+}
+
+function toImport(importId: string, fileName: string, fileSize: number, checked: ReturnType<typeof checkRows>): UserImport {
+  const rows: ImportRow[] = checked.map(({ record, role, errors }) => ({
+    row: record.row,
+    name: `${record.firstName} ${record.lastName}`.trim(),
+    email: record.email,
+    role,
+    roleText: record.role,
+    errors,
+  })).sort((a, b) => Number(!a.errors.length) - Number(!b.errors.length) || a.row - b.row)
+  const errorCount = rows.filter(row => row.errors.length).length
+  return { importId, fileName, fileSize, rows, readyCount: rows.length - errorCount, errorCount }
+}
+
 /** ช่วงไม่อยู่ของพี่เลี้ยงคนเดียวกันต้องไม่ซ้อนกัน */
 function assertNoAbsenceOverlap(mentor: db.MockAbsence['mentor'], startAt: string, endAt: string, ignoreId?: number) {
   const overlaps = db.absences.some(item => item.id !== ignoreId && item.mentor === mentor && item.type === 'absent'
@@ -224,7 +307,48 @@ export function createMockAdmin(session: MockSession, now: () => string): AdminA
         maxFailedLogins: db.settings.maxFailedLogins,
         tasks: adminTasks(current),
         absences: listAbsences(Date.parse(current)).filter(item => item.type === 'absent' && item.status !== 'ended'),
+        lastImport: lastImportSummary(),
       })
+    },
+
+    async previewUserImport(file) {
+      await authorise()
+      const problem = importFileError(file)
+      if (problem) throw new ApiError(problem, 422)
+      const records = await readUserSheet(file, maxImportRows)
+      const importId = crypto.randomUUID()
+      imports.set(importId, { fileName: file.name, fileSize: file.size, records })
+      return toImport(importId, file.name, file.size, checkRows(records))
+    },
+
+    async commitUserImport(importId) {
+      const actor = await authorise()
+      const entry = imports.get(importId)
+      if (!entry) throw new ApiError('ไม่พบไฟล์ที่ตรวจไว้ กรุณาเลือกไฟล์ใหม่', 404)
+      if (entry.result) throw new ApiError('ไฟล์นี้นำเข้าไปแล้ว', 409)
+      // ตรวจใหม่ตอนยืนยัน บัญชีอาจเปลี่ยนไปหลังดูผลตรวจ
+      const checked = checkRows(entry.records)
+      const ready = checked.filter(item => !item.errors.length)
+      if (!ready.length) throw new ApiError('ไม่มีแถวที่นำเข้าได้', 422)
+      // บัญชีใหม่ขึ้นก่อนในรายชื่อ เพิ่มจากแถวท้ายให้ลำดับตรงกับไฟล์
+      for (const { record, role } of [...ready].reverse()) {
+        addAccount(checkUser({ ...record, role: role! }), role!)
+      }
+      entry.result = { ...toImport(importId, entry.fileName, entry.fileSize, checked), imported: { at: now(), by: actor.name } }
+      lastImportId = importId
+      return structuredClone(entry.result)
+    },
+
+    async getUserImport(importId) {
+      await authorise()
+      const result = imports.get(importId)?.result
+      if (!result) throw new ApiError('ไม่พบผลการนำเข้านี้', 404)
+      return structuredClone(result)
+    },
+
+    async getUserImportTemplate() {
+      await authorise()
+      return userSheetTemplate()
     },
 
     async getSystemSettings() {
@@ -259,25 +383,7 @@ export function createMockAdmin(session: MockSession, now: () => string): AdminA
     async createUser(input) {
       await authorise()
       const next = checkUser(input)
-      const isStudent = input.role === 'student'
-      const account: MockAccount = {
-        id: Math.max(...mockAccounts.map(item => item.id)) + 1,
-        // นักศึกษาเริ่มด้วยรหัสนักศึกษา บทบาทอื่นยังเข้าไม่ได้จนกว่าจะตั้งรหัสจากลิงก์
-        password: next.studentId ?? crypto.randomUUID(),
-        profile: {
-          ...next,
-          name: `${next.firstName} ${next.lastName}`,
-          initials: '',
-          role: input.role,
-          mustChangePassword: isStudent,
-          defaultReportDate: db.TODAY,
-        },
-      }
-      db.applyUserChange(account.profile, next)
-      mockAccounts.unshift(account)
-      if (isStudent) db.students.push({ profile: account.profile, mentorHistory: [], worklogs: [] })
-      if (!isStudent) sendResetLink(account)
-      return toAdminUser(account)
+      return toAdminUser(addAccount(next, input.role))
     },
 
     async updateUser(id, input) {

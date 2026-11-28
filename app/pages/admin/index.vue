@@ -61,23 +61,27 @@ function rangeLabel({ startAt, endAt }: MentorAbsence) {
               <p v-else class="border-t border-line px-5 py-12 text-center text-sm text-ink-muted">ไม่มีเรื่องที่ต้องจัดการ</p>
             </section>
 
-            <section class="card px-5 py-4" aria-labelledby="absences-title">
-              <div class="flex items-center justify-between gap-3">
-                <h2 id="absences-title" class="text-base font-bold text-ink">พี่เลี้ยงไม่อยู่ช่วงนี้</h2>
-                <NuxtLink :to="{ path: '/admin/mentor-absences', query: { from: 'overview' } }" class="link inline-flex min-h-8 items-center text-xs">ดูทั้งหมด</NuxtLink>
-              </div>
-              <ul v-if="data.absences.length" class="mt-2">
-                <li v-for="absence in data.absences.slice(0, absenceLimit)" :key="absence.id" class="border-t border-line py-3 last:pb-0">
-                  <div class="flex items-start justify-between gap-3">
-                    <p class="min-w-0 break-words text-sm font-semibold text-ink">{{ absence.mentorName }}</p>
-                    <StatusBadge :label="absence.status === 'now' ? 'ไม่อยู่ตอนนี้' : 'กำหนดไว้'" :tone="absence.status === 'now' ? 'amber' : 'blue'" />
-                  </div>
-                  <p class="mt-1 text-2xs tabular-nums text-slate-600">{{ rangeLabel(absence) }}</p>
-                </li>
-              </ul>
-              <p v-else class="mt-2 border-t border-line py-8 text-center text-xs text-ink-muted">ไม่มีช่วงที่พี่เลี้ยงไม่อยู่</p>
-              <p v-if="data.absences.length > absenceLimit" class="mt-3 text-2xs text-ink-muted">และอีก {{ data.absences.length - absenceLimit }} ช่วง</p>
-            </section>
+            <div class="grid gap-4">
+              <section class="card px-5 py-4" aria-labelledby="absences-title">
+                <div class="flex items-center justify-between gap-3">
+                  <h2 id="absences-title" class="text-base font-bold text-ink">พี่เลี้ยงไม่อยู่ช่วงนี้</h2>
+                  <NuxtLink :to="{ path: '/admin/mentor-absences', query: { from: 'overview' } }" class="link inline-flex min-h-8 items-center text-xs">ดูทั้งหมด</NuxtLink>
+                </div>
+                <ul v-if="data.absences.length" class="mt-2">
+                  <li v-for="absence in data.absences.slice(0, absenceLimit)" :key="absence.id" class="border-t border-line py-3 last:pb-0">
+                    <div class="flex items-start justify-between gap-3">
+                      <p class="min-w-0 break-words text-sm font-semibold text-ink">{{ absence.mentorName }}</p>
+                      <StatusBadge :label="absence.status === 'now' ? 'ไม่อยู่ตอนนี้' : 'กำหนดไว้'" :tone="absence.status === 'now' ? 'amber' : 'blue'" />
+                    </div>
+                    <p class="mt-1 text-2xs tabular-nums text-slate-600">{{ rangeLabel(absence) }}</p>
+                  </li>
+                </ul>
+                <p v-else class="mt-2 border-t border-line py-8 text-center text-xs text-ink-muted">ไม่มีช่วงที่พี่เลี้ยงไม่อยู่</p>
+                <p v-if="data.absences.length > absenceLimit" class="mt-3 text-2xs text-ink-muted">และอีก {{ data.absences.length - absenceLimit }} ช่วง</p>
+              </section>
+
+              <LastImportCard :summary="data.lastImport" />
+            </div>
           </div>
         </template>
       </AsyncState>

@@ -7,6 +7,16 @@ import { toMinutes } from '~/utils/time'
 export const minSettingDays = 1
 export const maxSettingDays = 30
 
+// ขีดจำกัดของไฟล์นำเข้าผู้ใช้ (backend ต้องตรวจซ้ำ)
+export const maxImportMegabytes = 2
+export const maxImportRows = 500
+
+export function importFileError({ name, size }: { name: string, size: number }) {
+  if (!name.toLowerCase().endsWith('.xlsx')) return 'รองรับเฉพาะไฟล์ .xlsx'
+  if (size > maxImportMegabytes * 1024 * 1024) return `ไฟล์ต้องไม่เกิน ${maxImportMegabytes} MB`
+  return undefined
+}
+
 /** ขอบเขตงานไม่ได้กำหนดรูปแบบรหัสนักศึกษา ใช้เงื่อนไขนี้จนกว่าจะตกลงกัน (backend ต้องตรวจซ้ำ) */
 export function studentIdError(value: string) {
   const text = value.trim()

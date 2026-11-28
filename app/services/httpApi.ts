@@ -47,6 +47,14 @@ export function createHttpApi(baseURL: string, headers?: Record<string, string>,
     createMentorAbsence: body => request('/admin/mentor-absences', { method: 'POST', body }),
     updateAbsenceEnd: (id, endAt) => request(`/admin/mentor-absences/${id}`, { method: 'PATCH', body: { endAt } }),
     getOverview: () => request('/admin/overview'),
+    previewUserImport: (file) => {
+      const body = new FormData()
+      body.append('file', file)
+      return request('/admin/imports/users/preview', { method: 'POST', body })
+    },
+    commitUserImport: importId => request(`/admin/imports/users/${importId}/commit`, { method: 'POST' }),
+    getUserImport: importId => request(`/admin/imports/users/${importId}`),
+    getUserImportTemplate: () => request<Blob>('/admin/imports/users/template', { responseType: 'blob' }),
     getProxyQueue: (limit, mentorId) => request('/admin/proxy-reviews', { query: { limit, mentorId } }),
     approveByProxy: (mentorId, items, comment) => request('/admin/proxy-reviews/approve', { method: 'POST', body: { mentorId, items, comment } }),
     getInternships: ({ filter, q, page }) => request('/admin/internships', { query: { filter, q: q || undefined, page } }),

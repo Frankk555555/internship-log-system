@@ -160,6 +160,33 @@ export interface ProxyQueue {
   overdueDays: number
 }
 
+export interface ImportRow {
+  /** เลขแถวในไฟล์ แถวหัวตารางคือ 1 */
+  row: number
+  name: string
+  email: string
+  role?: UserRole
+  /** บทบาทตามที่กรอกในไฟล์ */
+  roleText: string
+  /** ว่าง = พร้อมนำเข้า หรือนำเข้าแล้ว */
+  errors: string[]
+}
+
+export interface UserImport {
+  importId: string
+  fileName: string
+  fileSize: number
+  /** แถวที่ผิดอยู่ก่อน แล้วเรียงตามเลขแถว */
+  rows: ImportRow[]
+  /** จำนวนแถวที่พร้อมนำเข้า หรือที่นำเข้าแล้ว */
+  readyCount: number
+  errorCount: number
+  /** มีค่าเมื่อยืนยันนำเข้าแล้ว */
+  imported?: { at: string, by: string }
+}
+
+export type ImportSummary = Omit<UserImport, 'rows' | 'fileSize'>
+
 /** เรื่องที่แอดมินต้องจัดการ */
 export type AdminTask =
   | { kind: 'absent_mentor', mentorId: number, mentorName: string, endAt: string, pendingCount: number, overdueCount: number }
@@ -180,6 +207,8 @@ export interface AdminOverview {
   tasks: AdminTask[]
   /** ช่วงไม่อยู่ที่ยังไม่สิ้นสุด เริ่มก่อนอยู่บน */
   absences: MentorAbsence[]
+  /** การนำเข้าผู้ใช้ครั้งล่าสุดที่ยืนยันแล้ว */
+  lastImport?: ImportSummary
 }
 
 export interface SystemSettings {
@@ -200,6 +229,13 @@ export type SystemSettingsInput = Pick<SystemSettings, 'backdateLimitDays' | 're
 
 export interface AdminApi {
   getOverview(): Promise<AdminOverview>
+  /** ตรวจไฟล์โดยยังไม่สร้างบัญชี ไฟล์อ่านไม่ได้หรือหัวตารางไม่ครบ: ApiError 422 */
+  previewUserImport(file: File): Promise<UserImport>
+  /** สร้างบัญชีเฉพาะแถวที่ผ่าน ยืนยันซ้ำไม่ได้ (409) */
+  commitUserImport(importId: string): Promise<UserImport>
+  /** ผลของการนำเข้าที่ยืนยันแล้ว */
+  getUserImport(importId: string): Promise<UserImport>
+  getUserImportTemplate(): Promise<Blob>
   getSystemSettings(): Promise<SystemSettings>
   /** คืนค่าล่าสุดหลังบันทึก */
   saveSystemSettings(input: SystemSettingsInput): Promise<SystemSettings>
