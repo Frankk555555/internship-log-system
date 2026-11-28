@@ -8,18 +8,16 @@ const { data: context, status, error, refresh } = await useLazyAsyncData('worklo
 
 <template>
   <div>
-    <header class="mb-4 border-b border-slate-200 pb-5">
-      <BackButton fallback="/worklogs" class="mb-3" />
-      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
-        <span>พื้นที่นักศึกษา</span>
-        <span>/</span>
-        <NuxtLink to="/worklogs" class="hover:text-slate-600">บันทึกงานประจำวัน</NuxtLink>
-        <span>/</span>
-        <span class="text-slate-500">บันทึกงานย้อนหลัง</span>
-      </nav>
-      <h2 class="mt-2 text-2xl font-bold text-slate-900">บันทึกงานย้อนหลัง</h2>
-      <p class="mt-1 text-xs text-slate-500">บันทึกรายการที่ต้องการบันทึกย้อนหลัง ย้อนได้สูงสุด 3 วัน</p>
-    </header>
+    <PageHeader
+      class="mb-4"
+      title="บันทึกงานย้อนหลัง"
+      :description="context ? `บันทึกรายการที่ต้องการบันทึกย้อนหลัง ย้อนได้สูงสุด ${context.backdateLimitDays} วัน` : undefined"
+      :crumbs="[{ label: 'พื้นที่นักศึกษา' }, { label: 'บันทึกงานประจำวัน', to: '/worklogs' }, { label: 'บันทึกงานย้อนหลัง' }]"
+    >
+      <template #back>
+        <BackButton fallback="/worklogs" />
+      </template>
+    </PageHeader>
 
     <AsyncState :loading="!context && status !== 'error'" :error="error" @retry="refresh()">
       <BackdateWorklogForm v-if="context" :context="context" />

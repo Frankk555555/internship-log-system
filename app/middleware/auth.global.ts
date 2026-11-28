@@ -29,5 +29,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
     }
   }
 
+  const home = homePathFor(user.value.role)
+  // ยังใช้รหัสผ่านเริ่มต้น เปิดได้หน้าเดียวจนกว่าจะตั้งรหัสใหม่
+  if (user.value.mustChangePassword) {
+    if (to.path === firstPasswordPath) return
+    return navigateTo({ path: firstPasswordPath, query: to.path === home || to.path === '/' ? {} : { redirect: to.fullPath } })
+  }
+  if (to.path === firstPasswordPath) return navigateTo(home, { replace: true })
+
   if (to.meta.role && ![to.meta.role].flat().includes(user.value.role)) return navigateTo('/forbidden', { replace: true })
 })

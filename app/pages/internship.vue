@@ -23,33 +23,30 @@ const fields = computed(() => {
 
 <template>
   <div>
-    <header class="mb-4 border-b border-slate-200 pb-5">
-      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
-        <span>พื้นที่นักศึกษา</span>
-        <span>/</span>
-        <span class="text-slate-500">ข้อมูลสถานที่ฝึกงาน</span>
-      </nav>
-      <h2 class="mt-2 text-2xl font-bold text-slate-900">ข้อมูลสถานที่ฝึกงาน</h2>
-      <p class="mt-1 text-xs text-slate-500">รายละเอียดการฝึกงานและพี่เลี้ยง</p>
-    </header>
+    <PageHeader
+      class="mb-4"
+      title="ข้อมูลสถานที่ฝึกงาน"
+      description="รายละเอียดการฝึกงานและพี่เลี้ยง"
+      :crumbs="[{ label: 'พื้นที่นักศึกษา' }, { label: 'ข้อมูลสถานที่ฝึกงาน' }]"
+    />
 
     <div class="lg:w-[61%]">
       <AsyncState :loading="!internship && status !== 'error'" :error="error" @retry="refresh()">
-        <div v-if="internship" class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 class="text-base font-bold text-slate-900">สถานที่และระยะเวลา</h3>
+        <div v-if="internship" class="card p-5">
+          <h2 class="text-base font-bold text-ink">สถานที่และระยะเวลา</h2>
 
           <div v-for="field in fields" :key="field.id" class="mt-3 flex flex-col first-of-type:mt-4">
             <label :for="field.id" class="text-xs font-semibold text-slate-600">{{ field.label }}</label>
-            <div class="mt-1.5 flex items-center rounded-lg border border-control bg-slate-50 focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-100">
-              <input :id="field.id" :value="field.value" type="text" readonly class="min-w-0 flex-1 bg-transparent px-3 py-2 text-xs text-slate-700 outline-none">
+            <div class="mt-1.5 flex items-center rounded-lg border border-control bg-page focus-within:border-brand focus-within:ring-2 focus-within:ring-brand">
+              <input :id="field.id" :value="field.value" type="text" readonly class="min-w-0 flex-1 bg-transparent px-3 py-2 text-xs text-slate-700 outline-hidden">
               <UIcon v-if="field.icon" :name="field.icon" class="mr-3 size-4 shrink-0 text-slate-700" />
             </div>
           </div>
 
-          <h3 class="mt-7 text-base font-bold text-slate-900">พี่เลี้ยงที่ได้รับมอบหมาย</h3>
+          <h2 class="mt-7 text-base font-bold text-ink">พี่เลี้ยงที่ได้รับมอบหมาย</h2>
           <dl class="mt-3">
             <dt class="text-xs font-semibold text-slate-600">ชื่อพี่เลี้ยง</dt>
-            <dd class="mt-0.5 text-[13px] font-semibold text-slate-900">{{ internship.mentorName }}</dd>
+            <dd class="mt-0.5 text-[0.8125rem] font-semibold text-ink">{{ internship.mentorName }}</dd>
           </dl>
 
           <div class="mt-14 flex justify-end">

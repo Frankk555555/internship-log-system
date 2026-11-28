@@ -1,18 +1,19 @@
 import type { AuthApi } from '~/types/auth'
 import type { UserRole } from '~/types/worklog'
-import { newPasswordError } from '~/utils/auth'
+import { nameError, newPasswordError } from '~/utils/auth'
 import { ApiError } from './api'
-import { mockAccounts } from './mockAccounts'
+import { mockAccounts, type MockAccount } from './mockAccounts'
+import { renameUser, settings } from './mockData'
 import type { MockSession } from './mockSession'
 
-// ล็อกบัญชีเมื่อกรอกผิด 5 ครั้ง เป็นเวลา 15 นาที (ขอบเขตงานข้อ 1.2)
-const maxFailedLogins = 5
-const lockMinutes = 15
 const resetLinkMinutes = 30
 const resendSeconds = 60
 
 const failures = new Map<string, { count: number, lockedUntil?: number }>()
 const usedTokens = new Set<string>()
+
+// ตัวอย่างบัญชีที่ถูกล็อก ให้ลองปลดล็อกในหน้าผู้ใช้งานได้
+failures.set('napha.s@university.ac.th', { count: settings.maxFailedLogins, lockedUntil: Date.now() + settings.lockMinutes * 60_000 })
 
 const wait = () => new Promise(resolve => setTimeout(resolve, 150))
 const normalize = (email: string) => email.trim().toLowerCase()
@@ -28,10 +29,40 @@ export function currentAccount(session: MockSession) {
   return account
 }
 
+/** บัญชีที่ใช้ข้อมูลได้ บัญชีที่ยังใช้รหัสผ่านเริ่มต้นต้องตั้งรหัสใหม่ก่อน */
+export function activeAccount(session: MockSession) {
+  const account = currentAccount(session)
+  if (account.profile.mustChangePassword) {
+    throw new ApiError('กรุณาตั้งรหัสผ่านใหม่ก่อนใช้งาน', 403, { code: 'password_change_required' })
+  }
+  return account
+}
+
 export function requireRole(session: MockSession, role: UserRole) {
-  if (currentAccount(session).profile.role !== role) {
+  if (activeAccount(session).profile.role !== role) {
     throw new ApiError('รายการที่ขออยู่นอกขอบเขตข้อมูลที่คุณมีสิทธิ์ดู', 403)
   }
+}
+
+/** เวลาที่ปลดล็อก ไม่มีค่า = ไม่ได้ถูกล็อก */
+export function lockedUntilFor(email: string) {
+  const until = failures.get(email)?.lockedUntil
+  return until && until > Date.now() ? until : undefined
+}
+
+export function clearFailures(email: string) {
+  failures.delete(email)
+}
+
+/** ไม่มีการส่งอีเมลจริง แสดงลิงก์ใน console ของเบราว์เซอร์เพื่อใช้ทดสอบ */
+export function sendResetLink(account: MockAccount) {
+  const token = btoa(JSON.stringify([account.profile.email, Date.now() + resetLinkMinutes * 60_000]))
+  console.info(`[mock] ลิงก์ตั้งรหัสผ่านใหม่: ${location.origin}/reset-password?token=${encodeURIComponent(token)}`)
+}
+
+function setPassword(account: MockAccount, password: string) {
+  account.password = password
+  account.profile.mustChangePassword = false
 }
 
 export function createMockAuth(session: MockSession): AuthApi {
@@ -56,7 +87,8 @@ export function createMockAuth(session: MockSession): AuthApi {
       if (!account || account.password !== password) {
         // นับทุกอีเมล เพื่อไม่ให้รู้ว่ามีบัญชีนี้หรือไม่
         const count = (record?.count ?? 0) + 1
-        const lockedUntil = count >= maxFailedLogins ? Date.now() + lockMinutes * 60_000 : undefined
+        // ล็อกบัญชีเมื่อกรอกผิดครบจำนวนครั้ง (ขอบเขตงานข้อ 1.2)
+        const lockedUntil = count >= settings.maxFailedLogins ? Date.now() + settings.lockMinutes * 60_000 : undefined
         failures.set(key, { count, lockedUntil })
         if (lockedUntil) throw locked(lockedUntil)
         throw new ApiError('อีเมลหรือรหัสผ่านไม่ถูกต้อง', 401, { code: 'invalid_credentials' })
@@ -66,6 +98,7 @@ export function createMockAuth(session: MockSession): AuthApi {
       // บอกว่าถูกระงับเฉพาะเมื่อรหัสผ่านถูกต้องแล้ว (ขอบเขตงานข้อ 4.1)
       if (account.suspended) throw new ApiError('บัญชีถูกระงับ', 403, { code: 'account_suspended' })
 
+      account.lastLoginAt = new Date().toISOString()
       session.write(key, remember)
       return structuredClone(account.profile)
     },
@@ -78,11 +111,7 @@ export function createMockAuth(session: MockSession): AuthApi {
     async requestPasswordReset(email) {
       await wait()
       const account = findAccount(normalize(email))
-      if (account && !account.suspended) {
-        const token = btoa(JSON.stringify([account.profile.email, Date.now() + resetLinkMinutes * 60_000]))
-        // ไม่มีการส่งอีเมลจริง แสดงลิงก์ใน console ของเบราว์เซอร์เพื่อใช้ทดสอบ
-        console.info(`[mock] ลิงก์ตั้งรหัสผ่านใหม่: ${location.origin}/reset-password?token=${encodeURIComponent(token)}`)
-      }
+      if (account && !account.suspended) sendResetLink(account)
       return { resendAfterSeconds: resendSeconds, expiresInMinutes: resetLinkMinutes }
     },
 
@@ -99,10 +128,10 @@ export function createMockAuth(session: MockSession): AuthApi {
       }
       const account = findAccount(email)
       if (!account || usedTokens.has(token) || !(expiresAt > Date.now())) throw invalid
-      const problem = newPasswordError(newPassword)
+      const problem = newPasswordError(newPassword, account.profile.studentId)
       if (problem) throw new ApiError(problem, 422)
 
-      account.password = newPassword
+      setPassword(account, newPassword)
       usedTokens.add(token)
       failures.delete(email)
     },
@@ -111,10 +140,21 @@ export function createMockAuth(session: MockSession): AuthApi {
       await wait()
       const account = currentAccount(session)
       if (account.password !== currentPassword) throw new ApiError('รหัสผ่านปัจจุบันไม่ถูกต้อง', 422, { code: 'wrong_password' })
-      const problem = newPasswordError(newPassword)
+      const problem = newPasswordError(newPassword, account.profile.studentId)
       if (problem) throw new ApiError(problem, 422)
       if (newPassword === currentPassword) throw new ApiError('รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านปัจจุบัน', 422)
-      account.password = newPassword
+      setPassword(account, newPassword)
+    },
+
+    async updateProfile(input) {
+      await wait()
+      const account = activeAccount(session)
+      const firstName = input.firstName.trim()
+      const lastName = input.lastName.trim()
+      const problem = nameError(firstName, 'ชื่อ') ?? nameError(lastName, 'นามสกุล')
+      if (problem) throw new ApiError(problem, 422)
+      renameUser(account.profile, firstName, lastName)
+      return structuredClone(account.profile)
     },
   }
 }

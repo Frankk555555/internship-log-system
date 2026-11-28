@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { errorMessage } from '~/services/api'
+import type { HistoryEvent } from '~/types/worklog'
 
-// นักศึกษาและพี่เลี้ยงใช้หน้านี้ เลือกเมนูข้างตามบทบาท
+// ทุกบทบาทใช้หน้านี้ เลือกเมนูข้างตามบทบาท
 definePageMeta({
-  role: ['student', 'supervisor'],
+  role: ['student', 'supervisor', 'admin'],
   middleware: [() => {
-    setPageLayout(useSessionUser().value?.role === 'supervisor' ? 'mentor' : 'default')
+    setPageLayout(layoutFor(useSessionUser().value?.role))
   }],
 })
 
@@ -15,7 +16,15 @@ const route = useRoute()
 const api = useApi()
 const worklogId = Number(route.params.id)
 const user = useSessionUser()
-const isMentor = computed(() => user.value?.role === 'supervisor')
+const isStudent = computed(() => user.value?.role === 'student')
+
+// ทางกลับไปยังรายการต้นทางของแต่ละบทบาท
+const origins = {
+  student: { area: 'พื้นที่นักศึกษา', label: 'บันทึกงานประจำวัน', to: '/worklogs' },
+  supervisor: { area: 'พื้นที่พี่เลี้ยง', label: 'ตรวจงานนักศึกษา', to: '/mentor/reviews' },
+  admin: { area: 'พื้นที่แอดมิน', label: 'อนุมัติแทน', to: '/admin/proxy-reviews' },
+}
+const origin = computed(() => origins[user.value?.role ?? 'student'])
 
 const { data, status, error, refresh } = await useLazyAsyncData(`worklog-history-${worklogId}`, () => api.getWorklogHistory(worklogId))
 
@@ -26,6 +35,26 @@ watch(error, async (failure) => {
 
 const events = computed(() => (data.value?.events ?? []).map(event => ({ ...event, at: toThaiTimeParts(event.changedAt) })))
 
+// จัดกลุ่มตามวัน วันที่จึงแสดงครั้งเดียว (events เรียงจากใหม่ไปเก่าแล้ว)
+const days = computed(() => {
+  const groups: { date: string, events: typeof events.value }[] = []
+  for (const event of events.value) {
+    const last = groups.at(-1)
+    if (last?.date === event.at.date) last.events.push(event)
+    else groups.push({ date: event.at.date, events: [event] })
+  }
+  return groups
+})
+
+// ไอคอนและสีตามชนิดเหตุการณ์ ชุดเดียวกับการแจ้งเตือน
+const kinds: Record<HistoryEvent['type'], { icon: string, tone: string }> = {
+  status: { icon: 'i-lucide-arrow-right', tone: 'bg-slate-100 text-slate-600' },
+  edit: { icon: 'i-lucide-pencil-line', tone: 'bg-indigo-100 text-brand' },
+  return: { icon: 'i-lucide-rotate-ccw', tone: 'bg-rose-100 text-rose-700' },
+  approval: { icon: 'i-lucide-check', tone: 'bg-emerald-100 text-emerald-700' },
+  delete: { icon: 'i-lucide-trash-2', tone: 'bg-red-100 text-red-700' },
+}
+
 // ค่าเริ่มต้นเลือกการลบ ถ้าไม่มีเลือกการแก้ไขข้อมูลครั้งล่าสุด
 const pickedId = ref<number>()
 const selected = computed(() => events.value.find(event => event.id === pickedId.value)
@@ -33,12 +62,40 @@ const selected = computed(() => events.value.find(event => event.id === pickedId
   ?? events.value.find(event => event.type === 'edit')
   ?? events.value[0])
 
-const reviewStatus = computed(() => data.value?.worklog.reviewStatus)
+const detail = useTemplateRef<HTMLElement>('detail')
+
+async function pick(id: number) {
+  pickedId.value = id
+  // จอแคบ รายละเอียดอยู่ใต้รายการ เลื่อนให้เห็นหลังเลือก
+  if (window.matchMedia('(min-width: 1024px)').matches) return
+  await nextTick()
+  const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  detail.value?.scrollIntoView({ block: 'nearest', behavior: smooth ? 'smooth' : 'auto' })
+}
+
+const worklog = computed(() => data.value?.worklog)
+const reviewStatus = computed(() => worklog.value?.reviewStatus)
 const isApproved = computed(() => reviewStatus.value === 'approved')
-const deletion = computed(() => data.value?.worklog.deletion)
+const deletion = computed(() => worklog.value?.deletion)
+
+// ตัวเลขหลักของรายการ
+const timeLabel = computed(() => {
+  const { startTime, endTime } = worklog.value ?? {}
+  if (!startTime) return 'ยังไม่เริ่ม'
+  return endTime ? `${startTime}–${endTime} น.` : `เริ่ม ${startTime} น.`
+})
+const durationLabel = computed(() => {
+  const { startTime, endTime } = worklog.value ?? {}
+  return startTime && endTime ? formatDuration(toMinutes(endTime) - toMinutes(startTime)) : '–'
+})
+
+function dateTimeLabel(value: string) {
+  const { date, time } = toThaiTimeParts(value)
+  return `${formatThaiDate(date)} • ${time} น.`
+}
 
 // รายการที่เลยกำหนดแก้ไขเปิดหน้าแก้ไขจากเมนูไม่ได้ จึงต้องลบจากหน้านี้ได้ (ขอบเขตงานข้อ 8.4)
-const canDelete = computed(() => !isMentor.value && !deletion.value && ['draft', 'returned'].includes(reviewStatus.value ?? ''))
+const canDelete = computed(() => isStudent.value && !deletion.value && ['draft', 'returned'].includes(reviewStatus.value ?? ''))
 const notify = useNotify()
 const isDeleteOpen = ref(false)
 const isDeleting = ref(false)
@@ -75,95 +132,133 @@ async function deleteLog(reason: string) {
 
 <template>
   <div>
-    <header class="mb-4 border-b border-slate-200 pb-5">
-      <BackButton :fallback="isMentor ? '/mentor/reviews' : '/worklogs'" class="mb-3" />
-      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
-        <span>พื้นที่{{ isMentor ? 'พี่เลี้ยง' : 'นักศึกษา' }}</span>
-        <span>/</span>
-        <NuxtLink :to="isMentor ? '/mentor/reviews' : '/worklogs'" class="hover:text-slate-600">{{ isMentor ? 'ตรวจงานนักศึกษา' : 'บันทึกงานประจำวัน' }}</NuxtLink>
-        <span>/</span>
-        <span class="text-slate-500">ดูประวัติ</span>
-      </nav>
-      <h2 class="mt-2 text-2xl font-bold text-slate-900">ประวัติงานและการแก้ไข</h2>
-      <p class="mt-1 text-xs text-slate-500">ตรวจสอบผู้แก้ไข เวลา และข้อมูลก่อน–หลัง</p>
-    </header>
+    <PageHeader
+      class="mb-5"
+      title="ประวัติงานและการแก้ไข"
+      description="ตรวจสอบผู้แก้ไข เวลา และข้อมูลก่อน–หลัง"
+      :crumbs="[{ label: origin.area }, { label: origin.label, to: origin.to }, { label: 'ดูประวัติ' }]"
+    >
+      <template #back>
+        <BackButton :fallback="origin.to" />
+      </template>
+    </PageHeader>
 
     <AsyncState :loading="!data && status !== 'error'" :error="error" @retry="refresh()">
-      <div v-if="data && deletion" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-        <p class="font-semibold">รายการ “{{ data.worklog.title }}” ถูกลบแล้ว</p>
-        <p class="mt-1">
-          ลบโดย {{ deletion.deletedBy }} เมื่อ {{ formatThaiDate(toThaiTimeParts(deletion.deletedAt).date) }} • {{ toThaiTimeParts(deletion.deletedAt).time }} น.
-        </p>
-        <p class="mt-1 break-words">เหตุผล: {{ deletion.reason }}</p>
-      </div>
-
-      <div class="grid gap-4 lg:min-h-[38rem] lg:grid-cols-[minmax(0,1.36fr)_minmax(0,1fr)]">
-        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 class="text-base font-bold text-slate-900">ประวัติรายการ</h3>
-
-          <ol v-if="events.length" class="mt-3">
-            <li v-for="(event, index) in events" :key="event.id" class="relative pb-2">
-              <span v-if="index < events.length - 1" class="absolute -bottom-2 left-[7px] top-5 w-0.5 bg-slate-100" aria-hidden="true" />
-              <span
-                class="absolute left-0 top-2 size-4 rounded-full"
-                :class="event.type === 'approval' ? 'bg-done' : event.type === 'delete' ? 'bg-danger' : 'bg-indigo-50'"
-                aria-hidden="true"
-              />
-              <button
-                type="button"
-                class="ml-6 block w-[calc(100%-1.5rem)] rounded-lg px-2.5 py-1 text-left transition"
-                :class="event.id === selected?.id ? 'bg-slate-50' : 'hover:bg-slate-50'"
-                :aria-pressed="event.id === selected?.id"
-                @click="pickedId = event.id"
-              >
-                <span class="block text-[11px] text-slate-500">{{ formatThaiDate(event.at.date) }} • {{ event.at.time }} น.</span>
-                <span class="mt-0.5 block text-sm font-semibold text-slate-900">{{ event.title }}</span>
-                <span class="mt-0.5 block text-[11px] text-slate-500">{{ event.actorName }}</span>
-              </button>
-            </li>
-          </ol>
-          <p v-else class="py-12 text-center text-sm text-slate-500">ยังไม่มีประวัติของรายการนี้</p>
-        </section>
-
-        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-live="polite">
-          <h3 class="text-base font-bold text-slate-900">รายละเอียดการแก้ไข</h3>
-
-          <template v-if="selected && reviewStatus">
-            <dl class="mt-4 space-y-4">
-              <div>
-                <dt class="text-[11px] text-slate-500">ผู้แก้ไข</dt>
-                <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ selected.actorName }}</dd>
+      <template v-if="worklog && reviewStatus">
+        <!-- รายการที่กำลังดู: ชื่อ สถานะปัจจุบัน และตัวเลขหลัก -->
+        <section class="card overflow-hidden" aria-labelledby="entry-title">
+          <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 p-5">
+            <div class="min-w-0 flex-1 basis-72">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <StatusBadge v-if="deletion" label="ถูกลบ" tone="rose" />
+                <StatusBadge v-else v-bind="reviewStatusMeta[reviewStatus]" />
+                <TimeFlagBadges :worklog="worklog" />
               </div>
-              <div>
-                <dt class="text-[11px] text-slate-500">วันที่และเวลา</dt>
-                <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ formatThaiDate(selected.at.date) }} • {{ selected.at.time }} น.</dd>
-              </div>
-              <div>
-                <dt class="text-[11px] text-slate-500">ก่อนแก้ไข</dt>
-                <dd class="mt-0.5 break-words text-sm font-semibold text-slate-900">{{ selected.before }}</dd>
-              </div>
-              <div>
-                <dt class="text-[11px] text-slate-500">หลังแก้ไข</dt>
-                <dd class="mt-0.5 break-words text-sm font-semibold text-slate-900">{{ selected.after }}</dd>
-              </div>
-            </dl>
+              <h2 id="entry-title" class="mt-2 break-words text-xl font-bold leading-snug text-ink">{{ worklog.title }}</h2>
 
-            <div class="mt-2 flex items-center gap-2">
-              <span class="text-[11px] text-slate-500">สถานะ:</span>
-              <StatusBadge v-if="deletion" label="ถูกลบ" tone="rose" />
-              <StatusBadge v-else v-bind="reviewStatusMeta[reviewStatus]" />
+              <dl class="mt-4 flex flex-wrap gap-x-10 gap-y-3 tabular-nums">
+                <div>
+                  <dt class="text-2xs text-ink-muted">วันที่ทำงาน</dt>
+                  <dd class="mt-0.5 text-base font-bold text-ink">{{ formatThaiDate(worklog.date) }}</dd>
+                </div>
+                <div>
+                  <dt class="text-2xs text-ink-muted">เวลา</dt>
+                  <dd class="mt-0.5 text-base font-bold text-ink">{{ timeLabel }}</dd>
+                </div>
+                <div>
+                  <dt class="text-2xs text-ink-muted">ระยะเวลา</dt>
+                  <dd class="mt-0.5 text-base font-bold text-ink">{{ durationLabel }}</dd>
+                </div>
+              </dl>
             </div>
-          </template>
 
-          <p v-if="isApproved" class="mt-5 border-t border-slate-100 pt-5 text-xs text-slate-500">รายการที่อนุมัติแล้วเปิดดูได้อย่างเดียว</p>
-
-          <div v-if="canDelete" class="mt-5 flex justify-end border-t border-slate-100 pt-5">
-            <button type="button" class="btn btn-danger-outline px-3 py-2 text-[11px]" @click="askDelete">
+            <button v-if="canDelete" type="button" class="btn btn-danger-outline px-3 py-2 text-2xs" @click="askDelete">
               ลบรายการ
             </button>
+            <p v-else-if="isApproved && !deletion" class="flex items-center gap-1.5 text-xs text-ink-muted">
+              <UIcon name="i-lucide-lock" class="size-3.5 shrink-0" />
+              รายการที่อนุมัติแล้วเปิดดูได้อย่างเดียว
+            </p>
+          </div>
+
+          <div v-if="deletion" class="border-t border-red-200 bg-red-50 px-5 py-3 text-xs text-red-700">
+            <p class="font-semibold">รายการนี้ถูกลบแล้ว</p>
+            <p class="mt-1 break-words text-sm font-semibold">เหตุผล: {{ deletion.reason }}</p>
+            <p class="mt-1">ลบโดย {{ deletion.deletedBy }} เมื่อ {{ dateTimeLabel(deletion.deletedAt) }}</p>
           </div>
         </section>
-      </div>
+
+        <div class="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+          <section class="card p-5">
+            <h2 class="text-base font-bold text-ink">ประวัติรายการ</h2>
+
+            <ol v-if="days.length" class="mt-4 space-y-5">
+              <li v-for="day in days" :key="day.date">
+                <h3 class="border-b border-line pb-1.5 text-xs font-bold tabular-nums text-ink">{{ formatThaiDate(day.date) }}</h3>
+                <ol class="mt-1.5 space-y-1">
+                  <li v-for="event in day.events" :key="event.id">
+                    <button
+                      type="button"
+                      class="grid w-full grid-cols-[4rem_1.75rem_minmax(0,1fr)] items-start gap-2.5 rounded-lg px-2 py-2 text-left transition"
+                      :class="event.id === selected?.id ? 'bg-page ring-2 ring-brand' : 'hover:bg-page'"
+                      :aria-pressed="event.id === selected?.id"
+                      @click="pick(event.id)"
+                    >
+                      <span class="pt-1 text-[0.8125rem] font-bold tabular-nums text-ink">
+                        <span class="sr-only">{{ formatThaiDate(event.at.date) }} </span>{{ event.at.time }} น.
+                      </span>
+                      <span class="flex size-7 items-center justify-center rounded-full" :class="kinds[event.type].tone" aria-hidden="true">
+                        <UIcon :name="kinds[event.type].icon" class="size-3.5" />
+                      </span>
+                      <span class="min-w-0">
+                        <span class="line-clamp-2 break-words text-[0.8125rem] font-semibold leading-snug text-ink">{{ event.title }}</span>
+                        <span class="mt-0.5 block text-2xs text-slate-600">{{ event.actorName }}</span>
+                      </span>
+                    </button>
+                  </li>
+                </ol>
+              </li>
+            </ol>
+            <p v-else class="py-12 text-center text-sm text-ink-muted">ยังไม่มีประวัติของรายการนี้</p>
+          </section>
+
+          <!-- รายละเอียดของเหตุการณ์ที่เลือก จอกว้างเลื่อนตามเมื่อรายการยาว -->
+          <section v-if="selected" ref="detail" class="card scroll-mt-20 p-5 lg:sticky lg:top-4" aria-label="รายละเอียดการแก้ไข" aria-live="polite">
+            <div class="flex items-start gap-3">
+              <span class="flex size-9 shrink-0 items-center justify-center rounded-full" :class="kinds[selected.type].tone" aria-hidden="true">
+                <UIcon :name="kinds[selected.type].icon" class="size-4" />
+              </span>
+              <div class="min-w-0">
+                <h2 class="break-words text-base font-bold leading-snug text-ink">{{ selected.title }}</h2>
+                <dl class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-600">
+                  <div>
+                    <dt class="sr-only">ผู้แก้ไข</dt>
+                    <dd class="font-semibold">{{ selected.actorName }}</dd>
+                  </div>
+                  <div>
+                    <dt class="sr-only">วันที่และเวลา</dt>
+                    <dd class="tabular-nums">{{ formatThaiDate(selected.at.date) }} • {{ selected.at.time }} น.</dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+
+            <dl class="mt-5 space-y-2">
+              <div class="rounded-lg bg-page px-4 py-3">
+                <dt class="text-2xs font-semibold text-slate-600">ก่อนแก้ไข</dt>
+                <dd class="mt-1 break-words text-sm text-slate-600">{{ selected.before }}</dd>
+              </div>
+              <div class="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3">
+                <dt class="flex items-center gap-1 text-2xs font-semibold text-brand">
+                  <UIcon name="i-lucide-arrow-down" class="size-3" />
+                  หลังแก้ไข
+                </dt>
+                <dd class="mt-1 break-words text-base font-bold text-ink">{{ selected.after }}</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+      </template>
     </AsyncState>
 
     <DeleteWorklogModal

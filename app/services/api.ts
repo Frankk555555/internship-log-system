@@ -1,4 +1,6 @@
+import type { AdminApi } from '~/types/admin'
 import type { AuthApi } from '~/types/auth'
+import type { AppNotification } from '~/types/notification'
 import type { ReviewFilter, ReviewQueue, ReviewResult, ReviewTarget, SupervisedStudents, UnavailabilityInput } from '~/types/review'
 import type {
   DailyWorklogs,
@@ -17,7 +19,13 @@ import type {
  * สัญญาระหว่างหน้าจอกับ backend ทุกหน้าเรียกข้อมูลผ่าน interface นี้เท่านั้น
  * ปัจจุบันมี 2 ตัว: mockApi (ข้อมูลจำลอง) และ createHttpApi (เรียก REST จริง)
  */
-export interface Api extends AuthApi {
+export interface Api extends AuthApi, AdminApi {
+  // ทุกบทบาท
+  /** การแจ้งเตือนของผู้ใช้ที่เข้าสู่ระบบ ใหม่สุดก่อน */
+  getNotifications(): Promise<AppNotification[]>
+  /** ไม่ระบุ ids = อ่านแล้วทุกรายการ */
+  markNotificationsRead(ids?: number[]): Promise<void>
+
   // นักศึกษา
   getDashboard(): Promise<StudentDashboard>
   getInternship(): Promise<InternshipInfo>
@@ -52,6 +60,17 @@ export interface Api extends AuthApi {
 
 /** ข้อผิดพลาดจาก API ที่แสดงให้ผู้ใช้อ่านได้ */
 export class ApiError extends Error {
+  /**
+   * ให้ Nuxt รู้ว่าเป็น error ที่ตั้งใจส่งพร้อมสถานะ HTTP ไม่เช่นนั้นตอน SSR บน production
+   * จะถูกแทนด้วย 500 หน้าจอจึงไม่เห็นข้อความจริง และพาไปหน้า forbidden ไม่ได้
+   */
+  static readonly __h3_error__ = true
+
+  /** รูปที่ส่งจากเซิร์ฟเวอร์ไปให้เบราว์เซอร์ */
+  toJSON() {
+    return { message: this.message, statusCode: this.statusCode }
+  }
+
   /** รหัสให้หน้าจอแยกกรณี เช่น account_locked */
   readonly code?: string
   /** เวลาที่ปลดล็อกบัญชี (ISO 8601) */

@@ -3,11 +3,12 @@ const user = useSessionUser()
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 font-sans text-slate-900 print:bg-white">
+  <div class="min-h-screen bg-page font-sans text-ink print:bg-white">
+    <SkipLink />
     <AppSidebar role="student" :user="user ?? undefined" />
 
-    <main class="min-h-screen px-4 py-5 sm:px-6 lg:ml-[180px] lg:px-5 lg:py-6 print:m-0 print:min-h-0 print:p-0">
-      <div class="mx-auto max-w-[1220px]">
+    <main id="main-content" tabindex="-1" class="outline-none min-h-screen px-4 py-5 sm:px-6 lg:ml-[11.25rem] lg:px-5 lg:py-6 print:m-0 print:min-h-0 print:p-0">
+      <div class="mx-auto max-w-[76.25rem]">
         <slot />
       </div>
     </main>

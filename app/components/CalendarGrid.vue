@@ -18,7 +18,8 @@ defineEmits<{
   selectDate: [date: string]
 }>()
 
-const HOUR_HEIGHT = 56
+// ความสูงของหนึ่งชั่วโมง (rem) ขยายตามขนาดตัวอักษรของเบราว์เซอร์
+const HOUR_HEIGHT = 3.5
 
 const range = computed(() => calendarHourRange(props.logs, props.hours))
 const hourLabels = computed(() => Array.from(
@@ -44,10 +45,15 @@ const columns = computed(() => props.dates.map((date) => {
 const hasUntimed = computed(() => !props.detailed && columns.value.some(column => column.untimed.length))
 const gridStyle = computed(() => ({ gridTemplateColumns: `4rem repeat(${props.dates.length}, minmax(0, 1fr))` }))
 
+/** มุมมองรายสัปดาห์ ช่องตั้งแต่ 90 นาทีแยกเวลากับสถานะคนละบรรทัด */
+function isStacked({ start, end }: CalendarBlock) {
+  return !props.detailed && end - start >= 90
+}
+
 function blockStyle({ start, end, lane, lanes }: CalendarBlock) {
   return {
-    top: `${(start - range.value.firstHour * 60) / 60 * HOUR_HEIGHT + 2}px`,
-    height: `${(end - start) / 60 * HOUR_HEIGHT - 4}px`,
+    top: `${(start - range.value.firstHour * 60) / 60 * HOUR_HEIGHT + 0.125}rem`,
+    height: `${(end - start) / 60 * HOUR_HEIGHT - 0.25}rem`,
     left: `calc(${lane / lanes * 100}% + 4px)`,
     width: `calc(${100 / lanes}% - 8px)`,
   }
@@ -55,16 +61,16 @@ function blockStyle({ start, end, lane, lanes }: CalendarBlock) {
 </script>
 
 <template>
-  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-    <div :class="detailed ? '' : 'min-w-[720px]'">
-      <div v-if="!detailed" class="grid border-b border-slate-200" :style="gridStyle">
+  <div class="overflow-x-auto rounded-xl border border-line bg-white">
+    <div :class="detailed ? '' : 'min-w-[45rem]'">
+      <div v-if="!detailed" class="grid border-b border-line" :style="gridStyle">
         <div />
         <button
           v-for="column in columns"
           :key="column.date"
           type="button"
-          class="border-l border-slate-200 py-3 text-center text-xs font-semibold hover:text-indigo-600"
-          :class="[column.isWeekend ? 'bg-slate-100 text-slate-600' : 'text-slate-900', column.date === today ? '!text-indigo-600 underline decoration-2 underline-offset-4' : '']"
+          class="border-l border-line py-3 text-center text-xs font-semibold hover:text-brand"
+          :class="[column.isWeekend ? 'bg-slate-100 text-slate-600' : 'text-ink', column.date === today ? '!text-brand underline decoration-2 underline-offset-4' : '']"
           :aria-label="`ดูรายวัน ${formatCalendarDay(column.date)}${column.date === today ? ' (วันนี้)' : ''}`"
           @click="$emit('selectDate', column.date)"
         >
@@ -72,15 +78,15 @@ function blockStyle({ start, end, lane, lanes }: CalendarBlock) {
         </button>
       </div>
 
-      <div v-if="hasUntimed" class="grid border-b border-slate-200" :style="gridStyle">
-        <div class="px-2 py-2 text-[10px] text-slate-500">ไม่มีเวลา</div>
-        <div v-for="column in columns" :key="column.date" class="space-y-1 border-l border-slate-200 p-1" :class="column.isWeekend ? 'bg-slate-100' : ''">
+      <div v-if="hasUntimed" class="grid border-b border-line" :style="gridStyle">
+        <div class="px-2 py-2 text-2xs text-ink-muted">ไม่มีเวลา</div>
+        <div v-for="column in columns" :key="column.date" class="space-y-1 border-l border-line p-1" :class="column.isWeekend ? 'bg-slate-100' : ''">
           <NuxtLink
             v-for="log in column.untimed"
             :key="log.id"
             :to="calendarLink(log)"
             :title="`${log.title} · ${calendarStatusMeta[log.reviewStatus].label}`"
-            class="relative flex items-center gap-1 rounded border-l-4 px-1.5 py-1 text-[10px] font-semibold hover:brightness-95"
+            class="relative flex items-center gap-1 rounded border-l-4 px-1.5 py-1 text-2xs font-semibold hover:brightness-95"
             :class="[calendarStatusMeta[log.reviewStatus].block, calendarStatusMeta[log.reviewStatus].blockText]"
           >
             <UIcon :name="calendarStatusMeta[log.reviewStatus].icon" class="size-3 shrink-0" />
@@ -92,13 +98,13 @@ function blockStyle({ start, end, lane, lanes }: CalendarBlock) {
 
       <div class="grid" :style="gridStyle">
         <div aria-hidden="true">
-          <div v-for="label in hourLabels" :key="label" class="border-b border-slate-200 px-3 pt-1 text-[11px] text-slate-500 last:border-b-0" :style="{ height: `${HOUR_HEIGHT}px` }">
+          <div v-for="label in hourLabels" :key="label" class="border-b border-line px-3 pt-1 text-2xs text-ink-muted last:border-b-0" :style="{ height: `${HOUR_HEIGHT}rem` }">
             {{ label }}
           </div>
         </div>
 
-        <div v-for="column in columns" :key="column.date" class="relative border-l border-slate-200" :class="column.isWeekend ? 'bg-slate-100' : ''">
-          <div v-for="label in hourLabels" :key="label" aria-hidden="true" class="border-b border-slate-200 last:border-b-0" :style="{ height: `${HOUR_HEIGHT}px` }" />
+        <div v-for="column in columns" :key="column.date" class="relative border-l border-line" :class="column.isWeekend ? 'bg-slate-100' : ''">
+          <div v-for="label in hourLabels" :key="label" aria-hidden="true" class="border-b border-line last:border-b-0" :style="{ height: `${HOUR_HEIGHT}rem` }" />
 
           <NuxtLink
             v-for="block in column.blocks"
@@ -109,17 +115,20 @@ function blockStyle({ start, end, lane, lanes }: CalendarBlock) {
             class="absolute flex flex-col overflow-hidden rounded-md border-l-4 px-2 py-1 hover:brightness-95"
             :class="[calendarStatusMeta[block.log.reviewStatus].block, block.log.endTime ? '' : 'border-dashed']"
           >
-            <span class="shrink-0 text-[11px] font-semibold leading-tight" :class="[calendarStatusMeta[block.log.reviewStatus].blockText, block.end - block.start < 75 ? 'truncate' : 'line-clamp-2']">
+            <span class="shrink-0 text-2xs font-semibold leading-tight" :class="[calendarStatusMeta[block.log.reviewStatus].blockText, block.end - block.start < 75 ? 'truncate' : 'line-clamp-2']">
               <UIcon :name="calendarStatusMeta[block.log.reviewStatus].icon" class="mr-0.5 inline-block size-3 align-[-2px]" />
               {{ block.log.title }}
             </span>
-            <!-- เวลาอยู่หน้าชื่อสถานะ คอลัมน์แคบจะตัดชื่อสถานะก่อน ไอคอนยังบอกสถานะได้ -->
-            <span class="shrink-0 truncate text-[10px]" :class="calendarStatusMeta[block.log.reviewStatus].blockText">
-              {{ calendarTimeLabel(block.log, today) }}
-              <template v-if="detailed && block.log.endTime"> · {{ formatDuration(toMinutes(block.log.endTime) - toMinutes(block.log.startTime!)) }}</template>
-              · <span class="font-semibold">{{ calendarStatusMeta[block.log.reviewStatus].label }}</span>
+            <!-- ช่องสูงพอให้ชื่อสถานะอยู่บรรทัดของตัวเอง ช่องสั้นรวมบรรทัดเดียว ไอคอนยังบอกสถานะได้ -->
+            <span class="shrink-0 text-2xs leading-snug" :class="[calendarStatusMeta[block.log.reviewStatus].blockText, isStacked(block) ? '' : 'truncate']">
+              <span :class="isStacked(block) ? 'block truncate' : ''">
+                {{ calendarTimeLabel(block.log, today) }}
+                <template v-if="detailed && block.log.endTime"> · {{ formatDuration(toMinutes(block.log.endTime) - toMinutes(block.log.startTime!)) }}</template>
+              </span>
+              <template v-if="!isStacked(block)"> · </template>
+              <span class="font-semibold" :class="isStacked(block) ? 'block truncate' : ''">{{ calendarStatusMeta[block.log.reviewStatus].label }}</span>
             </span>
-            <span v-if="detailed && block.log.description" class="mt-1 whitespace-pre-line text-[11px] leading-snug text-slate-600">{{ block.log.description }}</span>
+            <span v-if="detailed && block.log.description" class="mt-1 whitespace-pre-line text-2xs leading-snug text-slate-600">{{ block.log.description }}</span>
           </NuxtLink>
         </div>
       </div>

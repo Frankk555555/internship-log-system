@@ -77,26 +77,24 @@ async function deleteLog(reason: string) {
 
 <template>
   <div>
-    <header class="mb-4 border-b border-slate-200 pb-5">
-      <BackButton fallback="/worklogs" class="mb-3" />
-      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
-        <span>พื้นที่นักศึกษา</span>
-        <span>/</span>
-        <NuxtLink to="/worklogs" class="hover:text-slate-600">บันทึกงานประจำวัน</NuxtLink>
-        <span>/</span>
-        <span class="text-slate-500">แก้ไขรายการ</span>
-      </nav>
-      <h2 class="mt-2 text-2xl font-bold text-slate-900">{{ data ? heading : 'แก้ไขรายการ' }}</h2>
-      <p class="mt-1 text-xs text-slate-500">{{ isReturned ? 'แก้ไขตามความคิดเห็นของพี่เลี้ยง แล้วส่งตรวจอีกครั้ง' : 'แก้ไขรายการ แล้วบันทึกฉบับร่างหรือส่งตรวจ' }}</p>
-    </header>
+    <PageHeader
+      class="mb-4"
+      :title="data ? heading : 'แก้ไขรายการ'"
+      :description="isReturned ? 'แก้ไขตามความคิดเห็นของพี่เลี้ยง แล้วส่งตรวจอีกครั้ง' : 'แก้ไขรายการ แล้วบันทึกฉบับร่างหรือส่งตรวจ'"
+      :crumbs="[{ label: 'พื้นที่นักศึกษา' }, { label: 'บันทึกงานประจำวัน', to: '/worklogs' }, { label: 'แก้ไขรายการ' }]"
+    >
+      <template #back>
+        <BackButton fallback="/worklogs" />
+      </template>
+    </PageHeader>
 
     <AsyncState :loading="!data && status !== 'error'" :error="error" @retry="refresh()">
       <template v-if="data">
-        <div v-if="initialBlock" class="rounded-xl border border-slate-200 bg-white px-5 py-10 text-center">
+        <div v-if="initialBlock" class="rounded-xl border border-line bg-white px-5 py-10 text-center">
           <p class="text-sm font-medium text-slate-700">{{ initialBlock }}</p>
           <div class="mt-4 flex items-center justify-center gap-4">
-            <NuxtLink :to="`/worklogs/${worklogId}/history`" class="text-xs font-semibold text-indigo-600 underline underline-offset-2">ดูประวัติ</NuxtLink>
-            <button v-if="canDelete" type="button" class="btn btn-danger-outline px-3 py-2 text-[11px]" @click="askDelete">
+            <NuxtLink :to="`/worklogs/${worklogId}/history`" class="text-xs link">ดูประวัติ</NuxtLink>
+            <button v-if="canDelete" type="button" class="btn btn-danger-outline px-3 py-2 text-2xs" @click="askDelete">
               ลบรายการ
             </button>
           </div>
@@ -106,12 +104,12 @@ async function deleteLog(reason: string) {
           <blockquote v-if="isReturned" class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-slate-700">
             <span class="font-semibold text-rose-700">ความคิดเห็นของพี่เลี้ยง:</span>
             <span class="ml-1 whitespace-pre-line">{{ data.worklog.reviewComment ?? 'ไม่ได้ระบุ' }}</span>
-            <span class="mt-1 block text-[11px] text-slate-600">แก้ไขและส่งตรวจใหม่ได้ถึง {{ formatThaiDate(editDeadline(data.worklog, data.context.backdateLimitDays)) }}</span>
+            <span class="mt-1 block text-2xs text-slate-600">แก้ไขและส่งตรวจใหม่ได้ถึง {{ formatThaiDate(editDeadline(data.worklog, data.context.backdateLimitDays)) }}</span>
           </blockquote>
 
           <BackdateWorklogForm :context="data.context" :worklog="data.worklog">
             <template #secondary-actions="{ disabled, submitted }">
-              <button v-if="canDelete && !submitted" type="button" :disabled="disabled" class="btn btn-danger-outline mr-auto px-3 py-2.5 text-[11px]" @click="askDelete">
+              <button v-if="canDelete && !submitted" type="button" :disabled="disabled" class="btn btn-danger-outline mr-auto px-3 py-2.5 text-2xs" @click="askDelete">
                 ลบรายการ
               </button>
             </template>

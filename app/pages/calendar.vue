@@ -73,19 +73,6 @@ function move(step: number) {
   if (date) show({ date: addDays(date, step * (view.value === 'week' ? 7 : 1)) })
 }
 
-const picker = useTemplateRef<HTMLInputElement>('picker')
-
-function openPicker() {
-  if (!picker.value || !current.value) return
-  picker.value.value = current.value.date
-  picker.value.showPicker()
-}
-
-function onPick(event: Event) {
-  const { value } = event.target as HTMLInputElement
-  if (value) show({ date: value })
-}
-
 const tabs: { view: CalendarView, label: string }[] = [
   { view: 'week', label: 'รายสัปดาห์' },
   { view: 'day', label: 'รายวัน' },
@@ -94,16 +81,12 @@ const tabs: { view: CalendarView, label: string }[] = [
 
 <template>
   <div>
-    <header class="mb-4 border-b border-slate-200 pb-3">
-      <BackButton v-if="canReturn" fallback="/calendar" class="mb-3" />
-      <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
-        <span>พื้นที่นักศึกษา</span>
-        <span>/</span>
-        <span class="text-slate-500">ปฏิทินการทำงาน</span>
-      </nav>
-      <h2 class="mt-2 text-2xl font-bold text-slate-900">ปฏิทินการทำงาน</h2>
+    <PageHeader class="mb-4" title="ปฏิทินการทำงาน" :crumbs="[{ label: 'พื้นที่นักศึกษา' }, { label: 'ปฏิทินการทำงาน' }]">
+      <template v-if="canReturn" #back>
+        <BackButton fallback="/calendar" />
+      </template>
 
-      <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-3">
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
         <div class="flex rounded-lg bg-slate-100 p-1" role="group" aria-label="มุมมองปฏิทิน">
           <button
             v-for="tab in tabs"
@@ -111,7 +94,7 @@ const tabs: { view: CalendarView, label: string }[] = [
             type="button"
             :aria-pressed="view === tab.view"
             class="min-w-24 rounded-md border px-4 py-1.5 text-xs font-semibold"
-            :class="view === tab.view ? 'border-slate-200 bg-white text-slate-900 shadow-sm' : 'border-transparent text-slate-600 hover:text-slate-800'"
+            :class="view === tab.view ? 'border-brand bg-white text-brand shadow-sm' : 'border-transparent text-slate-600 hover:text-slate-800'"
             @click="show({ view: tab.view })"
           >
             {{ tab.label }}
@@ -119,27 +102,28 @@ const tabs: { view: CalendarView, label: string }[] = [
         </div>
 
         <div class="relative flex items-center gap-1">
-          <button type="button" :disabled="!current" class="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-indigo-600" :aria-label="`${unit}ก่อนหน้า`" @click="move(-1)">
+          <button type="button" :disabled="!current" class="flex size-8 items-center justify-center rounded-lg text-ink-muted hover:bg-slate-100 hover:text-brand" :aria-label="`${unit}ก่อนหน้า`" @click="move(-1)">
             <UIcon name="i-lucide-chevron-left" class="size-4" />
           </button>
-          <button type="button" :disabled="!current" class="min-w-44 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-900 hover:bg-slate-100" title="เลือกวันที่" @click="openPicker">
-            <span aria-live="polite">{{ label }}</span>
-          </button>
-          <button type="button" :disabled="!current" class="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-indigo-600" :aria-label="`${unit}ถัดไป`" @click="move(1)">
+          <DatePicker align="center" :week="view === 'week'" :value="current?.date" label="เลือกวันที่" @pick="date => show({ date })">
+            <button type="button" :disabled="!current" class="min-w-44 rounded-lg px-2 py-1.5 text-sm font-semibold text-ink hover:bg-slate-100" title="เลือกวันที่">
+              <span aria-live="polite">{{ label }}</span>
+            </button>
+          </DatePicker>
+          <button type="button" :disabled="!current" class="flex size-8 items-center justify-center rounded-lg text-ink-muted hover:bg-slate-100 hover:text-brand" :aria-label="`${unit}ถัดไป`" @click="move(1)">
             <UIcon name="i-lucide-chevron-right" class="size-4" />
           </button>
-          <input ref="picker" type="date" tabindex="-1" aria-hidden="true" class="pointer-events-none absolute bottom-0 left-1/2 size-px opacity-0" @change="onPick">
         </div>
 
         <button type="button" class="btn btn-secondary px-3 py-1.5 text-xs" @click="show({ date: undefined })">
           วันนี้
         </button>
       </div>
-    </header>
+    </PageHeader>
 
     <AsyncState :loading="!current && status !== 'error'" :error="error" @retry="refresh()">
       <template v-if="current">
-        <div v-if="view === 'day'" class="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <div v-if="view === 'day'" class="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_17.5rem]">
           <CalendarGrid :dates="current.dates" :logs="current.logs" :hours="current.hours" :today="current.today" :now="clock?.time" detailed />
           <CalendarDayPanel :date="current.date" :today="current.today" :logs="current.logs" :unavailable="current.unavailable" />
         </div>
@@ -157,7 +141,7 @@ const tabs: { view: CalendarView, label: string }[] = [
     </AsyncState>
 
     <ul class="mt-4 flex flex-wrap gap-2" aria-label="ความหมายของสี">
-      <li v-for="(meta, key) in calendarStatusMeta" :key="key" class="flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-semibold" :class="[meta.chip, meta.text]">
+      <li v-for="(meta, key) in calendarStatusMeta" :key="key" class="flex items-center gap-1.5 rounded-full px-4 py-1.5 text-2xs font-semibold" :class="[meta.chip, meta.text]">
         <UIcon :name="meta.icon" class="size-3.5" />
         {{ meta.label }}
       </li>

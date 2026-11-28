@@ -19,6 +19,11 @@ export interface ChangePasswordInput {
   newPassword: string
 }
 
+export interface UpdateProfileInput {
+  firstName: string
+  lastName: string
+}
+
 export interface AuthApi {
   /** ผู้ใช้ของ session ปัจจุบัน ถ้าไม่มีให้ตอบ 401 */
   getMe(): Promise<UserProfile>
@@ -29,4 +34,6 @@ export interface AuthApi {
   requestPasswordReset(email: string): Promise<PasswordResetTicket>
   resetPassword(token: string, newPassword: string): Promise<void>
   changePassword(input: ChangePasswordInput): Promise<void>
+  /** แก้ชื่อและนามสกุลของตนเอง คืนข้อมูลผู้ใช้ล่าสุด */
+  updateProfile(input: UpdateProfileInput): Promise<UserProfile>
 }

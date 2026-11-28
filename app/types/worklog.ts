@@ -11,12 +11,16 @@ export type ReviewStatus = 'draft' | 'submitted' | 'returned' | 'approved'
 export type BadgeTone = 'slate' | 'draft' | 'blue' | 'green' | 'amber' | 'rose'
 
 export interface UserProfile {
+  /** ชื่อและนามสกุลต่อกัน สำหรับแสดงผล */
   name: string
+  firstName: string
+  lastName: string
   email: string
   initials: string
   studentId?: string
   role: UserRole
-  unreadNotifications: number
+  /** ยังใช้รหัสผ่านเริ่มต้น ต้องตั้งรหัสใหม่ก่อนใช้งานส่วนอื่น */
+  mustChangePassword?: boolean
   /** วันที่ตั้งต้นของหน้ารายงานรายสัปดาห์ (ปกติคือวันนี้ของเซิร์ฟเวอร์) */
   defaultReportDate: string
 }
@@ -29,10 +33,17 @@ export interface WorkHours {
   workEndTime: string
 }
 
+/** เวลางานช่วงหนึ่ง ใช้กับรายการของวันที่ตั้งแต่ effectiveFrom */
+export interface WorkHoursPeriod extends WorkHours {
+  effectiveFrom: string
+}
+
 export interface InternshipInfo extends WorkHours {
   company: string
   position: string
   mentorName: string
+  /** ยังไม่มีพี่เลี้ยง = บันทึกเวลาและส่งตรวจไม่ได้ */
+  hasMentor: boolean
   semester: string
   /** ร้อยละของระยะเวลาฝึกที่ผ่านไปแล้ว */
   progress: number
@@ -79,6 +90,8 @@ export interface WorkLog {
   timeEdited?: boolean
   /** ชื่อผู้ตรวจและเวลาที่ตรวจครั้งล่าสุด */
   reviewedBy?: string
+  /** ชื่อพี่เลี้ยง มีค่าเมื่อแอดมิน (reviewedBy) อนุมัติแทน */
+  proxyFor?: string
   reviewedAt?: string
   /** false = แก้ไขไม่ได้แล้ว เช่น เลยกำหนดแก้ไขหลังถูกส่งกลับ */
   canEdit?: boolean
@@ -109,18 +122,30 @@ export interface StudentDashboard {
   recentWorklogs: WorkLog[]
 }
 
+export interface MentorAway {
+  type: 'absent' | 'unavailable'
+  startTime: string
+  endTime: string
+  /** ครอบคลุมเวลางานทั้งวัน */
+  allDay: boolean
+}
+
 export interface DailyWorklogs {
+  hasMentor: boolean
   date: string
   semester: string
   worklogs: WorkLog[]
-  /** ช่วงเวลาที่พี่เลี้ยงไม่สะดวกตรวจงานในวันนั้น */
-  mentorUnavailable?: { startTime: string, endTime: string }
+  /** ช่วงที่พี่เลี้ยงไม่อยู่หรือไม่สะดวกตรวจงานในวันนั้น ไม่ส่งเหตุผลให้นักศึกษา */
+  mentorUnavailable?: MentorAway
 }
 
 export type WorklogFormMode = 'new' | 'backdate'
 
 /** ค่าตั้งต้นและเงื่อนไขของฟอร์มบันทึกงาน */
 export interface WorklogFormContext extends WorkHours {
+  /** เวลางานตามวันเริ่มมีผล เรียงจากเก่าไปใหม่ ไม่ส่ง = ใช้เวลางานปัจจุบันกับทุกวัน */
+  hoursHistory?: WorkHoursPeriod[]
+  hasMentor: boolean
   today: string
   backdateLimitDays: number
   internshipStart: string

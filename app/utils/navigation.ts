@@ -25,5 +25,17 @@ export const workspaces: Record<UserRole, { name: string, roleLabel: string, men
       { label: 'ตั้งค่าบัญชี', icon: 'i-lucide-settings', to: '/settings' },
     ],
   },
-  admin: { name: 'Admin Workspace', roleLabel: 'แอดมิน', menus: [] },
+  admin: {
+    name: 'Admin Workspace',
+    roleLabel: 'แอดมิน',
+    menus: [
+      { label: 'ภาพรวม', icon: 'i-lucide-layout-dashboard', to: '/admin' },
+      { label: 'ผู้ใช้งาน', icon: 'i-lucide-users', to: '/admin/users' },
+      { label: 'การฝึกงาน', icon: 'i-lucide-briefcase', to: '/admin/internships' },
+      { label: 'พี่เลี้ยงไม่อยู่', icon: 'i-lucide-calendar-x', to: '/admin/mentor-absences' },
+      { label: 'อนุมัติแทน', icon: 'i-lucide-check-check', to: '/admin/proxy-reviews' },
+      { label: 'ตั้งค่าระบบ', icon: 'i-lucide-settings-2', to: '/admin/settings' },
+      { label: 'ตั้งค่าบัญชี', icon: 'i-lucide-circle-user', to: '/settings' },
+    ],
+  },
 }

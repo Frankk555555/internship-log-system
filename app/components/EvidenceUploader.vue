@@ -51,6 +51,11 @@ function addFiles(files: FileList | null | undefined) {
   if (added.length) notify('info', `เพิ่มไฟล์แล้ว ${added.length} ไฟล์`, 'กดบันทึกหรือส่งตรวจเพื่อเก็บไว้')
 }
 
+function uploadedLabel(value: string) {
+  const { date, time } = toThaiTimeParts(value)
+  return `${formatThaiDate(date)} • ${time} น.`
+}
+
 function onSelect(event: Event) {
   const input = event.target as HTMLInputElement
   addFiles(input.files)
@@ -74,27 +79,27 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:p-7">
+  <section class="card p-5  lg:p-7">
     <div class="flex items-center justify-between gap-3">
-      <h3 class="text-base font-bold text-slate-900">ไฟล์แนบหลักฐาน *</h3>
-      <span class="text-[10px] text-slate-500 underline underline-offset-2">max 5MB</span>
+      <h2 class="text-base font-bold text-ink">ไฟล์แนบหลักฐาน *</h2>
+      <span class="text-2xs text-ink-muted">ไฟล์ละไม่เกิน {{ maxFileSize / 1024 / 1024 }} MB</span>
     </div>
 
     <label
-      class="mt-3 flex flex-col items-center rounded-xl border-2 border-dashed px-4 py-7 text-center transition focus-within:ring-2 focus-within:ring-indigo-400"
+      class="mt-3 flex flex-col items-center rounded-xl border-2 border-dashed px-4 py-7 text-center transition focus-within:ring-2 focus-within:ring-brand"
       :class="[
-        isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-indigo-200 bg-slate-50',
+        isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-indigo-200 bg-page',
         disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-indigo-400',
       ]"
       @dragover.prevent="isDragging = !disabled"
       @dragleave="isDragging = false"
       @drop.prevent="onDrop"
     >
-      <span class="flex size-9 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+      <span class="flex size-9 items-center justify-center rounded-lg bg-indigo-100 text-brand">
         <UIcon name="i-lucide-upload" class="size-5" />
       </span>
       <span class="mt-3 text-xs font-semibold text-slate-700">ลากไฟล์วางที่นี่ หรือ คลิกเลือกไฟล์</span>
-      <span class="mt-1 text-[11px] text-slate-600">รองรับ PNG, JPG, JPEG, PDF, DOCX</span>
+      <span class="mt-1 text-2xs text-slate-600">รองรับ PNG, JPG, JPEG, PDF, DOCX</span>
       <input
         type="file"
         multiple
@@ -107,18 +112,18 @@ onBeforeUnmount(() => {
       >
     </label>
 
-    <ul v-if="rejected.length || error" class="mt-2 space-y-1 text-[11px] font-medium text-red-600" role="alert">
+    <ul v-if="rejected.length || error" class="mt-2 space-y-1 field-error" role="alert">
       <li v-if="error" :id="errorId">{{ error }}</li>
       <li v-for="reason in rejected" :key="reason" class="break-all">{{ reason }}</li>
     </ul>
 
     <ul class="mt-3 space-y-2">
       <li v-for="file in attachments" :key="file.id">
-        <div class="flex items-center gap-3 rounded-xl border bg-slate-50 px-3 py-2.5" :class="file.error ? 'border-danger' : 'border-slate-200'">
-          <span class="rounded-md bg-indigo-100 px-2 py-1 text-[10px] font-bold uppercase text-indigo-600">{{ extensionOf(file.name) }}</span>
+        <div class="flex items-center gap-3 rounded-xl border bg-page px-3 py-2.5" :class="file.error ? 'border-danger' : 'border-line'">
+          <span class="rounded-md bg-indigo-100 px-2 py-1 text-2xs font-bold uppercase text-brand">{{ extensionOf(file.name) }}</span>
           <div class="min-w-0 flex-1">
             <p class="truncate text-xs font-semibold text-slate-700" :title="file.name">{{ file.name }}</p>
-            <p class="text-[10px] text-slate-500">{{ formatFileSize(file.size) }} - uploaded_at: {{ toThaiTimeParts(file.uploadedAt).time }}</p>
+            <p class="text-2xs text-ink-muted">{{ formatFileSize(file.size) }} · แนบเมื่อ {{ uploadedLabel(file.uploadedAt) }}</p>
           </div>
 
           <a
@@ -126,24 +131,24 @@ onBeforeUnmount(() => {
             :href="file.url"
             :target="extensionOf(file.name) === 'docx' ? undefined : '_blank'"
             :download="extensionOf(file.name) === 'docx' ? file.name : undefined"
-            class="text-[11px] font-semibold text-indigo-600 hover:underline"
+            class="text-2xs font-semibold text-brand hover:underline"
             :aria-label="`${extensionOf(file.name) === 'docx' ? 'ดาวน์โหลด' : 'ดูตัวอย่าง'} ${file.name}`"
           >
             {{ extensionOf(file.name) === 'docx' ? 'ดาวน์โหลด' : 'ดู' }}
           </a>
-          <span v-else class="text-[11px] font-semibold text-slate-500" title="ไฟล์ตัวอย่าง ยังไม่มีเนื้อหาให้ดู">ดู</span>
+          <span v-else class="text-2xs text-ink-muted">ยังไม่มีตัวอย่าง</span>
 
           <button
             v-if="!disabled"
             type="button"
-            class="text-[11px] font-semibold text-red-600 underline underline-offset-2 hover:text-red-600"
+            class="text-2xs font-semibold text-danger underline underline-offset-2 hover:text-danger"
             :aria-label="`ลบ ${file.name}`"
             @click="remove(file)"
           >
             ลบ
           </button>
         </div>
-        <p v-if="file.error" class="mt-1.5 text-[11px] font-medium text-red-600" role="alert">{{ file.error }}</p>
+        <p v-if="file.error" class="mt-1.5 field-error" role="alert">{{ file.error }}</p>
       </li>
     </ul>
   </section>

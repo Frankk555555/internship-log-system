@@ -9,7 +9,9 @@
 | `app/services/httpApi.ts` | เรียก REST จริง (แก้ไฟล์นี้เมื่อ backend กำหนดต่างจากนี้) |
 | `app/services/mockApi.ts`, `mockData.ts` | ข้อมูลจำลองในหน่วยความจำ |
 | `app/composables/useApi.ts` | จุดเลือกว่าจะใช้ตัวไหน |
-| `app/types/worklog.ts` | ชนิดข้อมูลที่รับและส่ง |
+| `server/api/[...].ts` | ส่งต่อ `/api/**` ไป backend |
+| `app/services/httpError.ts` | แปลงคำตอบที่ผิดพลาดเป็นข้อความบนหน้าจอ |
+| `app/types/worklog.ts`, `admin.ts` | ชนิดข้อมูลที่รับและส่ง (`admin.ts` = พื้นที่แอดมิน) |
 
 Backend ใช้ **Elysia** กติกาที่ยืนยันแล้วอยู่ใน [business-rules.md](business-rules.md)
 Elysia ให้บริการ REST ตามตารางด้านล่างได้โดยตรง ถ้า backend export ชนิดของแอป (`export type App`)
@@ -18,11 +20,34 @@ Elysia ให้บริการ REST ตามตารางด้านล�
 
 ## การเชื่อมต่อ
 
-สร้างไฟล์ `.env` (ดู `.env.example`) แล้วรีสตาร์ต dev server
+เบราว์เซอร์เรียกโดเมนเดียวกับหน้าเว็บ แล้ว Nuxt ส่งต่อไป backend session cookie จึงใช้ได้โดยไม่ต้องตั้ง CORS
 
 ```
-NUXT_PUBLIC_API_BASE=http://localhost:4000/api
+เบราว์เซอร์ ──/api/me──▶ Nuxt ──/me──▶ Elysia
 ```
+
+สร้างไฟล์ `.env` (ดู `.env.example`) แล้วรีสตาร์ต dev server Elysia ต้องใช้พอร์ตอื่นจาก Nuxt (3000)
+
+```
+NUXT_PUBLIC_API_BASE=/api
+NUXT_API_SERVER_URL=http://localhost:4000
+```
+
+- Nuxt ตัด `/api` แล้วต่อเส้นทางที่เหลือท้าย `NUXT_API_SERVER_URL` ถ้า backend ตั้ง prefix ไว้ ให้ใส่ใน URL เช่น `http://localhost:4000/api`
+- ตอน render ฝั่งเซิร์ฟเวอร์ Nuxt เรียก backend ตรงที่ `NUXT_API_SERVER_URL`
+- ค่าเหล่านี้อ่านตอนเริ่มเซิร์ฟเวอร์ เปลี่ยนได้โดยไม่ต้อง build ใหม่ เซิร์ฟเวอร์ production (`node .output/server/index.mjs`)
+  ไม่อ่านไฟล์ `.env` ต้องตั้งเป็น environment variable
+- ใน Git Bash บน Windows ค่า `/api` ที่ตั้งในบรรทัดคำสั่งจะถูกแปลงเป็นเส้นทางไฟล์ ให้ใช้ไฟล์ `.env` หรือ PowerShell
+- ยังตั้ง `NUXT_PUBLIC_API_BASE` เป็น URL เต็มของ backend ได้ แต่ต้องเป็นเว็บเดียวกัน (same-site) และตั้ง CORS เอง
+
+สิ่งที่ backend ได้รับจาก Nuxt
+
+- `cookie`, `user-agent` และ `X-Forwarded-For` ซึ่งมี IP เดียวคือของผู้ใช้ ใช้ค่านี้จำกัดอัตราการเรียกได้
+  แต่เชื่อได้เฉพาะเมื่อ backend รับคำขอจาก Nuxt อย่างเดียว (ไม่เปิดพอร์ต backend ออกภายนอก)
+- `Set-Cookie` ของ backend ส่งกลับถึงเบราว์เซอร์ทุกเส้นทาง รวมตอน render ฝั่งเซิร์ฟเวอร์ **ห้ามกำหนด `Domain`** ใน cookie
+- `Origin` ของคำขอจากเบราว์เซอร์คือที่อยู่ของหน้าเว็บ backend ต้องตรวจค่านี้กับคำขอที่แก้ข้อมูล (ป้องกัน CSRF)
+
+หน้าจอรอคำตอบ 15 วินาที (ไฟล์ 120 วินาที) และคำขอ GET จากเบราว์เซอร์ลองซ้ำหนึ่งครั้งเมื่อเซิร์ฟเวอร์ขัดข้อง
 
 ถ้าไม่ตั้งค่า ระบบใช้ข้อมูลจำลอง บัญชีทดสอบอยู่ใน [`mockAccounts.ts`](../app/services/mockAccounts.ts)
 ลิงก์ตั้งรหัสผ่านใหม่ของข้อมูลจำลองแสดงใน console ของเบราว์เซอร์
@@ -32,6 +57,7 @@ NUXT_PUBLIC_API_BASE=http://localhost:4000/api
 | Method | Path | Body | คืนค่า |
 |---|---|---|---|
 | GET | `/me` | | `UserProfile` หรือ 401 |
+| PATCH | `/me` | `{ firstName, lastName }` | `UserProfile` ล่าสุด |
 | POST | `/auth/login` | `{ email, password, remember }` | `UserProfile` และตั้ง session cookie |
 | POST | `/auth/logout` | | ไม่มี และลบ session |
 | POST | `/auth/forgot-password` | `{ email }` | `{ resendAfterSeconds, expiresInMinutes }` |
@@ -45,6 +71,7 @@ NUXT_PUBLIC_API_BASE=http://localhost:4000/api
 | 401 | `invalid_credentials` | ข้อความอีเมลหรือรหัสผ่านไม่ถูกต้อง |
 | 423 | `account_locked` พร้อม `lockedUntil` (ISO 8601) | บัญชีถูกล็อกชั่วคราว |
 | 403 | `account_suspended` | บัญชีถูกระงับ |
+| 403 | `password_change_required` | พาไปหน้าตั้งรหัสผ่านครั้งแรก |
 | 410 | `invalid_token` | ลิงก์ใช้ไม่ได้ |
 | 422 | `wrong_password` | รหัสผ่านปัจจุบันไม่ถูกต้อง |
 | 403 | (ไม่มี) ที่ endpoint ข้อมูล | เข้าถึงรายการนี้ไม่ได้ |
@@ -59,6 +86,13 @@ backend ต้องทำเอง
 - ตอบ `account_suspended` หลังตรวจรหัสผ่านถูกแล้วเท่านั้น และตัด session ทันทีเมื่อระงับบัญชี (4.1)
 - session cookie เป็น `HttpOnly`, `Secure`, `SameSite` และป้องกัน CSRF
 - ตัด session อื่นเมื่อเปลี่ยนหรือรีเซ็ตรหัสผ่าน
+- `UserProfile.mustChangePassword` เป็นจริงเมื่อบัญชียังใช้รหัสผ่านเริ่มต้น ระหว่างนั้นอนุญาตเฉพาะ `/me` (อ่าน),
+  `/auth/change-password` และ `/auth/logout` ที่เหลือตอบ 403 `password_change_required`
+- เปลี่ยนหรือรีเซ็ตรหัสผ่านสำเร็จแล้วตั้ง `mustChangePassword` เป็นเท็จ
+- นักศึกษาห้ามตั้งรหัสผ่านเป็นรหัสนักศึกษาของตน ทั้งตอนเปลี่ยนและรีเซ็ต ผิดตอบ 422
+- `PATCH /me` แก้ได้เฉพาะชื่อและนามสกุลของผู้ใช้ใน session ตัดช่องว่างหัวท้าย ห้ามว่างและยาวไม่เกิน 50 ตัวอักษร ผิดตอบ 422
+- `UserProfile` มี `firstName`, `lastName` และ `name` (สองค่าต่อกันด้วยช่องว่าง) เซิร์ฟเวอร์กำหนด `name` และ `initials` เอง
+- ชื่อที่แสดงในรายการ ประวัติ และรายงาน ต้องอ้างอิงจากผู้ใช้ ไม่คัดลอกเก็บแยก
 
 ## รูปแบบข้อมูล
 
@@ -66,9 +100,11 @@ backend ต้องทำเอง
 - ชื่อฟิลด์เป็น camelCase
 - `workStatus`: `pending` | `in_progress` | `done`
 - `reviewStatus`: `draft` | `submitted` | `returned` | `approved`
-- ข้อผิดพลาด: HTTP status พร้อม `{ "message": "ข้อความภาษาไทยที่แสดงให้ผู้ใช้ได้" }`
+- ข้อผิดพลาด: HTTP status พร้อม `{ "message": "ข้อความภาษาไทยที่แสดงให้ผู้ใช้ได้", "code"?: "..." }`
+  หน้าจอแสดง `message` เฉพาะที่มีอักษรไทยและไม่ใช่ JSON นอกนั้นแสดงข้อความกลางตาม status
+  (Elysia: แปลงทุกกรณีรวม validation ใน `onError`)
 - การยืนยันตัวตน: session cookie (`credentials: include`)
-- ถ้า backend อยู่คนละ origin ต้องตั้ง CORS ให้อนุญาต credentials และพิจารณาป้องกัน CSRF
+- ถ้าไม่ใช้ตัวส่งต่อ `/api` และ backend อยู่คนละ origin ต้องตั้ง CORS ระบุ origin ของหน้าเว็บและอนุญาต credentials
 
 ## Endpoint
 
@@ -96,7 +132,8 @@ backend ต้องทำเอง
 | POST | `/mentor/reviews/return` body `{ items: [{ id, version }], comment, allowTimeEdit? }` | `ReviewResult` | ตรวจงานนักศึกษา |
 | POST | `/mentor/unavailability` body `{ date, startTime, endTime, reason }` | ไม่มี | ตารางเวลาไม่สะดวก |
 
-`/me/worklogs/:id/history` เรียกได้ทั้งนักศึกษาเจ้าของรายการ และพี่เลี้ยงของนักศึกษานั้น
+`/me/worklogs/:id/history` เรียกได้ทั้งนักศึกษาเจ้าของรายการ พี่เลี้ยงของนักศึกษานั้น
+และแอดมินเฉพาะรายการที่อนุมัติแทนได้ตอนนี้หรือเคยอนุมัติแทน (ดู "การอนุมัติแทน")
 `GET /time` เรียกได้ทุกบทบาทที่เข้าสู่ระบบ
 
 ## การล็อกเวลา (กติกาสำหรับ backend)
@@ -163,12 +200,171 @@ backend ต้องทำเอง
 - ช่วงที่พี่เลี้ยงไม่อยู่มี 2 ประเภท `absent` และ `unavailable` ดู [business-rules.md](business-rules.md)
 - ตอนแอดมินอนุมัติ ตรวจจากเวลาเซิร์ฟเวอร์ว่ามีช่วง `absent` ของพี่เลี้ยงที่ครอบคลุมเวลานั้น ถ้าไม่มีตอบ 403
 - แอดมินส่งกลับแก้ไขแทนพี่เลี้ยงไม่ได้
-- `DailyWorklogs.mentorUnavailable` ยังไม่มีประเภทและวันที่ จะกำหนดพร้อมหน้าตารางเวลาไม่สะดวก
+
+| Method | Path | Body | คืนค่า |
+|---|---|---|---|
+| GET | `/admin/proxy-reviews?mentorId=&limit=` | | `ProxyQueue` |
+| POST | `/admin/proxy-reviews/approve` | `{ mentorId, items: [{ id, version }], comment? }` | `ReviewResult` |
+
+- `mentors` คือพี่เลี้ยงที่มีช่วง `absent` ครอบคลุมเวลาเซิร์ฟเวอร์ (เริ่มแล้วและยังไม่ถึง `endAt`)
+  `mentorId` ไม่ส่งหรือไม่อยู่ในรายชื่อ เลือกคนแรกและบอกใน `selected` ไม่มีใครไม่อยู่ ไม่ส่ง `selected`
+- `items` คืองานสถานะ `submitted` ของนักศึกษาที่พี่เลี้ยงคนนั้นดูแลอยู่ตอนนี้ ส่งก่อนอยู่บน จำกัดตาม `limit`
+  `total`, `overdueCount` นับทั้งหมดไม่ขึ้นกับ `limit`
+- POST: นอกช่วงไม่อยู่ตอบ 403 `code: proxy_not_allowed` รายการที่ทำไม่ได้แจ้งใน `failures` เหมือนพี่เลี้ยงตรวจ
+- บันทึกใน transaction เดียวกัน: ผู้อนุมัติ (`reviewedBy` = แอดมิน), `proxyFor` = ชื่อพี่เลี้ยง,
+  อ้างอิงช่วงไม่อยู่ (`work_list_reviews.is_proxy`, `mentor_busy_id`) และประวัติ "อนุมัติแทน {พี่เลี้ยง}"
+- แจ้งเตือนนักศึกษา (`approved` ข้อความบอกว่าอนุมัติแทนใคร) และพี่เลี้ยง (`proxy_approved`)
+- แอดมินดูประวัติ (`GET /me/worklogs/:id/history`) ได้เฉพาะรายการ `submitted` ของพี่เลี้ยงที่ไม่อยู่ตอนนี้
+  และรายการที่เคยอนุมัติแทน นอกนั้นตอบ 403 ลิงก์ไฟล์แนบใช้สิทธิ์เดียวกัน
+
+### ช่วงเวลาที่นักศึกษาและพี่เลี้ยงเกี่ยวข้อง
+
+- `DailyWorklogs.mentorUnavailable` คือ `{ type, startTime, endTime, allDay }` ของพี่เลี้ยงคนปัจจุบันในวันที่ขอ
+  ส่งช่วงเดียว: ช่วงที่ยังไม่สิ้นสุดก่อน แล้ว `absent` ก่อน `unavailable` แล้วเวลาเริ่มก่อน
+  ช่วงข้ามวันตัดเป็น `00:00` ถึง `23:59` ของวันนั้น `allDay` เมื่อครอบคลุมเวลางานของนักศึกษาทั้งหมด **ห้ามส่งเหตุผล**
+- `POST /mentor/unavailability` สร้างช่วง `unavailable` ห้ามวันที่ผ่านมาแล้ว (422) และห้ามซ้อนช่วง `unavailable` ของตนเอง (409)
+
+## แอดมิน
+
+ทุก endpoint ใต้ `/admin` เรียกได้เฉพาะแอดมิน บทบาทอื่นตอบ 403
+
+### ตั้งค่าระบบ
+
+| Method | Path | Body | คืนค่า |
+|---|---|---|---|
+| GET | `/admin/settings` | | `SystemSettings` |
+| PUT | `/admin/settings` | `{ backdateLimitDays, reviewOverdueDays }` | `SystemSettings` ล่าสุด |
+
+- สองค่าที่แก้ได้เป็นจำนวนเต็ม 1–30 ผิดตอบ 422
+- `maxFailedLogins` และ `lockMinutes` อ่านได้อย่างเดียว
+- เซิร์ฟเวอร์กำหนด `updatedAt`, `updatedBy`
+- ค่าใหม่มีผลทันทีกับ `backdateLimitDays` ใน `WorklogFormContext`, `canEdit`, การตรวจตอนบันทึก,
+  `overdueDays`, `isOverdue` และการแจ้งเตือนค้างตรวจ การแจ้งเตือนที่ส่งไปแล้วไม่ถอนคืน
+
+### ผู้ใช้งาน
+
+| Method | Path | Body | คืนค่า |
+|---|---|---|---|
+| GET | `/admin/users?role=&status=&q=&page=` | | `UserList` |
+| POST | `/admin/users` | `UserInput` | `AdminUser` |
+| PATCH | `/admin/users/:id` | `UserInput` หรือ `{ suspended }` | `AdminUser` |
+| POST | `/admin/users/:id/unlock` | | `AdminUser` |
+
+- ไม่ส่ง `role` หรือ `status` = ทั้งหมด `q` ค้นชื่อ อีเมล รหัสนักศึกษา ไม่สนตัวพิมพ์ `page` เริ่มที่ 1
+  หน้าเกินจำนวนให้คืนหน้าสุดท้าย ขนาดหน้าเซิร์ฟเวอร์กำหนดและส่งใน `pageSize` (ข้อมูลจำลองใช้ 8)
+- `counts` นับตาม `status` และ `q` ไม่นับ `role`
+- `status`: `suspended` มาก่อน `locked` ถ้าเป็นทั้งสองอย่าง `locked` ต้องมี `lockedUntil`
+- อีเมลเก็บเป็นตัวพิมพ์เล็ก อีเมลซ้ำตอบ 409 `email_taken` รหัสนักศึกษาซ้ำตอบ 409 `student_id_taken`
+- `role` เปลี่ยนไม่ได้ ส่งค่าต่างจากเดิมตอบ 422
+- สร้างนักศึกษา: รหัสผ่านเริ่มต้น = รหัสนักศึกษา และ `mustChangePassword = true`
+  บทบาทอื่น: ส่งลิงก์ตั้งรหัสผ่านทางอีเมล เข้าสู่ระบบไม่ได้จนกว่าจะตั้ง
+- แก้รหัสนักศึกษาของบัญชีที่ยังใช้รหัสเริ่มต้น รหัสผ่านเริ่มต้นเปลี่ยนตาม
+- ระงับแล้วตัด session ของผู้นั้นทันที แอดมินระงับตัวเองไม่ได้ (422)
+- แก้อีเมลของตัวเองแล้ว session ต้องยังใช้ได้
+
+### การฝึกงานและพี่เลี้ยง
+
+| Method | Path | Body | คืนค่า |
+|---|---|---|---|
+| GET | `/admin/internships?filter=&q=&page=` | | `InternshipList` |
+| GET | `/admin/internships/:studentId` | | `InternshipDetail` |
+| PUT | `/admin/internships/:studentId` | `InternshipInput` | `InternshipDetail` |
+
+- `filter`: `all` | `no_mentor` | `no_hours` `counts` นับตาม `q` ไม่นับ `filter` ขนาดหน้าข้อมูลจำลองใช้ 8
+- มีนักศึกษาทุกคนในรายการ รวมคนที่ยังไม่มีข้อมูลฝึกงาน ช่องที่ไม่มีค่าไม่ต้องส่ง
+- ทุกช่องใน `InternshipInput` บังคับ วันสิ้นสุดต้องหลังวันเริ่ม เวลาเลิกงานต้องหลังเวลาเข้างาน ผิดตอบ 422
+- `mentorId` ต้องเป็นพี่เลี้ยงที่ใช้งานอยู่ ยกเว้นคงคนเดิม
+- `mentors` คือพี่เลี้ยงที่เลือกได้ `mentorHistory` เรียงใหม่สุดก่อน `pendingCount` คือจำนวนงานรอตรวจ
+- เปลี่ยนพี่เลี้ยง: ปิดช่วงของคนเดิมด้วยวันที่เปลี่ยน งานรอตรวจ การตรวจ ประวัติ และการแจ้งเตือนตามไปคนใหม่
+  คนเดิมเปิดรายการของนักศึกษาคนนั้นไม่ได้อีก (403)
+- เปลี่ยนเวลางาน: มีผลกับรายการของวันที่ตั้งแต่วันที่บันทึก รายการก่อนหน้าตรวจตามเวลาเดิม
+- นักศึกษาที่ยังไม่มีพี่เลี้ยง: `POST`/`PUT /me/worklogs`, `/start`, `/finish` ตอบ 409 `code: mentor_required`
+  ส่ง `hasMentor` ใน `InternshipInfo`, `DailyWorklogs` และ `WorklogFormContext` ให้หน้าจอปิดปุ่มและบอกเหตุผล
+
+เวลางานตามวันที่ฝั่งนักศึกษา: `WorklogFormContext` ส่ง `workStartTime`, `workEndTime` ของวันนี้
+และ `hoursHistory: { effectiveFrom, workStartTime, workEndTime }[]` เรียงจากเก่าไปใหม่
+หน้าจอใช้ตรวจเวลาตามวันที่เลือก (ไม่ส่ง = ใช้เวลาของวันนี้กับทุกวัน) เซิร์ฟเวอร์ต้องตรวจซ้ำตามวันที่ทำงาน
+
+### พี่เลี้ยงไม่อยู่
+
+| Method | Path | Body | คืนค่า |
+|---|---|---|---|
+| GET | `/admin/mentor-absences?type=all\|absent\|unavailable` | | `AbsenceList` |
+| POST | `/admin/mentor-absences` | `{ mentorId, startAt, endAt, reason }` | `MentorAbsence` |
+| PATCH | `/admin/mentor-absences/:id` | `{ endAt }` | `MentorAbsence` |
+
+- `startAt`, `endAt` เป็น ISO 8601 เวลาไทย `items` เรียงช่วงที่ยังไม่สิ้นสุดก่อน (เวลาเริ่มน้อยก่อน) แล้วช่วงที่สิ้นสุดหรือยกเลิกแล้ว (จบล่าสุดก่อน ช่วงที่ยกเลิกใช้เวลาที่ยกเลิก)
+- `counts` นับทุกประเภทเสมอ ไม่ขึ้นกับ `type` ที่ขอ `mentors` คือพี่เลี้ยงที่ใช้งานอยู่ `today` คือวันที่ของเซิร์ฟเวอร์
+- `status` คำนวณจากเวลาเซิร์ฟเวอร์: `ended` เมื่อ `endAt` ไม่เกินเวลาปัจจุบัน, `now` เมื่อเริ่มแล้ว, นอกนั้น `upcoming`
+- POST สร้าง `absent` เสมอ เซิร์ฟเวอร์กำหนดผู้บันทึก ทุกช่องบังคับ พี่เลี้ยงต้องใช้งานอยู่
+  เวลาสิ้นสุดต้องหลังเวลาเริ่มและยังไม่ผ่าน (422) ซ้อนช่วง `absent` ของพี่เลี้ยงคนเดียวกันตอบ 409 ช่วงที่ต่อกันพอดีไม่ถือว่าซ้อน
+- PATCH เปลี่ยนได้เฉพาะ `endAt` ของช่วง `absent` ที่ยังไม่สิ้นสุด (สิ้นสุดแล้วตอบ 409, ประเภท `unavailable` ตอบ 422)
+  ต้องหลังเวลาเริ่มและไม่ซ้อน ตั้งเป็นเวลาที่ผ่านมาแล้วได้ (พี่เลี้ยงกลับก่อนกำหนด) เมื่อมีการอนุมัติแทนแล้ว ห้ามตั้งก่อนเวลาที่อนุมัติ
+- `POST /admin/mentor-absences/:id/cancel` คืน `MentorAbsence` ยกเลิกได้เฉพาะช่วง `absent` ที่ยังไม่เริ่ม
+  เริ่มแล้วหรือยกเลิกแล้วตอบ 409 ประเภท `unavailable` ตอบ 422 เก็บผู้ยกเลิกและเวลา ส่ง `status: cancelled` และ `cancelled: { at, by }`
+- ช่วงที่ยกเลิกแล้วไม่ใช้กับการอนุมัติแทน การตรวจช่วงซ้อน ข้อมูลที่นักศึกษาเห็น และภาพรวม PATCH ตอบ 409 แต่ยังนับใน `counts`
+- ไม่มี DELETE
+
+### ภาพรวม
+
+| Method | Path | คืนค่า |
+|---|---|---|
+| GET | `/admin/overview` | `AdminOverview` |
+
+- `studentCount`, `supervisorCount` นับเฉพาะบัญชีที่ไม่ถูกระงับ `pendingCount`, `overdueCount` นับงาน `submitted` ทั้งระบบ
+- `tasks` ส่งเฉพาะเรื่องที่มี เรียงตามนี้
+  1. `absent_mentor` หนึ่งรายการต่อพี่เลี้ยงที่อยู่ในช่วง `absent` ตอนนี้และมีงานรอตรวจ
+  2. `no_mentor` นักศึกษาที่ไม่ถูกระงับและยังไม่มีพี่เลี้ยง
+  3. `no_hours` นักศึกษาที่ไม่ถูกระงับและยังไม่มีเวลางาน (รวมคนที่ยังไม่มีข้อมูลฝึกงาน)
+  4. `locked` บัญชีที่ถูกล็อกชั่วคราว พร้อมเวลาปลดล็อก
+- `absences` คือช่วง `absent` ที่ยังไม่สิ้นสุดและไม่ถูกยกเลิกทั้งหมด เริ่มก่อนอยู่บน หน้าจอตัดแสดงเอง
+
+### นำเข้าผู้ใช้จาก Excel
+
+| Method | Path | Body | คืนค่า |
+|---|---|---|---|
+| POST | `/admin/imports/users/preview` | `multipart/form-data` ฟิลด์ `file` | `UserImport` |
+| POST | `/admin/imports/users/:importId/commit` | | `UserImport` พร้อม `imported` |
+| GET | `/admin/imports/users/:importId` | | `UserImport` ที่ยืนยันแล้ว |
+| GET | `/admin/imports/users/template` | | ไฟล์ `.xlsx` มีเฉพาะหัวตาราง |
+
+- รับ `.xlsx` ไม่เกิน 2 MB และ 500 แถวข้อมูล ตรวจชนิดจากเนื้อไฟล์ อ่านชีตแรก
+  แถวที่ 1 ต้องมีคอลัมน์ ชื่อ, นามสกุล, อีเมล, บทบาท, รหัสนักศึกษา (ลำดับใดก็ได้) แถวว่างข้าม
+  อ่านไฟล์ไม่ได้ หัวตารางไม่ครบ ไม่มีข้อมูล หรือเกินขีดจำกัด ตอบ 422 พร้อมข้อความ
+- ตรวจทุกแถว: ชื่อ นามสกุล อีเมล บทบาท และรหัสนักศึกษา (เฉพาะนักศึกษา) ตามกติกาเดียวกับ `POST /admin/users`
+  อีเมลและรหัสนักศึกษาซ้ำกับบัญชีเดิมหรือซ้ำกันในไฟล์ถือว่าผิด (ซ้ำในไฟล์ผิดทุกแถวที่ซ้ำ)
+- `rows` ส่งแถวที่ผิดก่อน แล้วเรียงตามเลขแถว `errors` เป็นข้อความภาษาไทยพร้อมแสดง
+- preview ไม่สร้างบัญชี commit ต้องตรวจซ้ำ สร้างเฉพาะแถวที่ผ่านใน transaction เดียว
+  ไม่มีแถวที่ผ่านตอบ 422 ยืนยันซ้ำตอบ 409 ไม่พบหรือหมดอายุตอบ 404
+- บัญชีใหม่ใช้กติกาเดียวกับ `POST /admin/users` (รหัสเริ่มต้นของนักศึกษา ลิงก์ตั้งรหัสของบทบาทอื่น)
+- `AdminOverview.lastImport` คือการนำเข้าล่าสุดที่ยืนยันแล้ว (ไม่ส่ง `rows`, `fileSize`)
 
 ## ยังไม่มีในสัญญานี้
 
-หน้าจอเหล่านี้ยังไม่ได้ทำ จึงยังไม่กำหนด endpoint: จัดการบัญชีและนำเข้า Excel,
-กำหนดพี่เลี้ยง, ย้อนการอนุมัติ, การแจ้งเตือน, ปฏิทินของพี่เลี้ยงและแอดมิน
+หน้าจอเหล่านี้ยังไม่ได้ทำ จึงยังไม่กำหนด endpoint: ย้อนการอนุมัติ, การแจ้งเตือนทางอีเมล, ปฏิทินของพี่เลี้ยงและแอดมิน
+
+## การแจ้งเตือนในระบบ
+
+| Method | Path | Body | คืนค่า |
+|---|---|---|---|
+| GET | `/notifications` | | `AppNotification[]` ของผู้ที่เข้าสู่ระบบ ใหม่สุดก่อน |
+| POST | `/notifications/read` | `{ ids? }` ไม่ระบุ = ทุกรายการของตน | ไม่มี |
+
+ชนิดข้อมูลอยู่ใน [`app/types/notification.ts`](../app/types/notification.ts)
+
+backend ต้องทำเอง
+
+- ส่งเฉพาะการแจ้งเตือนของผู้ใช้นั้น และให้ทำเครื่องหมายได้เฉพาะของตน
+- พี่เลี้ยง: `new_submission` เมื่อนักศึกษาในความดูแลส่งตรวจ และ `overdue_review` ครั้งเดียวต่อรายการเมื่อรอตรวจเกินกำหนด (9.3)
+- นักศึกษา: `returned` เมื่อพี่เลี้ยงส่งกลับ และ `approved` เมื่อพี่เลี้ยงอนุมัติหรือแอดมินอนุมัติแทน
+- พี่เลี้ยง: `proxy_approved` เมื่อแอดมินอนุมัติแทน หน้าจอเปิดหน้าประวัติของรายการนั้น
+- แอดมิน: `absent_mentor_pending` ครั้งเดียวต่อช่วงไม่อยู่ที่มีงานรอตรวจ (ส่ง `mentorId`) และ
+  `student_without_mentor` รายการเดียวสำหรับนักศึกษาที่ไม่มีพี่เลี้ยงทุกคน ข้อความบอกจำนวนและชื่อไม่เกินสองคน
+  ไม่ส่ง `studentId` มีนักศึกษาคนใหม่เข้ามาให้เป็นยังไม่อ่านและปรับ `createdAt` สถานะอ่านแยกตามแอดมินแต่ละคน
+  เรื่องที่จัดการแล้วไม่ต้องส่ง ข้อความของเรื่องเดิมปรับตามจำนวนล่าสุด ทั้งสองชนิดไม่มี `worklogId`
+- `canEdit` ใช้กับ `returned` บอกว่ายังเปิดหน้าแก้ไขได้ ไม่ได้ส่งหรือเป็น `false` หน้าจอเปิดหน้าประวัติ
+- `title` และ `message` เป็นข้อความภาษาไทยพร้อมแสดง
+- หน้าจอโหลดรายการเมื่อเปิดหน้าและเมื่อเปิดแผง ยังไม่มีการส่งแบบ real-time
 
 
 ## เริ่มและจบงานจากหน้าหลัก

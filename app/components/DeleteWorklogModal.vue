@@ -47,7 +47,7 @@ function confirm() {
       overlay: 'bg-slate-900/10',
       content: 'max-w-lg rounded-xl bg-white ring-slate-900 divide-slate-200',
       header: 'min-h-0 px-6 py-4',
-      title: 'text-lg font-bold text-red-600',
+      title: 'text-lg font-bold text-danger',
       body: 'px-6 sm:px-6 py-5 sm:py-5',
       footer: 'justify-end gap-3 px-6 sm:px-6 py-4',
     }"
@@ -57,13 +57,13 @@ function confirm() {
     </template>
 
     <template #body>
-      <p class="text-sm font-semibold text-slate-900">
+      <p class="text-sm font-semibold text-ink">
         คุณต้องการลบ
-        <span class="text-xs font-normal text-slate-500">{{ props.log?.title }} / {{ props.log ? formatThaiDate(props.log.date) : '' }}</span>
+        <span class="text-xs font-normal text-ink-muted">{{ props.log?.title }} / {{ props.log ? formatThaiDate(props.log.date) : '' }}</span>
         ใช่หรือไม่
       </p>
 
-      <p v-if="props.log?.reviewStatus === 'returned'" class="mt-3 flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
+      <p v-if="props.log?.reviewStatus === 'returned'" class="mt-3 flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-2xs font-medium text-amber-700">
         <UIcon name="i-lucide-triangle-alert" class="mt-px size-3.5 shrink-0" />
         รายการนี้ถูกส่งกลับให้แก้ไข พี่เลี้ยงจะเห็นว่าคุณลบรายการ พร้อมเหตุผลที่ระบุ
       </p>
@@ -77,10 +77,10 @@ function confirm() {
         placeholder="ระบุเหตุผล..."
         :aria-invalid="Boolean(error)"
         :aria-describedby="error ? 'delete-reason-error' : undefined"
-        class="mt-2 mb-1 block w-full resize-y rounded-lg border border-control px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-danger"
+        class="field mt-2 mb-1 block w-full resize-y px-3 py-2 text-xs"
       />
-      <p v-if="error" id="delete-reason-error" class="text-[11px] font-medium text-red-600">{{ error }}</p>
-      <p v-if="serverError" class="mt-1 text-[11px] font-medium text-red-600" role="alert">{{ serverError }}</p>
+      <p v-if="error" id="delete-reason-error" class="field-error">{{ error }}</p>
+      <p v-if="serverError" class="mt-1 field-error" role="alert">{{ serverError }}</p>
     </template>
 
     <template #footer>

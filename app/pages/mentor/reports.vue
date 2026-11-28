@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'mentor', role: 'supervisor' })
+definePageMeta({ layout: 'staff', role: 'supervisor' })
 
 const api = useApi()
 const notify = useNotify()
@@ -74,25 +74,19 @@ function downloadExcel() {
 
 <template>
   <div>
-    <header class="mb-4 border-b border-slate-200 pb-3 print:hidden">
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <BackButton v-if="linkedStudent" fallback="/mentor/students" class="mb-3" />
-          <nav class="flex items-center gap-2 text-[11px] font-medium text-slate-500" aria-label="breadcrumb">
-            <span>พื้นที่พี่เลี้ยง</span>
-            <span>/</span>
-            <span class="text-slate-500">รายงานประจำสัปดาห์</span>
-          </nav>
-          <h2 class="mt-2 text-2xl font-bold text-slate-900">รายงานประจำสัปดาห์</h2>
-        </div>
-        <NotificationButton :count="user?.unreadNotifications" />
-      </div>
+    <PageHeader class="mb-4 print:hidden" title="รายงานประจำสัปดาห์" :crumbs="[{ label: 'พื้นที่พี่เลี้ยง' }, { label: 'รายงานประจำสัปดาห์' }]">
+      <template v-if="linkedStudent" #back>
+        <BackButton fallback="/mentor/students" />
+      </template>
+      <template #actions>
+        <NotificationButton />
+      </template>
 
-      <div class="mt-3 flex flex-wrap items-end justify-between gap-3">
+      <div class="flex flex-wrap items-end justify-between gap-3">
         <div class="flex flex-wrap items-end gap-3">
-          <label class="flex flex-col gap-1 text-[11px] font-semibold text-slate-600">
+          <label class="flex flex-col gap-1 text-2xs font-semibold text-slate-600">
             นักศึกษา
-            <select v-model="selectedStudent" :disabled="!students" class="h-9 min-w-56 rounded-lg border border-control bg-white px-3 text-xs font-medium text-slate-800 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 disabled:text-slate-400">
+            <select v-model="selectedStudent" :disabled="!students" class="field h-9 min-w-56 bg-white px-3 text-xs font-medium text-slate-800 disabled:text-slate-400">
               <option :value="allStudents">นักศึกษาทั้งหมด{{ students ? ` (${students.length} คน)` : '' }}</option>
               <option v-for="student in students" :key="student.studentId" :value="student.studentId">
                 {{ student.name }} ({{ student.studentId }})
@@ -104,7 +98,7 @@ function downloadExcel() {
 
         <ReportDownloadButtons :disabled="!reports" @excel="downloadExcel" />
       </div>
-    </header>
+    </PageHeader>
 
     <AsyncState :loading="!reports && status !== 'error'" :error="studentsError ?? error" @retry="retry">
       <div class="space-y-4">
@@ -117,7 +111,7 @@ function downloadExcel() {
           :class="index > 0 ? 'print:break-before-page' : ''"
         />
 
-        <div v-if="isAll" class="flex break-inside-avoid items-center justify-between gap-3 rounded-xl bg-indigo-600 px-5 py-4 text-white">
+        <div v-if="isAll" class="flex break-inside-avoid items-center justify-between gap-3 rounded-xl bg-brand px-5 py-4 text-white">
           <p class="text-xs font-semibold">ชั่วโมงรวมทุกคน (นับเฉพาะรายการที่อนุมัติแล้ว)</p>
           <p class="text-base font-bold">{{ formatHours(allApprovedMinutes) }} ชม.</p>
         </div>

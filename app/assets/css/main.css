@@ -3,7 +3,7 @@
 
 @font-face {
   font-family: "Bai Jamjuree";
-  src: url("/fonts/bai-jamjuree-400.ttf") format("truetype");
+  src: url("/fonts/bai-jamjuree-400.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -11,7 +11,7 @@
 
 @font-face {
   font-family: "Bai Jamjuree";
-  src: url("/fonts/bai-jamjuree-500.ttf") format("truetype");
+  src: url("/fonts/bai-jamjuree-500.woff2") format("woff2");
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -19,7 +19,7 @@
 
 @font-face {
   font-family: "Bai Jamjuree";
-  src: url("/fonts/bai-jamjuree-600.ttf") format("truetype");
+  src: url("/fonts/bai-jamjuree-600.woff2") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -27,7 +27,7 @@
 
 @font-face {
   font-family: "Bai Jamjuree";
-  src: url("/fonts/bai-jamjuree-700.ttf") format("truetype");
+  src: url("/fonts/bai-jamjuree-700.woff2") format("woff2");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -35,6 +35,9 @@
 
 @theme {
   --font-sans: "Bai Jamjuree", ui-sans-serif, system-ui, sans-serif;
+
+  /* ตัวอักษรเล็กสุดของระบบ 11px หน่วย rem ให้ขยายตามการตั้งค่าเบราว์เซอร์ */
+  --text-2xs: 0.6875rem;
 
   /* token ตาม docs/design-pattern.md ข้อ 1 */
   --color-sidebar: #101233;
@@ -52,6 +55,9 @@
   --color-page: #f8fafc;
   /* ขอบช่องกรอก ต้องต่างจากพื้นอย่างน้อย 3:1 (WCAG 1.4.11) เส้นคั่นและการ์ดยังใช้ line */
   --color-control: #828fa3;
+  /* ข้อความหลักและข้อความรอง (text, text-muted ใน design pattern) */
+  --color-ink: #0f172a;
+  --color-ink-muted: #64748b;
 
   /* ค่าสีของเฉดให้ตรงกับไฟล์ design pattern */
   --color-slate-50: #f8fafc;
@@ -151,8 +157,19 @@
   --color-rose-950: #4c0519;
 }
 
-/* ข้อความตัวอย่างในช่องกรอกต้องอ่านได้ ค่าเริ่มต้นของ Tailwind จางเกินเกณฑ์ */
+/* ส่วนที่เบราว์เซอร์วาดให้ ใช้สีของระบบ และข้อความตัวอย่างในช่องกรอกต้องอ่านได้ */
 @layer base {
+  ::selection {
+    background: var(--color-indigo-200);
+    color: var(--color-ink);
+  }
+
+  /* วงแหวนโฟกัสแบบเดียวกันทั้งระบบ แถบเมนูสีเข้มเปลี่ยนเป็นสีขาว */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
   ::placeholder {
     color: var(--color-slate-500);
   }
@@ -195,6 +212,35 @@
   /* ปุ่มที่กดไม่ได้ใช้สีเดียวกันทุกชนิด ต้องอยู่ท้ายสุดเพื่อชนะสีตอนชี้เมาส์ */
   .btn:disabled {
     @apply cursor-not-allowed border-transparent bg-line text-slate-400;
+  }
+}
+
+/* รูปแบบที่ใช้ซ้ำหลายหน้า ขนาดและระยะกำหนดเพิ่มที่จุดใช้งานได้ */
+@layer components {
+  .card {
+    @apply rounded-xl border border-line bg-white shadow-sm;
+  }
+
+  /* ช่องกรอก ข้อความ และตัวเลือก (docs/design-pattern.md ข้อ 6) */
+  .field {
+    @apply rounded-lg border border-control text-slate-700 outline-hidden focus:border-brand focus:ring-2 focus:ring-brand aria-invalid:border-danger;
+  }
+
+  /* จำกัดเฉพาะ input และ textarea เพราะ select เข้าเงื่อนไข :read-only เสมอ */
+  .field:is(input, textarea):read-only {
+    background-color: var(--color-page);
+  }
+
+  .field-error {
+    @apply text-2xs font-medium text-danger;
+  }
+
+  .notice-error {
+    @apply rounded-lg bg-red-50 px-3 py-2 text-2xs font-medium text-red-700;
+  }
+
+  .link {
+    @apply font-semibold text-brand underline underline-offset-2 hover:text-brand-hover;
   }
 }
 

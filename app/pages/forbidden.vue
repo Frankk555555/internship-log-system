@@ -3,18 +3,29 @@ definePageMeta({ layout: 'auth', public: true })
 useHead({ title: 'เข้าถึงรายการนี้ไม่ได้' })
 
 const user = useSessionUser()
+const api = useApi()
+
+// เปิดหน้านี้จากการโหลดใหม่ยังไม่รู้ผู้ใช้ ต้องถามก่อน ไม่อย่างนั้นลิงก์หน้าหลักพาพี่เลี้ยงและแอดมินวนกลับมาที่นี่
+if (!user.value) {
+  try {
+    user.value = await api.getMe()
+  }
+  catch {
+    // ยังไม่เข้าสู่ระบบ ลิงก์ไปหน้าหลักซึ่งส่งต่อไปหน้าเข้าสู่ระบบ
+  }
+}
 </script>
 
 <template>
   <div>
     <AuthHeading title="เข้าถึงรายการนี้ไม่ได้" mark="alert">
-      <p class="flex items-center justify-center gap-1.5 text-[13px] font-semibold text-rose-700">
+      <p class="flex items-center justify-center gap-1.5 text-[0.8125rem] font-semibold text-rose-700">
         <UIcon name="i-lucide-triangle-alert" class="size-4 shrink-0" />
         รายการที่ขออยู่นอกขอบเขตข้อมูลที่คุณมีสิทธิ์ดู
       </p>
     </AuthHeading>
 
-    <NuxtLink :to="homePathFor(user?.role)" class="text-[13px] font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800">
+    <NuxtLink :to="homePathFor(user?.role)" class="text-[0.8125rem] link">
       กลับหน้าหลัก
     </NuxtLink>
   </div>

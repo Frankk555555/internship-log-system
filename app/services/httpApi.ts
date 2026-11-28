@@ -1,20 +1,51 @@
-import { ApiError, type Api } from './api'
+import type { Api } from './api'
+import { toApiError } from './httpError'
+
+/** เวลารอคำตอบก่อนถือว่าเชื่อมต่อไม่สำเร็จ */
+const requestTimeoutMs = 15_000
+/** อัปโหลดและดาวน์โหลดไฟล์ */
+const fileTimeoutMs = 120_000
+
+export interface HttpApiOptions {
+  baseURL: string
+  /** header ที่แนบเพิ่ม อ่านใหม่ทุกคำขอ */
+  headers?: () => Record<string, string>
+  /** รับ Set-Cookie ของคำตอบ ใช้ได้ฝั่งเซิร์ฟเวอร์เท่านั้น เบราว์เซอร์จัดการ cookie เอง */
+  onResponseCookies?: (setCookies: string[]) => void
+  onSessionExpired?: () => void
+  onPasswordChangeRequired?: () => void
+  /** จำนวนครั้งที่ลองซ้ำเอง ไม่กำหนด = ลองซ้ำหนึ่งครั้งเฉพาะคำขออ่าน */
+  retry?: number
+}
 
 /**
  * เรียก REST API จริง เส้นทางและรูปแบบข้อมูลเป็นข้อเสนอ ดู docs/api-contract.md
  * เมื่อ backend กำหนดต่างจากนี้ ให้แก้ที่ไฟล์นี้ไฟล์เดียว
  */
-export function createHttpApi(baseURL: string, headers?: Record<string, string>, onSessionExpired?: () => void): Api {
+export function createHttpApi({ baseURL, headers, onResponseCookies, onSessionExpired, onPasswordChangeRequired, retry }: HttpApiOptions): Api {
   async function request<T>(path: string, options: NonNullable<Parameters<typeof $fetch>[1]> = {}) {
+    const isFile = options.body instanceof FormData || options.responseType === 'blob'
     try {
       // credentials: ส่ง session cookie ไปด้วย
-      return await $fetch(path, { baseURL, headers, credentials: 'include', ...options }) as T
+      return await $fetch(path, {
+        baseURL,
+        headers: headers?.(),
+        credentials: 'include',
+        timeout: isFile ? fileTimeoutMs : requestTimeoutMs,
+        ...(retry === undefined ? {} : { retry }),
+        onResponse: ({ response }) => {
+          onResponseCookies?.(response.headers.getSetCookie?.() ?? [])
+        },
+        ...options,
+      }) as T
     }
     catch (error) {
-      const { statusCode, data } = error as { statusCode?: number, data?: { message?: string, code?: string, lockedUntil?: string } }
-      // 401 จากเส้นทางข้อมูล = session หมดอายุ (เส้นทาง /auth และ /me ให้ผู้เรียกจัดการเอง)
-      if (statusCode === 401 && path !== '/me' && !path.startsWith('/auth/')) onSessionExpired?.()
-      throw new ApiError(data?.message ?? 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่', statusCode ?? 503, data)
+      const failure = await toApiError(error, !options.method)
+      // 401 จากเส้นทางข้อมูล = session หมดอายุ (เส้นทาง /auth และการอ่าน /me ให้ผู้เรียกจัดการเอง)
+      const isSessionCheck = path === '/me' && !options.method
+      if (failure.statusCode === 401 && !isSessionCheck && !path.startsWith('/auth/')) onSessionExpired?.()
+      if (failure.statusCode === 403 && failure.code === 'password_change_required') onPasswordChangeRequired?.()
+      throw failure
     }
   }
 
@@ -30,6 +61,38 @@ export function createHttpApi(baseURL: string, headers?: Record<string, string>,
     },
     changePassword: async (body) => {
       await request('/auth/change-password', { method: 'POST', body })
+    },
+    updateProfile: body => request('/me', { method: 'PATCH', body }),
+    getSystemSettings: () => request('/admin/settings'),
+    saveSystemSettings: body => request('/admin/settings', { method: 'PUT', body }),
+    getUsers: ({ role, status, q, page }) => request('/admin/users', {
+      query: { role: role === 'all' ? undefined : role, status: status === 'all' ? undefined : status, q: q || undefined, page },
+    }),
+    createUser: body => request('/admin/users', { method: 'POST', body }),
+    updateUser: (id, body) => request(`/admin/users/${id}`, { method: 'PATCH', body }),
+    setUserSuspended: (id, suspended) => request(`/admin/users/${id}`, { method: 'PATCH', body: { suspended } }),
+    unlockUser: id => request(`/admin/users/${id}/unlock`, { method: 'POST' }),
+    getMentorAbsences: type => request('/admin/mentor-absences', { query: { type } }),
+    createMentorAbsence: body => request('/admin/mentor-absences', { method: 'POST', body }),
+    updateAbsenceEnd: (id, endAt) => request(`/admin/mentor-absences/${id}`, { method: 'PATCH', body: { endAt } }),
+    cancelMentorAbsence: id => request(`/admin/mentor-absences/${id}/cancel`, { method: 'POST' }),
+    getOverview: () => request('/admin/overview'),
+    previewUserImport: (file) => {
+      const body = new FormData()
+      body.append('file', file)
+      return request('/admin/imports/users/preview', { method: 'POST', body })
+    },
+    commitUserImport: importId => request(`/admin/imports/users/${importId}/commit`, { method: 'POST' }),
+    getUserImport: importId => request(`/admin/imports/users/${importId}`),
+    getUserImportTemplate: () => request<Blob>('/admin/imports/users/template', { responseType: 'blob' }),
+    getProxyQueue: (limit, mentorId) => request('/admin/proxy-reviews', { query: { limit, mentorId } }),
+    approveByProxy: (mentorId, items, comment) => request('/admin/proxy-reviews/approve', { method: 'POST', body: { mentorId, items, comment } }),
+    getInternships: ({ filter, q, page }) => request('/admin/internships', { query: { filter, q: q || undefined, page } }),
+    getInternshipDetail: studentId => request(`/admin/internships/${studentId}`),
+    saveInternship: (studentId, body) => request(`/admin/internships/${studentId}`, { method: 'PUT', body }),
+    getNotifications: () => request('/notifications'),
+    markNotificationsRead: async (ids) => {
+      await request('/notifications/read', { method: 'POST', body: { ids } })
     },
     getDashboard: () => request('/me/dashboard'),
     getInternship: () => request('/me/internship'),

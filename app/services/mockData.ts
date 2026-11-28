@@ -1,5 +1,7 @@
-import type { DeletedWorklog, UnavailabilityInput } from '~/types/review'
-import type { Attachment, HistoryEvent, InternshipInfo, ReviewStatus, UserProfile, WorkLog } from '~/types/worklog'
+import type { AbsenceType, SystemSettings } from '~/types/admin'
+import type { DeletedWorklog } from '~/types/review'
+import type { Attachment, HistoryEvent, ReviewStatus, UserProfile, UserRole, WorkHoursPeriod, WorkLog } from '~/types/worklog'
+import { initialsOf } from '~/utils/auth'
 import { addDays, toThaiTimeParts } from '~/utils/date'
 
 // ข้อมูลตัวอย่างตามภาพออกแบบ ใช้จนกว่าจะเชื่อม backend
@@ -21,42 +23,68 @@ const daysAgo = (days: number) => addDays(TODAY, -days)
 const weekShift = Math.floor((Date.parse(TODAY) - Date.parse('2026-11-24')) / (7 * 86_400_000)) * 7
 const earlier = (date: string) => addDays(date, weekShift)
 
-export const BACKDATE_LIMIT_DAYS = 3
-export const REVIEW_OVERDUE_DAYS = 3
 const MB = 1024 * 1024
 
 export const student: UserProfile = {
   name: 'สมชาย ใจดี',
+  firstName: 'สมชาย',
+  lastName: 'ใจดี',
   email: 'somchai.k@university.ac.th',
   initials: 'สช',
   studentId: '66011233466',
   role: 'student',
-  unreadNotifications: 3,
   defaultReportDate: TODAY,
 }
 
 export const mentor: UserProfile = {
   name: 'วิชัย พัฒนาการ',
+  firstName: 'วิชัย',
+  lastName: 'พัฒนาการ',
   email: 'wichai.p@university.ac.th',
   initials: 'วพ',
   role: 'supervisor',
-  unreadNotifications: 3,
   defaultReportDate: daysAgo(4),
 }
 
-export const internship: InternshipInfo = {
-  company: 'บริษัท เทคคอร์ป ประเทศไทย จำกัด',
-  position: 'Full stack developer',
-  mentorName: mentor.name,
-  semester: 'ภาคการศึกษาที่ 1/2569',
-  progress: 68,
-  startDate: earlier('2026-09-01'),
-  endDate: earlier('2026-12-25'),
-  workStartTime: '08:00',
-  workEndTime: '17:00',
+export const admin: UserProfile = {
+  name: 'อรุณี ศรีสุข',
+  firstName: 'อรุณี',
+  lastName: 'ศรีสุข',
+  email: 'arunee.s@university.ac.th',
+  initials: 'อศ',
+  role: 'admin',
+  defaultReportDate: TODAY,
 }
 
+function person(role: UserRole, firstName: string, lastName: string, email: string, studentId?: string): UserProfile {
+  return { name: `${firstName} ${lastName}`, firstName, lastName, email, initials: initialsOf(firstName, lastName), studentId, role, defaultReportDate: TODAY }
+}
+
+export const napha = person('student', 'นภา', 'สุขสันต์', 'napha.s@university.ac.th', '66011233467')
+export const thana = person('student', 'ธนา', 'มั่นคง', 'thana.m@university.ac.th', '66011233468')
+export const thanawat: UserProfile = { ...person('student', 'ธนวัฒน์', 'ใจงาม', 'thanawat.j@university.ac.th', '66011233470'), mustChangePassword: true }
+export const piyaporn: UserProfile = { ...person('student', 'ปิยะพร', 'แก้วมณี', 'piyaporn.k@university.ac.th', '66011233471'), mustChangePassword: true }
+export const kitti: UserProfile = { ...person('student', 'กิตติ', 'ทองดี', 'kitti.t@university.ac.th', '66011233472'), mustChangePassword: true }
+export const suspendedStudent = person('student', 'บัญชี', 'ทดสอบระงับ', 'suspended@university.ac.th', '66011233499')
+export const supaporn = person('supervisor', 'สุภาพร', 'วงศ์ใหญ่', 'supaporn.w@datawork.co.th')
+export const prasert = person('supervisor', 'ประเสริฐ', 'ชัยมงคล', 'prasert.c@datawork.co.th')
+export const manop = person('admin', 'มานพ', 'สุขเจริญ', 'manop.s@university.ac.th')
+
+export const currentSemester = 'ภาคการศึกษาที่ 1/2569'
+
 const thaiTime = (date: string, time: string) => `${date}T${time}:00+07:00`
+/** เวลาของข้อมูลตั้งต้น นับย้อนจากวันนี้ */
+export const seedTime = (days: number, time: string) => thaiTime(daysAgo(days), time)
+
+/** ค่าที่แอดมินปรับได้ อ่านจากที่นี่ทุกครั้งเพื่อให้ได้ค่าล่าสุด */
+export const settings: SystemSettings = {
+  backdateLimitDays: 3,
+  reviewOverdueDays: 3,
+  maxFailedLogins: 5,
+  lockMinutes: 15,
+  updatedAt: thaiTime(daysAgo(7), '09:10'),
+  updatedBy: admin.name,
+}
 
 function entry(id: number, date: string, title: string, startTime: string, endTime: string, reviewStatus: ReviewStatus, extra: Partial<WorkLog> = {}): WorkLog {
   return {
@@ -80,8 +108,8 @@ function pending(id: number, date: string, title: string, startTime: string, end
   return entry(id, date, title, startTime, endTime, 'submitted', { submittedAt, description, attachments })
 }
 
-/** รายการงานทั้งหมดของนักศึกษา */
-export const studentWorklogs: WorkLog[] = [
+/** รายการงานของนักศึกษาตัวอย่าง */
+const somchaiWorklogs: WorkLog[] = [
   entry(191, earlier('2026-09-07'), 'ปฐมนิเทศและติดตั้งเครื่องมือ', '09:00', '12:00', 'approved'),
   entry(192, earlier('2026-09-08'), 'ศึกษาโครงสร้างระบบเดิม', '13:00', '16:30', 'approved'),
   entry(202, earlier('2026-09-15'), 'ออกแบบหน้าจอเข้าสู่ระบบ', '09:00', '12:00', 'approved'),
@@ -119,45 +147,113 @@ export const studentWorklogs: WorkLog[] = [
   },
 ]
 
-/** นักศึกษาคนอื่นในความดูแลของพี่เลี้ยงคนเดียวกัน */
-export const otherStudents = [
-  {
-    studentId: '66011233467',
-    name: 'นภา สุขสันต์',
-    email: 'napha.s@university.ac.th',
-    company: internship.company,
-    position: 'UX/UI designer',
-    startDate: internship.startDate,
-    endDate: internship.endDate,
-    worklogs: [
-      entry(301, earlier('2026-09-14'), 'ออกแบบฐานข้อมูลผู้ใช้', '09:00', '12:00', 'approved'),
-      entry(303, earlier('2026-09-18'), 'ร่างคู่มือการใช้งาน', '13:00', '15:00', 'draft'),
-      pending(311, daysAgo(3), 'สรุปผลการทดสอบระบบ', '09:00', '12:00', '16:45', 'รวบรวมผลการทดสอบและจัดลำดับปัญหาที่พบ', [['test-report.pdf', 760 * 1024]]),
-      pending(312, daysAgo(2), 'ประสานงานกับฝ่ายบุคคล', '13:00', '15:00', '15:55', 'นัดหมายและสรุปข้อมูลที่ต้องใช้กับฝ่ายบุคคล', [['hr-summary.docx', 180 * 1024]]),
-    ],
-  },
-  {
-    studentId: '66011233468',
-    name: 'ธนา มั่นคง',
-    email: 'thana.m@university.ac.th',
-    company: internship.company,
-    position: 'Data analyst',
-    startDate: internship.startDate,
-    endDate: internship.endDate,
-    worklogs: [
-      pending(401, daysAgo(2), 'เตรียมข้อมูลสำหรับรายงาน', '10:00', '12:30', '13:20', 'ตรวจความครบถ้วนและจัดรูปแบบข้อมูลสำหรับรายงาน', [['report-data.pdf', 520 * 1024]]),
-      pending(402, daysAgo(2), 'อบรมการใช้งานระบบ', '15:00', '16:30', '16:40', 'อบรมการใช้งานระบบบันทึกงานให้ผู้ใช้ใหม่', [['training-photo.jpg', 1.1 * MB]]),
-    ],
-  },
+const naphaWorklogs: WorkLog[] = [
+  entry(301, earlier('2026-09-14'), 'ออกแบบฐานข้อมูลผู้ใช้', '09:00', '12:00', 'approved'),
+  entry(303, earlier('2026-09-18'), 'ร่างคู่มือการใช้งาน', '13:00', '15:00', 'draft'),
+  pending(311, daysAgo(3), 'สรุปผลการทดสอบระบบ', '09:00', '12:00', '16:45', 'รวบรวมผลการทดสอบและจัดลำดับปัญหาที่พบ', [['test-report.pdf', 760 * 1024]]),
+  pending(312, daysAgo(2), 'ประสานงานกับฝ่ายบุคคล', '13:00', '15:00', '15:55', 'นัดหมายและสรุปข้อมูลที่ต้องใช้กับฝ่ายบุคคล', [['hr-summary.docx', 180 * 1024]]),
 ]
+
+const thanaWorklogs: WorkLog[] = [
+  pending(401, daysAgo(2), 'เตรียมข้อมูลสำหรับรายงาน', '10:00', '12:30', '13:20', 'ตรวจความครบถ้วนและจัดรูปแบบข้อมูลสำหรับรายงาน', [['report-data.pdf', 520 * 1024]]),
+  pending(402, daysAgo(2), 'อบรมการใช้งานระบบ', '15:00', '16:30', '16:40', 'อบรมการใช้งานระบบบันทึกงานให้ผู้ใช้ใหม่', [['training-photo.jpg', 1.1 * MB]]),
+]
+
+export interface MockInternship {
+  company: string
+  position: string
+  semester: string
+  startDate: string
+  endDate: string
+  /** เวลางานตามวันเริ่มมีผล เรียงจากเก่าไปใหม่ ว่าง = แอดมินยังไม่กรอก */
+  hours: WorkHoursPeriod[]
+}
+
+export interface MentorAssignment {
+  /** อ้างอิงบัญชี ชื่อที่แสดงจึงตามการแก้ชื่อ */
+  mentor: UserProfile
+  from: string
+  /** ไม่มีค่า = ดูแลอยู่ */
+  to?: string
+}
+
+/** ข้อมูลของนักศึกษาหนึ่งคน */
+export interface StudentRecord {
+  profile: UserProfile
+  internship?: MockInternship
+  mentor?: UserProfile
+  /** ใหม่สุดก่อน */
+  mentorHistory: MentorAssignment[]
+  worklogs: WorkLog[]
+}
+
+function placement(company: string, position: string, start: string, end: string, hours?: [string, string]): MockInternship {
+  const startDate = earlier(start)
+  return {
+    company,
+    position,
+    semester: currentSemester,
+    startDate,
+    endDate: earlier(end),
+    hours: hours ? [{ effectiveFrom: startDate, workStartTime: hours[0], workEndTime: hours[1] }] : [],
+  }
+}
+
+function record(profile: UserProfile, internship?: MockInternship, assigned?: UserProfile, worklogs: WorkLog[] = []): StudentRecord {
+  return {
+    profile,
+    internship,
+    mentor: assigned,
+    mentorHistory: assigned ? [{ mentor: assigned, from: internship!.startDate }] : [],
+    worklogs,
+  }
+}
+
+const techCorp = 'บริษัท เทคคอร์ป ประเทศไทย จำกัด'
+const cityOffice = 'สำนักงานพัฒนาเมือง'
+const officeHours: [string, string] = ['08:00', '17:00']
+const cityHours: [string, string] = ['08:30', '16:30']
+
+/** นักศึกษาตัวอย่างอยู่ลำดับแรก */
+export const students: StudentRecord[] = [
+  record(student, placement(techCorp, 'Full stack developer', '2026-09-01', '2026-12-25', officeHours), mentor, somchaiWorklogs),
+  record(napha, placement(techCorp, 'UX/UI designer', '2026-09-01', '2026-12-25', officeHours), mentor, naphaWorklogs),
+  record(thana, placement(techCorp, 'Data analyst', '2026-09-01', '2026-12-25', officeHours), mentor, thanaWorklogs),
+  record(thanawat, placement('บริษัท ดาต้าเวิร์ค จำกัด', 'Data engineer', '2026-09-15', '2027-01-15'), supaporn),
+  record(piyaporn, placement(cityOffice, 'นักวิเคราะห์ระบบ', '2026-10-01', '2027-01-31', cityHours)),
+  record(kitti, placement(cityOffice, 'ผู้ช่วยนักพัฒนา', '2026-10-01', '2027-01-31', cityHours)),
+  record(suspendedStudent),
+]
+
+export const recordOf = (profile: UserProfile) => students.find(item => item.profile === profile)
 
 /** รายการที่ลบแล้ว เก็บไว้ตรวจสอบย้อนหลัง ใหม่สุดก่อน (backend ใช้ soft delete) */
 export const deletedWorklogs: DeletedWorklog[] = []
 
-/** ช่วงที่พี่เลี้ยงแจ้งว่าไม่สะดวกตรวจงาน */
-export const unavailabilities: UnavailabilityInput[] = [
-  { date: TODAY, startTime: '09:00', endTime: '12:00', reason: 'ประชุมแผน Sprint กับลูกค้า' },
+export interface MockAbsence {
+  id: number
+  type: AbsenceType
+  mentor: UserProfile
+  startAt: string
+  endAt: string
+  reason: string
+  createdBy: UserProfile
+  /** ยกเลิกก่อนถึงเวลา ไม่มีผลกับการอนุมัติแทนและนักศึกษาไม่เห็น */
+  cancelledAt?: string
+  cancelledBy?: UserProfile
+}
+
+/** ช่วงที่พี่เลี้ยงไม่อยู่ (แอดมินบันทึก) และไม่สะดวกตรวจ (พี่เลี้ยงแจ้ง) ตัวเลขติดลบใน seedTime คือวันข้างหน้า */
+export const absences: MockAbsence[] = [
+  { id: 1, type: 'absent', mentor, startAt: seedTime(0, '08:00'), endAt: seedTime(-1, '17:00'), reason: 'ลาป่วย', createdBy: admin },
+  { id: 2, type: 'unavailable', mentor, startAt: seedTime(0, '09:00'), endAt: seedTime(0, '12:00'), reason: 'ประชุมแผน Sprint กับลูกค้า', createdBy: mentor },
+  { id: 3, type: 'absent', mentor: supaporn, startAt: seedTime(-5, '08:00'), endAt: seedTime(-7, '17:00'), reason: 'อบรมนอกสถานที่', createdBy: admin },
+  { id: 4, type: 'unavailable', mentor: prasert, startAt: seedTime(-8, '13:00'), endAt: seedTime(-8, '16:00'), reason: 'ติดภารกิจ', createdBy: prasert },
+  { id: 5, type: 'absent', mentor, startAt: seedTime(17, '08:00'), endAt: seedTime(16, '17:00'), reason: 'ลากิจ', createdBy: admin },
 ]
+
+/** งานที่แอดมินอนุมัติแทน อ้างอิงช่วงที่พี่เลี้ยงไม่อยู่ */
+export const proxyApprovals: { absenceId: number, worklogId: number, approvedAt: string }[] = []
 
 const at = (time: string) => thaiTime(daysAgo(1), time)
 
@@ -181,9 +277,39 @@ export const histories: Record<number, HistoryEvent[]> = {
 }
 
 // รายการอื่นที่ส่งเข้ามาแล้วมีประวัติ "ส่งตรวจ" อย่างน้อย 1 เหตุการณ์
-for (const { name, worklogs } of [{ name: student.name, worklogs: studentWorklogs }, ...otherStudents]) {
+for (const { profile, worklogs } of students) {
   for (const log of worklogs) {
     if (!log.submittedAt || histories[log.id]) continue
-    histories[log.id] = [{ id: log.id * 10, type: 'status', changedAt: log.submittedAt, title: 'ส่งตรวจ', actorName: name, before: 'ฉบับร่าง', after: 'รอตรวจ' }]
+    histories[log.id] = [{ id: log.id * 10, type: 'status', changedAt: log.submittedAt, title: 'ส่งตรวจ', actorName: profile.name, before: 'ฉบับร่าง', after: 'รอตรวจ' }]
+  }
+}
+
+/** เปลี่ยนชื่อผู้ใช้ รวมชื่อที่ข้อมูลจำลองคัดลอกไว้ในรายการต่าง ๆ (backend จริงอ้างอิงด้วย user id) */
+export function renameUser(profile: UserProfile, firstName: string, lastName: string) {
+  const previous = profile.name
+  const name = `${firstName} ${lastName}`
+  const renamed = (value?: string) => value === previous ? name : value
+
+  Object.assign(profile, { firstName, lastName, name, initials: initialsOf(firstName, lastName) })
+  settings.updatedBy = renamed(settings.updatedBy)
+  for (const log of students.flatMap(item => item.worklogs)) {
+    log.reviewedBy = renamed(log.reviewedBy)
+    log.proxyFor = renamed(log.proxyFor)
+  }
+  for (const event of Object.values(histories).flat()) event.actorName = renamed(event.actorName)!
+  for (const item of deletedWorklogs) {
+    item.studentName = renamed(item.studentName)!
+    if (item.worklog.deletion) item.worklog.deletion.deletedBy = renamed(item.worklog.deletion.deletedBy)!
+  }
+}
+
+/** แอดมินแก้บัญชี รวมสำเนารหัสนักศึกษาในรายการที่ลบแล้ว */
+export function applyUserChange(profile: UserProfile, next: { firstName: string, lastName: string, email: string, studentId?: string }) {
+  const previousId = profile.studentId
+  renameUser(profile, next.firstName, next.lastName)
+  Object.assign(profile, { email: next.email, studentId: next.studentId })
+  if (profile.role !== 'student') return
+  for (const item of deletedWorklogs) {
+    if (item.studentId === previousId) item.studentId = next.studentId!
   }
 }

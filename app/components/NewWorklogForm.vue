@@ -14,7 +14,8 @@ const { workEndTime } = props.context
 // เริ่มงานใหม่ไม่ได้ ถ้าอยู่นอกเวลางาน หรือยังมีงานอื่นจับเวลาอยู่ (ตรวจตอนเปิดฟอร์ม)
 const running = props.context.runningWorklog
 const outsideHours = timerStartError(startTime, props.context)
-const blocked = outsideHours ?? (running
+const noMentor = props.context.hasMentor ? undefined : noMentorMessage
+const blocked = noMentor ?? outsideHours ?? (running
   ? `เริ่มงานใหม่ไม่ได้ ยังมีงานกำลังดำเนินการอยู่: “${running.title}” (เริ่ม ${running.startTime} น.)`
   : undefined)
 
@@ -40,6 +41,8 @@ const missedFinish = computed(() => afterWork.value && !endTime.value && !isSubm
 
 // ทางไปต่อเมื่อทำในฟอร์มนี้ไม่ได้
 const nextStep = computed(() => {
+  // ต้องรอแอดมินกำหนดพี่เลี้ยง ไม่มีหน้าให้ไปต่อ
+  if (noMentor) return undefined
   if (outsideHours) {
     // ก่อนเวลาเข้างานต้องรอ ไม่มีหน้าให้ไปต่อ
     if (toMinutes(startTime) < toMinutes(workEndTime)) return undefined
@@ -166,8 +169,8 @@ async function save(mode: 'draft' | 'submit') {
 <template>
   <div ref="root" class="grid gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
     <div class="flex flex-col gap-2">
-      <form class="flex flex-1 flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm" novalidate @submit.prevent>
-        <h3 class="text-base font-bold text-slate-900">รายละเอียดงาน</h3>
+      <form class="flex flex-1 flex-col card p-5" novalidate @submit.prevent>
+        <h2 class="text-base font-bold text-ink">รายละเอียดงาน</h2>
 
         <label for="worklog-title" class="mt-4 text-xs font-semibold text-slate-600">หัวข้องาน *</label>
         <input
@@ -178,9 +181,9 @@ async function save(mode: 'draft' | 'submit') {
           :readonly="isLocked"
           :aria-invalid="Boolean(errors.title)"
           :aria-describedby="errors.title ? 'worklog-title-error' : undefined"
-          class="mt-1.5 rounded-lg border border-control px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 read-only:bg-slate-50 aria-invalid:border-danger"
+          class="field mt-1.5 px-3 py-2 text-xs"
         >
-        <p v-if="errors.title" id="worklog-title-error" class="mt-1 text-[11px] font-medium text-red-600">{{ errors.title }}</p>
+        <p v-if="errors.title" id="worklog-title-error" class="mt-1 field-error">{{ errors.title }}</p>
 
         <label for="worklog-description" class="mt-3 text-xs font-semibold text-slate-600">รายละเอียด *</label>
         <textarea
@@ -191,33 +194,33 @@ async function save(mode: 'draft' | 'submit') {
           :readonly="isLocked"
           :aria-invalid="Boolean(errors.description)"
           :aria-describedby="errors.description ? 'worklog-description-error' : undefined"
-          class="mt-1.5 resize-y rounded-lg border border-control px-3 py-2 text-xs leading-relaxed text-slate-700 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 read-only:bg-slate-50 aria-invalid:border-danger"
+          class="field mt-1.5 resize-y px-3 py-2 text-xs leading-relaxed"
         />
-        <p v-if="errors.description" id="worklog-description-error" class="mt-1 text-[11px] font-medium text-red-600">{{ errors.description }}</p>
+        <p v-if="errors.description" id="worklog-description-error" class="mt-1 field-error">{{ errors.description }}</p>
 
-        <h3 class="mt-4 text-base font-bold text-slate-900">บันทึกเวลาอัตโนมัติ</h3>
-        <dl class="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-[1fr_1fr_1.7fr_1.6fr]">
+        <h2 class="mt-4 text-base font-bold text-ink">บันทึกเวลาอัตโนมัติ</h2>
+        <dl class="mt-3 grid grid-cols-2 gap-4 xl:grid-cols-[1fr_1fr_1.7fr_1.6fr]">
           <div>
-            <dt class="text-[11px] text-slate-500">วันที่บันทึก</dt>
+            <dt class="text-2xs text-ink-muted">วันที่บันทึก</dt>
             <dd class="mt-1 text-xs font-semibold text-slate-800">{{ formatThaiDate(defaults.date) }}</dd>
           </div>
           <div>
-            <dt class="text-[11px] text-slate-500">เริ่มทำงาน</dt>
+            <dt class="text-2xs text-ink-muted">เริ่มทำงาน</dt>
             <dd class="mt-1">
               <span class="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">{{ startTime }} น.</span>
             </dd>
           </div>
           <div>
-            <dt class="text-[11px] text-slate-500">เวลาสิ้นสุดจริง</dt>
+            <dt class="text-2xs text-ink-muted">เวลาสิ้นสุดจริง</dt>
             <dd class="mt-1 text-xs font-semibold text-slate-800">{{ endTime ? `${endTime} น.` : 'บันทึกเมื่อกดทำงานนี้เสร็จสิ้น' }}</dd>
           </div>
           <div>
-            <dt class="text-[11px] text-slate-500">ความคืบหน้า / การตรวจ</dt>
+            <dt class="text-2xs text-ink-muted">ความคืบหน้า / การตรวจ</dt>
             <dd class="mt-1 text-xs font-semibold text-slate-800">{{ workStatusMeta[workStatus].label }} / {{ reviewStatusMeta[reviewStatus].label }}</dd>
           </div>
         </dl>
 
-        <p v-if="formError" class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-[11px] font-medium text-red-700">
+        <p v-if="formError" class="mt-4 notice-error">
           {{ formError }}
         </p>
 
@@ -225,7 +228,7 @@ async function save(mode: 'draft' | 'submit') {
           <button
             type="button"
             :disabled="Boolean(endTime) || isLocked || Boolean(blocked) || afterWork"
-            class="btn btn-done px-3 py-2.5 text-[11px]"
+            class="btn btn-done px-3 py-2.5 text-2xs"
             @click="finishWork"
           >
             {{ pending === 'finish' ? 'กำลังบันทึกเวลา...' : 'ทำงานนี้เสร็จสิ้น (บันทึกเวลาปัจจุบัน)' }}
@@ -233,15 +236,15 @@ async function save(mode: 'draft' | 'submit') {
           <button
             type="button"
             :disabled="isLocked || Boolean(blocked)"
-            class="btn btn-secondary px-3 py-2.5 text-[11px]"
+            class="btn btn-secondary px-3 py-2.5 text-2xs"
             @click="save('draft')"
           >
-            {{ pending === 'draft' ? 'กำลังบันทึก...' : 'บันทึกฉบับร่าง (draft)' }}
+            {{ pending === 'draft' ? 'กำลังบันทึก...' : 'บันทึกฉบับร่าง' }}
           </button>
           <button
             type="button"
             :disabled="!canSubmit"
-            class="btn btn-primary px-3 py-2.5 text-[11px]"
+            class="btn btn-primary px-3 py-2.5 text-2xs"
             @click="save('submit')"
           >
             {{ pending === 'submit' ? 'กำลังส่ง...' : 'ส่งตรวจ' }}
@@ -249,11 +252,11 @@ async function save(mode: 'draft' | 'submit') {
         </div>
       </form>
 
-      <p class="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-[11px] font-medium text-amber-700">
+      <p class="flex items-center justify-center gap-1.5 rounded-xl border border-line bg-white px-4 py-3 text-center text-2xs font-medium text-amber-700">
         <UIcon name="i-lucide-triangle-alert" class="size-3.5 shrink-0" />
         <span>
           {{ hint }}
-          <NuxtLink v-if="nextStep" :to="nextStep.to" class="ml-1 font-semibold text-indigo-600 underline underline-offset-2">
+          <NuxtLink v-if="nextStep" :to="nextStep.to" class="ml-1 link">
             {{ nextStep.label }}
           </NuxtLink>
         </span>

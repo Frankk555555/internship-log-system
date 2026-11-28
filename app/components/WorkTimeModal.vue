@@ -46,7 +46,7 @@ const movesDate = computed(() => props.action === 'start' && Boolean(props.today
       overlay: 'bg-slate-900/10',
       content: 'max-w-md rounded-xl bg-white ring-slate-900 divide-slate-200',
       header: 'min-h-0 px-5 py-4',
-      title: 'text-base font-bold text-slate-900',
+      title: 'text-base font-bold text-ink',
       body: 'px-5 sm:px-5 py-4 sm:py-4',
       footer: 'justify-end gap-2.5 px-5 sm:px-5 py-4',
     }"
@@ -56,11 +56,11 @@ const movesDate = computed(() => props.action === 'start' && Boolean(props.today
     </template>
 
     <template #body>
-      <p class="text-sm font-semibold text-slate-900">{{ log?.title }}</p>
-      <p v-if="log" class="mt-1 text-xs text-slate-500">
+      <p class="text-sm font-semibold text-ink">{{ log?.title }}</p>
+      <p v-if="log" class="mt-1 text-xs text-ink-muted">
         {{ formatThaiDate(log.date) }}<template v-if="action === 'finish'"> · เริ่ม {{ log.startTime }} น.</template>
       </p>
-      <p class="mt-3 flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
+      <p class="mt-3 flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-2xs font-medium text-amber-700">
         <UIcon name="i-lucide-triangle-alert" class="mt-px size-3.5 shrink-0" />
         <span>
           {{ text.warning }}
@@ -70,10 +70,10 @@ const movesDate = computed(() => props.action === 'start' && Boolean(props.today
     </template>
 
     <template #footer>
-      <button type="button" :disabled="pending" class="btn btn-secondary px-3.5 py-2 text-[11px]" @click="open = false">
+      <button type="button" :disabled="pending" class="btn btn-secondary px-3.5 py-2 text-2xs" @click="open = false">
         ยกเลิก
       </button>
-      <button type="button" :disabled="pending" class="btn px-3.5 py-2 text-[11px]" :class="text.button" @click="emit('confirm')">
+      <button type="button" :disabled="pending" class="btn px-3.5 py-2 text-2xs" :class="text.button" @click="emit('confirm')">
         {{ pending ? 'กำลังบันทึก...' : text.confirm }}
       </button>
     </template>

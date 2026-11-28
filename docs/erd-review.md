@@ -31,6 +31,9 @@
 |---|---|---|---|
 | `users` | failed_login_count, locked_until | ล็อก 15 นาทีเมื่อผิด 5 ครั้ง | 1.2 |
 | `users` | updated_at | ติดตามการแก้ไขบัญชี | 4.1 |
+| `users` | must_change_password | บังคับตั้งรหัสผ่านใหม่เมื่อเข้าครั้งแรก | 1.1 |
+| `users` | last_login_at | แอดมินเห็นเวลาเข้าใช้ล่าสุดและบัญชีที่ยังไม่เคยเข้าใช้ | 4.1 |
+| `internships` หรือตารางเวลางานแยก | work_start_time, work_end_time, effective_from | ตรวจรายการเดิมตามเวลางาน ณ วันที่ทำงาน | 5.4 |
 | `work_lists` | completed_at | เวลาที่งานเสร็จจริง | 7.3 |
 | `work_lists` | time_source (ENUM timer, manual, timer_manual_end), time_edit_allowed, time_edited (BOOLEAN) | ล็อกเวลาและแสดงป้ายให้พี่เลี้ยง | 8.4 |
 | `work_list_reviews` | allow_time_edit (BOOLEAN) | บันทึกว่าพี่เลี้ยงเปิดให้แก้เวลาครั้งใด | 10.5 |
@@ -39,7 +42,7 @@
 | `attachments` | uploaded_by, deleted_at, deleted_by | เปลี่ยนไฟล์แล้วยังดูข้อมูลก่อนแก้ได้ | 6.2, 8.2 |
 | `work_list_reviews` | work_version | บันทึกว่าตรวจฉบับไหน | 10.3 |
 | `work_list_reviews` | is_proxy, on_behalf_of_user_id, mentor_busy_id | ระบุว่าแอดมินอนุมัติแทน | 10.6 |
-| `mentor_busy` | created_by, type (absent, unavailable) | `absent` แอดมินบันทึกและเปิดสิทธิ์อนุมัติแทน `unavailable` พี่เลี้ยงบันทึกเพื่อแจ้งเท่านั้น | 10.6 |
+| `mentor_busy` | created_by, type (absent, unavailable), cancelled_at, cancelled_by | `absent` แอดมินบันทึกและเปิดสิทธิ์อนุมัติแทน `unavailable` พี่เลี้ยงบันทึกเพื่อแจ้งเท่านั้น ช่วงที่ยกเลิกไม่ลบแถว | 10.6 |
 | `mentor_assignments` | assigned_by, created_at | ตรวจย้อนหลังว่าใครเปลี่ยนพี่เลี้ยง | 3.2 |
 | `internships` | position, semester | หน้าจอแสดงตำแหน่งและภาคการศึกษา | หน้าจอ |
 | `internships` | work_start_time, work_end_time (TIME, NOT NULL) | เวลาเข้างานและเลิกงานต่างกันตามสถานประกอบการ | 5.4 |
@@ -86,5 +89,5 @@
 | `InternshipInfo.company`, `startDate`, `endDate` | `internships.organization_name`, `intern_start`, `intern_end` |
 | `InternshipInfo.position`, `semester`, `workEndTime` | **ยังไม่มี** |
 | `DailyWorklogs.mentorUnavailable` | `mentor_busy.start_busy`, `end_busy` |
-| `UserProfile.unreadNotifications` | **ยังไม่มี** (`notifications`) |
+| `AppNotification` | **ยังไม่มี** (`notifications`) ชนิดที่หน้าจอใช้เพิ่ม `returned`, `approved` จากรายการในตารางที่เสนอ และต้องมี `title`, `message` หรือสร้างจาก `type` กับ `work_id` |
 | `HistoryEvent` | **ยังไม่ครบ** ต้องใช้ `work_list_history` ร่วมกับ `work_list_reviews` |

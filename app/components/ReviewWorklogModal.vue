@@ -6,6 +6,8 @@ const props = defineProps<{
   /** กำลังส่งผลการตรวจ */
   pending?: 'approve' | 'return'
   serverError?: string
+  /** แอดมินอนุมัติแทน: อนุมัติได้อย่างเดียว ส่งกลับแก้ไขเป็นของพี่เลี้ยง */
+  proxy?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -65,7 +67,7 @@ function sendBack() {
       overlay: 'bg-slate-900/10',
       content: 'max-w-2xl rounded-xl bg-white ring-slate-900 divide-slate-200',
       header: 'min-h-0 px-5 py-4',
-      title: 'text-base font-bold text-slate-900',
+      title: 'text-base font-bold text-ink',
       body: 'px-5 sm:px-5 py-4 sm:py-4',
       footer: 'justify-end gap-2.5 px-5 sm:px-5 py-4',
     }"
@@ -78,43 +80,43 @@ function sendBack() {
       <div v-if="item && worklog">
         <dl class="flex flex-wrap items-start gap-x-8 gap-y-2">
           <div>
-            <dt class="text-[11px] font-semibold text-slate-500">ผู้ส่ง</dt>
-            <dd class="text-xs font-semibold text-slate-900">{{ item.studentName }} รหัสนักศึกษา {{ item.studentId }}</dd>
+            <dt class="text-2xs font-semibold text-ink-muted">ผู้ส่ง</dt>
+            <dd class="text-xs font-semibold text-ink">{{ item.studentName }} รหัสนักศึกษา {{ item.studentId }}</dd>
           </div>
           <div class="min-w-0">
-            <dt class="text-[11px] font-semibold text-slate-500">หัวข้อ</dt>
-            <dd class="text-xs font-semibold text-slate-900">{{ worklog.title }}</dd>
+            <dt class="text-2xs font-semibold text-ink-muted">หัวข้อ</dt>
+            <dd class="text-xs font-semibold text-ink">{{ worklog.title }}</dd>
           </div>
-          <div class="ml-auto flex flex-col items-end gap-1 text-[11px] text-slate-500">
+          <div class="ml-auto flex flex-col items-end gap-1 text-2xs text-ink-muted">
             <span>{{ summary }}</span>
             <TimeFlagBadges :worklog="worklog" />
           </div>
         </dl>
 
-        <h4 class="mt-3 text-[11px] font-semibold text-slate-500">รายละเอียดงาน</h4>
+        <h3 class="mt-3 text-2xs font-semibold text-ink-muted">รายละเอียดงาน</h3>
         <p class="mt-1.5 min-h-14 whitespace-pre-line rounded-lg bg-slate-100 px-3 py-2.5 text-xs text-slate-700">{{ worklog.description || '–' }}</p>
 
-        <h4 class="mt-3 text-[11px] font-semibold text-slate-500">ไฟล์แนบ ({{ attachments.length }})</h4>
+        <h3 class="mt-3 text-2xs font-semibold text-ink-muted">ไฟล์แนบ ({{ attachments.length }})</h3>
         <ul class="mt-1.5 space-y-1.5">
-          <li v-for="file in attachments" :key="file.id" class="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">
-            <span class="min-w-0 flex-1 truncate text-[11px] font-medium text-slate-700" :title="file.name">{{ file.name }}</span>
-            <span class="text-[10px] text-slate-500">{{ formatFileSize(file.size) }}</span>
+          <li v-for="file in attachments" :key="file.id" class="flex items-center gap-3 rounded-lg border border-line px-3 py-2">
+            <span class="min-w-0 flex-1 truncate text-2xs font-medium text-slate-700" :title="file.name">{{ file.name }}</span>
+            <span class="text-2xs text-ink-muted">{{ formatFileSize(file.size) }}</span>
             <template v-if="file.url">
               <!-- DOCX เปิดดูในเบราว์เซอร์ไม่ได้ ให้ดาวน์โหลดอย่างเดียว (6.3) -->
-              <a v-if="extensionOf(file.name) !== 'docx'" :href="file.url" target="_blank" rel="noopener" class="text-[11px] font-semibold text-indigo-600 underline underline-offset-2">ดูตัวอย่าง</a>
-              <a :href="file.url" :download="file.name" class="text-[11px] font-semibold text-indigo-600 underline underline-offset-2">ดาวน์โหลด</a>
+              <a v-if="extensionOf(file.name) !== 'docx'" :href="file.url" target="_blank" rel="noopener" class="text-2xs link">ดูตัวอย่าง</a>
+              <a :href="file.url" :download="file.name" class="text-2xs link">ดาวน์โหลด</a>
             </template>
-            <span v-else class="text-[11px] font-semibold text-slate-500" title="ไฟล์ตัวอย่าง ยังไม่มีเนื้อหา">ดูตัวอย่าง ดาวน์โหลด</span>
+            <span v-else class="text-2xs text-ink-muted">ไฟล์ตัวอย่าง ไม่มีเนื้อหาให้เปิด</span>
           </li>
-          <li v-if="!attachments.length" class="text-[11px] text-slate-500">ไม่มีไฟล์แนบ</li>
+          <li v-if="!attachments.length" class="text-2xs text-ink-muted">ไม่มีไฟล์แนบ</li>
         </ul>
 
-        <NuxtLink :to="`/worklogs/${worklog.id}/history`" class="mt-3 inline-block text-[11px] font-semibold text-indigo-600 underline underline-offset-2">
+        <NuxtLink :to="`/worklogs/${worklog.id}/history`" class="mt-3 inline-block text-2xs link">
           ดูประวัติการแก้ไข
         </NuxtLink>
 
         <template v-if="canReview">
-          <label for="review-comment" class="mt-3 block text-[11px] text-slate-600">ความคิดเห็น (จำเป็นเมื่อส่งกลับแก้ไข)</label>
+          <label for="review-comment" class="mt-3 block text-2xs text-slate-600">{{ proxy ? 'ความคิดเห็น (ไม่บังคับ)' : 'ความคิดเห็น (จำเป็นเมื่อส่งกลับแก้ไข)' }}</label>
           <textarea
             id="review-comment"
             ref="commentBox"
@@ -124,35 +126,37 @@ function sendBack() {
             :readonly="Boolean(pending)"
             :aria-invalid="Boolean(commentError)"
             :aria-describedby="commentError ? 'review-comment-error' : undefined"
-            class="mt-1.5 block w-full resize-y rounded-lg border border-control px-3 py-2 text-xs text-slate-700 outline-none placeholder:text-slate-500 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 aria-invalid:border-danger"
+            class="field mt-1.5 block w-full resize-y px-3 py-2 text-xs placeholder:text-ink-muted"
           />
-          <p v-if="commentError" id="review-comment-error" class="mt-1 text-[11px] font-medium text-red-600">{{ commentError }}</p>
-          <label class="mt-2 flex items-start gap-2 text-[11px] text-slate-600">
-            <input id="review-allow-time" v-model="allowTimeEdit" type="checkbox" class="mt-px size-3.5 accent-indigo-600" :disabled="Boolean(pending)">
+          <p v-if="commentError" id="review-comment-error" class="mt-1 field-error">{{ commentError }}</p>
+          <p v-if="proxy" class="mt-2 text-2xs text-slate-600">ส่งกลับแก้ไขได้เฉพาะพี่เลี้ยง ถ้างานต้องแก้ให้รอพี่เลี้ยงกลับมาตรวจ</p>
+          <label v-else class="mt-2 flex items-start gap-2 text-2xs text-slate-600">
+            <input id="review-allow-time" v-model="allowTimeEdit" type="checkbox" class="mt-px size-3.5 accent-brand" :disabled="Boolean(pending)">
             เปิดให้นักศึกษาแก้วันที่และเวลา (ใช้เมื่อส่งกลับเพราะเวลาไม่ถูกต้อง)
           </label>
         </template>
 
-        <div v-else class="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+        <div v-else class="mt-3 flex flex-wrap items-center gap-2 text-2xs text-ink-muted">
           <span>สถานะ:</span>
           <StatusBadge v-bind="reviewStatusMeta[worklog.reviewStatus]" />
+          <span v-if="worklog.proxyFor">{{ worklog.reviewedBy }} อนุมัติแทน{{ worklog.proxyFor }}</span>
           <span v-if="worklog.reviewComment">ความคิดเห็น: {{ worklog.reviewComment }}</span>
         </div>
 
-        <p v-if="serverError" class="mt-2 text-[11px] font-medium text-red-600" role="alert">{{ serverError }}</p>
+        <p v-if="serverError" class="mt-2 field-error" role="alert">{{ serverError }}</p>
       </div>
     </template>
 
     <template #footer>
-      <button type="button" :disabled="Boolean(pending)" class="btn btn-secondary px-3.5 py-2 text-[11px]" @click="open = false">
+      <button type="button" :disabled="Boolean(pending)" class="btn btn-secondary px-3.5 py-2 text-2xs" @click="open = false">
         {{ canReview ? 'ยกเลิก' : 'ปิด' }}
       </button>
       <template v-if="canReview">
-        <button type="button" :disabled="Boolean(pending)" class="btn btn-sendback px-3.5 py-2 text-[11px]" @click="sendBack">
+        <button v-if="!proxy" type="button" :disabled="Boolean(pending)" class="btn btn-sendback px-3.5 py-2 text-2xs" @click="sendBack">
           {{ pending === 'return' ? 'กำลังส่งกลับ...' : 'ส่งกลับแก้ไข' }}
         </button>
-        <button type="button" :disabled="Boolean(pending)" class="btn btn-primary px-3.5 py-2 text-[11px]" @click="approve">
-          {{ pending === 'approve' ? 'กำลังอนุมัติ...' : 'อนุมัติ' }}
+        <button type="button" :disabled="Boolean(pending)" class="btn btn-primary px-3.5 py-2 text-2xs" @click="approve">
+          {{ pending === 'approve' ? 'กำลังอนุมัติ...' : proxy ? 'อนุมัติแทน' : 'อนุมัติ' }}
         </button>
       </template>
     </template>

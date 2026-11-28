@@ -1,4 +1,4 @@
-import type { LoginInput } from '~/types/auth'
+import type { ChangePasswordInput, LoginInput, UpdateProfileInput } from '~/types/auth'
 import type { UserProfile } from '~/types/worklog'
 
 /** ผู้ใช้ที่เข้าสู่ระบบอยู่ ใช้ร่วมกันทั้งแอป (โหลดโดย middleware auth) */
@@ -16,6 +16,19 @@ export function useSession() {
     async login(input: LoginInput) {
       user.value = await api.login(input)
       // ล้างข้อมูลที่โหลดไว้ของผู้ใช้คนก่อน
+      clearNuxtData()
+      return user.value
+    },
+    async updateProfile(input: UpdateProfileInput) {
+      user.value = await api.updateProfile(input)
+      // ข้อมูลที่โหลดไว้อาจยังมีชื่อเดิม
+      clearNuxtData()
+      return user.value
+    },
+    /** เปลี่ยนรหัสผ่านเริ่มต้น แล้วอ่านผู้ใช้ใหม่เพื่อปลดการบังคับ */
+    async changeFirstPassword(input: ChangePasswordInput) {
+      await api.changePassword(input)
+      user.value = await api.getMe()
       clearNuxtData()
       return user.value
     },
