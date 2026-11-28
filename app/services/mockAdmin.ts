@@ -1,5 +1,5 @@
 // ข้อมูลจำลองของแอดมิน โหลดพร้อม mockApi เมื่อใช้ข้อมูลจำลองเท่านั้น
-import type { AdminApi, AdminUser, InternshipDetail, InternshipRow, MentorAbsence, UserInput } from '~/types/admin'
+import type { AdminApi, AdminTask, AdminUser, InternshipDetail, InternshipRow, MentorAbsence, UserInput } from '~/types/admin'
 import { internshipErrors, settingDayError, userInputErrors } from '~/utils/adminRules'
 import { formatThaiDate, toThaiTimeParts } from '~/utils/date'
 import { workHoursOn } from '~/utils/worklogRules'
@@ -8,7 +8,7 @@ import { mockAccounts, type MockAccount } from './mockAccounts'
 import { clearFailures, currentAccount, lockedUntilFor, requireRole, sendResetLink } from './mockAuth'
 import * as db from './mockData'
 import { activeAbsences, reviewWorklogs, toReviewItem } from './mockReview'
-import { reassignStudent } from './mockNotifications'
+import { reassignStudent, syncAdminAlerts, type AdminAlert } from './mockNotifications'
 import type { MockSession } from './mockSession'
 
 const userPageSize = 8
@@ -120,6 +120,72 @@ const accountIdOf = (profile: db.MockAbsence['mentor']) => mockAccounts.find(acc
 /** นักศึกษาที่พี่เลี้ยงคนนี้ดูแลอยู่ตอนนี้ */
 const supervisedBy = (mentor: db.MockAbsence['mentor']) => db.students.filter(item => item.mentor === mentor && item.internship)
 
+/** งานรอตรวจของนักศึกษาในความดูแล ส่งก่อนอยู่บน */
+const waitingFor = (mentor: db.MockAbsence['mentor']) => supervisedBy(mentor)
+  .flatMap(({ profile, worklogs }) => worklogs
+    .filter(log => log.reviewStatus === 'submitted')
+    .map(log => toReviewItem(profile.studentId!, profile.name, log)))
+  .sort((a, b) => Date.parse(a.submittedAt) - Date.parse(b.submittedAt))
+
+/** ช่วงที่ยังไม่สิ้นสุดก่อน เรียงตามเวลาเริ่ม แล้วช่วงที่สิ้นสุดแล้ว ใหม่สุดก่อน */
+function listAbsences(now: number) {
+  const all = db.absences.map(item => toAbsence(item, now))
+  const open = all.filter(item => item.status !== 'ended').sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))
+  const ended = all.filter(item => item.status === 'ended').sort((a, b) => Date.parse(b.endAt) - Date.parse(a.endAt))
+  return [...open, ...ended]
+}
+
+const activeAccountsOf = (role: AdminUser['role']) => mockAccounts.filter(account => account.profile.role === role && !account.suspended)
+
+/** พี่เลี้ยงที่ไม่อยู่ตอนนี้และมีงานรอตรวจ */
+const absentWithPending = (now: string) => activeAbsences(now)
+  .map(absence => ({ absence, waiting: waitingFor(absence.mentor) }))
+  .filter(item => item.waiting.length)
+
+/** นักศึกษาที่ใช้งานอยู่ บัญชีที่ถูกระงับไม่ต้องจัดการ */
+const activeStudents = () => db.students.filter(record => activeAccountsOf('student').some(account => account.profile === record.profile))
+
+const studentsWithoutMentor = () => activeStudents().filter(record => !record.mentor)
+
+/** ปรับการแจ้งเตือนของแอดมินตามสถานการณ์ปัจจุบัน เรียกตอนเปิดรายการแจ้งเตือน */
+export function syncAdminNotifications(now: string) {
+  const absent = absentWithPending(now).map(({ absence, waiting }): AdminAlert => {
+    const { date, time } = toThaiTimeParts(absence.endAt)
+    return {
+      key: `absence-${absence.id}`,
+      type: 'absent_mentor_pending',
+      message: `${absence.mentor.name} ไม่อยู่ถึง ${formatThaiDate(date)} ${time} น. นักศึกษารอตรวจ ${waiting.length} รายการ`,
+      mentorId: accountIdOf(absence.mentor),
+    }
+  })
+  const noMentor = studentsWithoutMentor().map(({ profile }): AdminAlert => ({
+    key: `no-mentor-${profile.studentId}`,
+    type: 'student_without_mentor',
+    message: `${profile.name} ยังบันทึกและส่งตรวจไม่ได้`,
+    studentId: profile.studentId,
+  }))
+  syncAdminAlerts([...absent, ...noMentor], now)
+}
+
+function adminTasks(now: string) {
+  const tasks: AdminTask[] = absentWithPending(now).map(({ absence, waiting }) => ({
+    kind: 'absent_mentor',
+    mentorId: accountIdOf(absence.mentor),
+    mentorName: absence.mentor.name,
+    endAt: absence.endAt,
+    pendingCount: waiting.length,
+    overdueCount: waiting.filter(item => item.isOverdue).length,
+  }))
+  const named = (records: db.StudentRecord[]) => records.map(({ profile, internship }) => ({ name: profile.name, company: internship?.company }))
+  const noMentor = studentsWithoutMentor()
+  if (noMentor.length) tasks.push({ kind: 'no_mentor', students: named(noMentor) })
+  const noHours = activeStudents().filter(record => !record.internship?.hours.length)
+  if (noHours.length) tasks.push({ kind: 'no_hours', students: named(noHours) })
+  const locked = mockAccounts.map(toAdminUser).flatMap(user => user.status === 'locked' ? [{ email: user.email, lockedUntil: user.lockedUntil! }] : [])
+  if (locked.length) tasks.push({ kind: 'locked', accounts: locked })
+  return tasks
+}
+
 /** ช่วงไม่อยู่ของพี่เลี้ยงคนเดียวกันต้องไม่ซ้อนกัน */
 function assertNoAbsenceOverlap(mentor: db.MockAbsence['mentor'], startAt: string, endAt: string, ignoreId?: number) {
   const overlaps = db.absences.some(item => item.id !== ignoreId && item.mentor === mentor && item.type === 'absent'
@@ -142,6 +208,25 @@ export function createMockAdmin(session: MockSession, now: () => string): AdminA
   }
 
   return {
+    async getOverview() {
+      await authorise()
+      const current = now()
+      const waiting = db.students.flatMap(({ profile, worklogs }) => worklogs
+        .filter(log => log.reviewStatus === 'submitted')
+        .map(log => toReviewItem(profile.studentId!, profile.name, log)))
+      return structuredClone({
+        semester: db.currentSemester,
+        studentCount: activeAccountsOf('student').length,
+        supervisorCount: activeAccountsOf('supervisor').length,
+        pendingCount: waiting.length,
+        overdueCount: waiting.filter(item => item.isOverdue).length,
+        overdueDays: db.settings.reviewOverdueDays,
+        maxFailedLogins: db.settings.maxFailedLogins,
+        tasks: adminTasks(current),
+        absences: listAbsences(Date.parse(current)).filter(item => item.type === 'absent' && item.status !== 'ended'),
+      })
+    },
+
     async getSystemSettings() {
       await authorise()
       return structuredClone(db.settings)
@@ -232,11 +317,7 @@ export function createMockAdmin(session: MockSession, now: () => string): AdminA
 
     async getMentorAbsences(type) {
       await authorise()
-      const current = Date.parse(now())
-      const all = db.absences.map(item => toAbsence(item, current))
-      const open = all.filter(item => item.status !== 'ended').sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))
-      const ended = all.filter(item => item.status === 'ended').sort((a, b) => Date.parse(b.endAt) - Date.parse(a.endAt))
-      const items = [...open, ...ended]
+      const items = listAbsences(Date.parse(now()))
       return structuredClone({
         items: type === 'all' ? items : items.filter(item => item.type === type),
         counts: { all: items.length, absent: items.filter(item => item.type === 'absent').length, unavailable: items.filter(item => item.type === 'unavailable').length },
@@ -288,11 +369,7 @@ export function createMockAdmin(session: MockSession, now: () => string): AdminA
       const absence = active.find(item => accountIdOf(item.mentor) === mentorId) ?? active[0]
       if (!absence) return { mentors, items: [], total: 0, overdueCount: 0, overdueDays }
 
-      const waiting = supervisedBy(absence.mentor)
-        .flatMap(({ profile, worklogs }) => worklogs
-          .filter(log => log.reviewStatus === 'submitted')
-          .map(log => toReviewItem(profile.studentId!, profile.name, log)))
-        .sort((a, b) => Date.parse(a.submittedAt) - Date.parse(b.submittedAt))
+      const waiting = waitingFor(absence.mentor)
 
       const { mentor, startAt, endAt, reason } = absence
       return structuredClone({

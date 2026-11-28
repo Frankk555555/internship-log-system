@@ -1,5 +1,6 @@
-/** ประเภทตามขอบเขตงานข้อ 9.3 ผลตรวจที่แจ้งนักศึกษา และการอนุมัติแทนที่แจ้งพี่เลี้ยง */
+/** ประเภทตามขอบเขตงานข้อ 9.3 ผลตรวจที่แจ้งนักศึกษา การอนุมัติแทนที่แจ้งพี่เลี้ยง และเรื่องที่แจ้งแอดมิน */
 export type NotificationType = 'new_submission' | 'overdue_review' | 'returned' | 'approved' | 'proxy_approved'
+  | 'absent_mentor_pending' | 'student_without_mentor'
 
 export interface AppNotification {
   id: number
@@ -9,9 +10,12 @@ export interface AppNotification {
   /** วันเวลา ISO 8601 */
   createdAt: string
   isRead: boolean
-  worklogId: number
-  /** นักศึกษาเจ้าของรายการ ใช้กับการแจ้งเตือนของพี่เลี้ยง */
+  /** ไม่มีในการแจ้งเตือนของแอดมิน */
+  worklogId?: number
+  /** นักศึกษาที่เกี่ยวข้อง ใช้กับการแจ้งเตือนของพี่เลี้ยงและแอดมิน */
   studentId?: string
+  /** พี่เลี้ยงที่ไม่อยู่ ใช้กับ absent_mentor_pending */
+  mentorId?: number
   /** รายการที่ถูกส่งกลับยังแก้ไขได้ ใช้เลือกว่าจะเปิดหน้าแก้ไขหรือหน้าประวัติ */
   canEdit?: boolean
 }

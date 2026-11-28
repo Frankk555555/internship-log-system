@@ -28,9 +28,13 @@ const kinds: Record<NotificationType, { icon: string, tone: string }> = {
   returned: { icon: 'i-lucide-rotate-ccw', tone: 'bg-rose-100 text-rose-700' },
   approved: { icon: 'i-lucide-check', tone: 'bg-emerald-100 text-emerald-700' },
   proxy_approved: { icon: 'i-lucide-check-check', tone: 'bg-amber-100 text-amber-700' },
+  absent_mentor_pending: { icon: 'i-lucide-triangle-alert', tone: 'bg-rose-100 text-rose-700' },
+  student_without_mentor: { icon: 'i-lucide-users', tone: 'bg-amber-100 text-amber-700' },
 }
 
 function linkFor(item: AppNotification) {
+  if (item.type === 'absent_mentor_pending') return { path: '/admin/proxy-reviews', query: { mentor: item.mentorId } }
+  if (item.type === 'student_without_mentor') return { path: '/admin/internships', query: { filter: 'no_mentor' } }
   // อนุมัติแทนแล้วไม่อยู่ในคิวรอตรวจ เปิดประวัติของรายการนั้น
   if (item.type === 'proxy_approved') return `/worklogs/${item.worklogId}/history`
   if (user.value?.role === 'supervisor') return { path: '/mentor/reviews', query: { student: item.studentId } }

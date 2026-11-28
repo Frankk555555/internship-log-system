@@ -8,6 +8,8 @@ useHead({ title: 'พี่เลี้ยงไม่อยู่' })
 
 const api = useApi()
 const notify = useNotify()
+// เปิดจาก "ดูทั้งหมด" ในหน้าภาพรวมจะมีปุ่มย้อนกลับ
+const route = useRoute()
 
 const type = ref<AbsenceType | 'all'>('all')
 const { data, status, error, refresh } = await useLazyAsyncData('admin-absences', () => api.getMentorAbsences(type.value), { watch: [type] })
@@ -104,7 +106,11 @@ async function adjust(endAt: string) {
       title="พี่เลี้ยงไม่อยู่"
       description="ช่วงที่บันทึกไว้เปิดให้แอดมินอนุมัติงานแทนได้ ช่วงไม่สะดวกตรวจที่พี่เลี้ยงแจ้งเองแสดงไว้ให้ทราบเท่านั้น"
       :crumbs="[{ label: 'พื้นที่แอดมิน' }, { label: 'พี่เลี้ยงไม่อยู่' }]"
-    />
+    >
+      <template v-if="route.query.from === 'overview'" #back>
+        <BackButton fallback="/admin" />
+      </template>
+    </PageHeader>
 
     <div class="mt-4">
       <AsyncState :loading="!data && status !== 'error'" :error="error" @retry="refresh()">
@@ -138,9 +144,9 @@ async function adjust(endAt: string) {
                       <p class="font-semibold text-ink">{{ item.mentorName }}</p>
                       <p class="mt-0.5 break-words text-2xs">{{ item.reason }}</p>
                     </td>
-                    <td class="px-2 py-3.5">
-                      <p class="font-semibold text-ink">{{ range(item).start }}</p>
-                      <p class="mt-0.5 text-2xs">{{ range(item).end }}</p>
+                    <td class="px-2 py-3.5 font-semibold text-ink">
+                      <p>{{ range(item).start }}</p>
+                      <p class="mt-0.5">{{ range(item).end }}</p>
                     </td>
                     <td class="px-2 py-3.5">
                       <p class="font-semibold text-ink">{{ typeText[item.type].label }}</p>

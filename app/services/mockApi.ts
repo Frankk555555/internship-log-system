@@ -5,7 +5,7 @@ import { fileError } from '~/utils/attachments'
 import { toMinutes } from '~/utils/time'
 import { earliestEntryDate, editDeadline, findOverlaps, futureTimeError, isAfterWork, noMentorMessage, overlapMessage, startTimeError, timePolicy, timerFinishError, timerStartError, timeRangeError, workHoursOn } from '~/utils/worklogRules'
 import { ApiError, type Api } from './api'
-import { createMockAdmin } from './mockAdmin'
+import { createMockAdmin, syncAdminNotifications } from './mockAdmin'
 import { activeAccount, createMockAuth, requireRole } from './mockAuth'
 import type { MockSession } from './mockSession'
 import { addNotification, addOverdueNotifications, markRead, notificationsFor } from './mockNotifications'
@@ -596,6 +596,7 @@ export function createMockApi(session: MockSession): Api {
   async function getNotifications() {
     const { profile } = activeAccount(session)
     db.refreshToday()
+    if (profile.role === 'admin') syncAdminNotifications(serverNow())
     if (profile.role === 'supervisor') {
       addOverdueNotifications(mentoredStudents(profile).flatMap(item => item.worklogs
         .filter(log => log.reviewStatus === 'submitted')

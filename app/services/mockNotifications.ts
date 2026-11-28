@@ -5,7 +5,8 @@ import type { UserRole, WorkLog } from '~/types/worklog'
 import { addDays, toThaiTimeParts } from '~/utils/date'
 import * as db from './mockData'
 
-type Stored = Omit<AppNotification, 'canEdit'> & { recipient: UserRole }
+type Stored = Omit<AppNotification, 'canEdit'> & { recipient: UserRole, key?: string }
+type AdminNotificationType = Extract<NotificationType, 'absent_mentor_pending' | 'student_without_mentor'>
 
 interface Owner {
   studentId: string
@@ -21,9 +22,11 @@ const titles: Record<NotificationType, string> = {
   returned: 'ส่งกลับแก้ไข',
   approved: 'อนุมัติแล้ว',
   proxy_approved: 'แอดมินอนุมัติแทน',
+  absent_mentor_pending: 'พี่เลี้ยงไม่อยู่ มีงานรอตรวจ',
+  student_without_mentor: 'นักศึกษายังไม่มีพี่เลี้ยง',
 }
 
-function message(type: NotificationType, owner: Owner, worklog: WorkLog) {
+function message(type: Exclude<NotificationType, AdminNotificationType>, owner: Owner, worklog: WorkLog) {
   if (type === 'new_submission') return `${owner.name} ส่ง “${worklog.title}”`
   if (type === 'overdue_review') return `“${worklog.title}” ของ${owner.name} รอตรวจเกิน ${db.settings.reviewOverdueDays} วัน`
   if (type === 'proxy_approved') return `${worklog.reviewedBy} อนุมัติ “${worklog.title}” ของ${owner.name} แทน${worklog.proxyFor}`
@@ -32,7 +35,7 @@ function message(type: NotificationType, owner: Owner, worklog: WorkLog) {
   return `“${worklog.title}”${proxy}${comment}`
 }
 
-export function addNotification(type: NotificationType, owner: Owner, worklog: WorkLog, createdAt: string, isRead = false) {
+export function addNotification(type: Exclude<NotificationType, AdminNotificationType>, owner: Owner, worklog: WorkLog, createdAt: string, isRead = false) {
   stored.push({
     id: nextId++,
     recipient: type === 'returned' || type === 'approved' ? 'student' : 'supervisor',
@@ -55,10 +58,35 @@ export function addOverdueNotifications(waiting: ReviewItem[]) {
   }
 }
 
-/** studentIds: นักศึกษาที่ผู้ใช้เกี่ยวข้อง (ตนเอง หรือผู้ที่ตนดูแล) ใหม่สุดก่อน */
+export interface AdminAlert {
+  /** หนึ่งเรื่องต่อหนึ่ง key */
+  key: string
+  type: AdminNotificationType
+  message: string
+  mentorId?: number
+  studentId?: string
+}
+
+/**
+ * การแจ้งเตือนของแอดมินตามเรื่องที่ยังค้างอยู่: เรื่องใหม่เพิ่มครั้งเดียว เรื่องเดิมปรับข้อความโดยคงสถานะอ่าน
+ * เรื่องที่จัดการแล้วเอาออก ถ้าเกิดขึ้นอีกจึงแจ้งใหม่
+ */
+export function syncAdminAlerts(alerts: AdminAlert[], now: string) {
+  for (let index = stored.length - 1; index >= 0; index--) {
+    const { recipient, key } = stored[index]!
+    if (recipient === 'admin' && !alerts.some(alert => alert.key === key)) stored.splice(index, 1)
+  }
+  for (const alert of alerts) {
+    const existing = stored.find(entry => entry.key === alert.key)
+    if (existing) Object.assign(existing, alert)
+    else stored.push({ ...alert, id: nextId++, recipient: 'admin', title: titles[alert.type], createdAt: now, isRead: false })
+  }
+}
+
+/** studentIds: นักศึกษาที่ผู้ใช้เกี่ยวข้อง (ตนเอง หรือผู้ที่ตนดูแล) แอดมินเห็นทุกเรื่องของแอดมิน ใหม่สุดก่อน */
 export function notificationsFor(role: UserRole, studentIds: string[]) {
   return stored
-    .filter(entry => entry.recipient === role && studentIds.includes(entry.studentId))
+    .filter(entry => entry.recipient === role && (role === 'admin' || studentIds.includes(entry.studentId!)))
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
 }
 
@@ -77,7 +105,7 @@ export function markRead(role: UserRole, studentIds: string[], ids?: number[]) {
 }
 
 // ข้อมูลตั้งต้น อ้างอิงรายการตัวอย่าง
-function seed(type: NotificationType, worklogId: number, isRead = false) {
+function seed(type: Exclude<NotificationType, AdminNotificationType>, worklogId: number, isRead = false) {
   const owners = db.students.map(({ profile, worklogs }) => ({ studentId: profile.studentId!, name: profile.name, worklogs }))
   for (const owner of owners) {
     const worklog = owner.worklogs.find(log => log.id === worklogId)

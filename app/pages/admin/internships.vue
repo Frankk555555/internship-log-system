@@ -8,7 +8,9 @@ useHead({ title: 'การฝึกงานและพี่เลี้ย�
 const api = useApi()
 const notify = useNotify()
 
-const filter = ref<InternshipFilter>('all')
+// เปิดจากหน้าภาพรวมหรือการแจ้งเตือนพร้อมตัวกรองได้ เช่น ?filter=no_mentor
+const requested = useRoute().query.filter
+const filter = ref<InternshipFilter>(requested === 'no_mentor' || requested === 'no_hours' ? requested : 'all')
 const search = ref('')
 const keyword = ref('')
 const page = ref(1)

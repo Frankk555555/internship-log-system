@@ -160,6 +160,28 @@ export interface ProxyQueue {
   overdueDays: number
 }
 
+/** เรื่องที่แอดมินต้องจัดการ */
+export type AdminTask =
+  | { kind: 'absent_mentor', mentorId: number, mentorName: string, endAt: string, pendingCount: number, overdueCount: number }
+  | { kind: 'no_mentor' | 'no_hours', students: { name: string, company?: string }[] }
+  | { kind: 'locked', accounts: { email: string, lockedUntil: string }[] }
+
+export interface AdminOverview {
+  semester: string
+  /** นับเฉพาะบัญชีที่ไม่ถูกระงับ */
+  studentCount: number
+  supervisorCount: number
+  /** รอตรวจทั้งระบบ */
+  pendingCount: number
+  overdueCount: number
+  overdueDays: number
+  maxFailedLogins: number
+  /** เรียงตามความเร่งด่วน */
+  tasks: AdminTask[]
+  /** ช่วงไม่อยู่ที่ยังไม่สิ้นสุด เริ่มก่อนอยู่บน */
+  absences: MentorAbsence[]
+}
+
 export interface SystemSettings {
   /** บันทึกและแก้ไขย้อนหลังได้กี่วัน (5.6) */
   backdateLimitDays: number
@@ -177,6 +199,7 @@ export interface SystemSettings {
 export type SystemSettingsInput = Pick<SystemSettings, 'backdateLimitDays' | 'reviewOverdueDays'>
 
 export interface AdminApi {
+  getOverview(): Promise<AdminOverview>
   getSystemSettings(): Promise<SystemSettings>
   /** คืนค่าล่าสุดหลังบันทึก */
   saveSystemSettings(input: SystemSettingsInput): Promise<SystemSettings>

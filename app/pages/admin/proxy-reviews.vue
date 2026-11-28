@@ -56,6 +56,11 @@ const mentorChoice = computed({
     problems.value = undefined
   },
 })
+// กดการแจ้งเตือนขณะอยู่หน้านี้
+watch(() => route.query.mentor, (value) => {
+  if (Number(value)) mentorChoice.value = String(value)
+})
+
 // รายชื่อคงไว้ระหว่างโหลด ช่องเลือกจึงไม่กระพริบ
 const mentorOptions = computed(() => (data.value?.queue.mentors ?? []).map(({ id, name }) => ({ value: String(id), label: name })))
 
@@ -129,7 +134,11 @@ async function approve(items: ReviewItem[], comment?: string) {
       title="อนุมัติแทนพี่เลี้ยง"
       description="อนุมัติได้เฉพาะงานของนักศึกษาในความดูแลของพี่เลี้ยงที่ไม่อยู่ และเฉพาะในช่วงที่บันทึกไว้"
       :crumbs="[{ label: 'พื้นที่แอดมิน' }, { label: 'อนุมัติแทน' }]"
-    />
+    >
+      <template #actions>
+        <NotificationButton />
+      </template>
+    </PageHeader>
 
     <ErrorNotice v-if="problems" v-bind="problems" class="mt-4" @close="problems = undefined" />
 

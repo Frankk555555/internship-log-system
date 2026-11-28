@@ -10,7 +10,9 @@ const sessionUser = useSessionUser()
 const notify = useNotify()
 
 const role = ref<UserFilter['role']>('all')
-const accountStatus = ref<UserFilter['status']>('all')
+// เปิดจากหน้าภาพรวมพร้อมตัวกรองได้ เช่น ?status=locked
+const requested = useRoute().query.status
+const accountStatus = ref<UserFilter['status']>(requested === 'active' || requested === 'locked' || requested === 'suspended' ? requested : 'all')
 const search = ref('')
 const keyword = ref('')
 const page = ref(1)
