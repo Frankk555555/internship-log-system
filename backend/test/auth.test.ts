@@ -1,6 +1,6 @@
 // ทดสอบกับฐานข้อมูลจริง ต้องตั้ง TEST_DATABASE_URL ชี้ฐานข้อมูลที่ชื่อลงท้าย _test และสร้างตารางจาก db/schema.sql แล้ว
 // ระวัง: ลบผู้ใช้และ session ทั้งหมดในฐานข้อมูลนั้น
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
+import { afterAll, beforeAll, beforeEach, describe, expect, setDefaultTimeout, test } from 'bun:test'
 import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise'
 import { createApp } from '../src/app'
 import { hashPassword } from '../src/auth/passwords'
@@ -12,6 +12,9 @@ const url = process.env.TEST_DATABASE_URL
 if (!url || !new URL(url).pathname.endsWith('_test')) {
   throw new Error('ตั้ง TEST_DATABASE_URL ให้ชี้ฐานข้อมูลที่ชื่อลงท้าย _test (ดู backend/README.md)')
 }
+
+// หลายข้อ hash รหัสผ่านจริงหลายครั้ง เครื่องที่ช้าหรือฐานข้อมูลที่เพิ่งเปิดอาจเกินค่าเริ่มต้น 5 วินาที
+setDefaultTimeout(30_000)
 
 const origin = 'http://localhost:3000'
 const config: Config = { host: '127.0.0.1', port: 0, databaseUrl: url, webOrigins: [origin], cookieSecure: true, authRateLimit: 1000 }
@@ -76,6 +79,7 @@ const secondsLeft = async (token: string) => Number((await row(
 const tokenOf = (cookie: string) => cookie.slice(`${sessionCookie}=`.length)
 
 async function clear() {
+  await db.query('DELETE FROM password_reset_tokens')
   await db.query('DELETE FROM sessions')
   await db.query('DELETE FROM students_detail')
   await db.query('DELETE FROM users')
@@ -224,7 +228,7 @@ describe('เข้าสู่ระบบ', () => {
 
   test('ข้อมูลไม่ครบ ชนิดผิด ยาวเกิน หรือไม่ใช่ JSON', async () => {
     for (const body of [{}, { email: 'a@test.local', password }, { email: 'a@test.local', password: '', remember: false },
-      { email: 'a@test.local', password: 'x'.repeat(201), remember: false }, { email: 5, password, remember: false }]) {
+      { email: 'a@test.local', password: 'x'.repeat(129), remember: false }, { email: 5, password, remember: false }]) {
       const result = await call('POST', '/auth/login', { body })
       expect(result.status).toBe(422)
       expect(result.body).toEqual({ message: 'ข้อมูลที่ส่งไม่ถูกต้อง กรุณาตรวจสอบแล้วลองใหม่' })
@@ -280,6 +284,160 @@ describe('/me และออกจากระบบ', () => {
     expect((await call('GET', '/me', { cookie: elsewhere.cookie })).status).toBe(200)
 
     expect((await call('POST', '/auth/logout')).status).toBe(204)
+  })
+})
+
+describe('เปลี่ยนรหัสผ่าน', () => {
+  const next: string = `${crypto.randomUUID()}-next`
+  const change = (cookie: string | undefined, newPassword = next, currentPassword = password) =>
+    call('POST', '/auth/change-password', { body: { currentPassword, newPassword }, cookie })
+
+  test('สำเร็จ: ใช้รหัสใหม่ เลิกบังคับเปลี่ยน คง session นี้ และตัดเครื่องอื่นกับลิงก์ตั้งรหัสเดิม', async () => {
+    const id = await addUser('a@test.local', { code: '66000000001', mustChange: true })
+    const other = await addUser('b@test.local')
+    await db.execute(
+      `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+       VALUES (?, ?, UTC_TIMESTAMP() + INTERVAL 30 MINUTE), (?, ?, UTC_TIMESTAMP() + INTERVAL 30 MINUTE)`,
+      [id, hashToken('mine'), other, hashToken('theirs')],
+    )
+    const here = await login('a@test.local')
+    const elsewhere = await login('a@test.local')
+    const someoneElse = await login('b@test.local')
+    await login('a@test.local', wrong)
+
+    const result = await change(here.cookie)
+    expect(result.status).toBe(204)
+    expect(result.body).toBeUndefined()
+
+    const me = await call('GET', '/me', { cookie: here.cookie })
+    expect(me.status).toBe(200)
+    expect(me.body.mustChangePassword).toBe(false)
+    expect((await call('GET', '/me', { cookie: elsewhere.cookie })).status).toBe(401)
+    expect((await call('GET', '/me', { cookie: someoneElse.cookie })).status).toBe(200)
+
+    const account = await userRow(id)
+    expect(account.password_hash).toStartWith('$argon2id$')
+    expect(account.password_hash).not.toBe(hash)
+    expect(account.failed_login_count).toBe(0)
+    expect((await row('SELECT used_at FROM password_reset_tokens WHERE user_id = ?', [id])).used_at).not.toBeNull()
+    expect((await row('SELECT used_at FROM password_reset_tokens WHERE user_id = ?', [other])).used_at).toBeNull()
+
+    expect((await login('a@test.local')).status).toBe(401)
+    expect((await login('a@test.local', next)).status).toBe(200)
+  })
+
+  test('รหัสใหม่ผิดกติกา: บอกเหตุผล ไม่เปลี่ยนอะไร', async () => {
+    const id = await addUser('a@test.local', { code: '66000000001' })
+    const here = await login('a@test.local')
+    const elsewhere = await login('a@test.local')
+
+    for (const [value, message] of [
+      ['', 'กรุณากรอกรหัสผ่านใหม่'],
+      ['1234567', 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร'],
+      ['x'.repeat(129), 'รหัสผ่านยาวได้ไม่เกิน 128 ตัวอักษร'],
+      ['66000000001', 'รหัสผ่านใหม่ต้องไม่ใช่รหัสนักศึกษา'],
+      [password, 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านปัจจุบัน'],
+    ] as const) {
+      const result = await change(here.cookie, value)
+      expect(result.status).toBe(422)
+      expect(result.body).toEqual({ message })
+    }
+
+    expect((await userRow(id)).password_hash).toBe(hash)
+    expect((await call('GET', '/me', { cookie: elsewhere.cookie })).status).toBe(200)
+    // 8 และ 128 ตัวอักษรใช้ได้
+    expect((await change(here.cookie, '12345678')).status).toBe(204)
+    expect((await change(here.cookie, 'y'.repeat(128), '12345678')).status).toBe(204)
+  })
+
+  test('รหัสปัจจุบันผิดนับรวมกับการเข้าสู่ระบบ ครบ 5 ครั้งล็อกและออกจากระบบทุกเครื่อง', async () => {
+    const id = await addUser('a@test.local')
+    const here = await login('a@test.local')
+    const elsewhere = await login('a@test.local')
+    for (let i = 0; i < 2; i++) await login('a@test.local', wrong)
+
+    for (let i = 0; i < 2; i++) {
+      const result = await change(here.cookie, next, wrong)
+      expect(result.status).toBe(422)
+      expect(result.body).toEqual({ message: 'รหัสผ่านปัจจุบันไม่ถูกต้อง', code: 'wrong_password' })
+    }
+    const fifth = await change(here.cookie, next, wrong)
+    expect(fifth.status).toBe(423)
+    expect(fifth.body.code).toBe('account_locked')
+    expect(Date.parse(fifth.body.lockedUntil)).toBeGreaterThan(Date.now() + 14 * 60_000)
+
+    expect(await sessionCount()).toBe(0)
+    expect((await call('GET', '/me', { cookie: elsewhere.cookie })).status).toBe(401)
+    expect((await change(here.cookie)).status).toBe(401)
+    expect((await login('a@test.local')).status).toBe(423)
+    expect((await userRow(id)).password_hash).toBe(hash)
+  })
+
+  test('ถูกล็อกจากหน้าเข้าสู่ระบบ: session เดิมยังใช้ได้ แต่เปลี่ยนรหัสไม่ได้จนพ้นเวลา', async () => {
+    const id = await addUser('a@test.local')
+    const { cookie } = await login('a@test.local')
+    for (let i = 0; i < 5; i++) await login('a@test.local', wrong)
+
+    for (const current of [password, wrong]) {
+      const result = await change(cookie, next, current)
+      expect(result.status).toBe(423)
+      expect(result.body).toEqual({ message: 'บัญชีถูกล็อกชั่วคราว จึงยังเปลี่ยนรหัสผ่านไม่ได้ กรุณาลองใหม่ภายหลัง' })
+    }
+    expect((await call('GET', '/me', { cookie })).status).toBe(200)
+    expect((await userRow(id)).password_hash).toBe(hash)
+
+    await db.execute('UPDATE users SET locked_until = UTC_TIMESTAMP() - INTERVAL 1 SECOND WHERE user_id = ?', [id])
+    expect((await change(cookie, next, wrong)).status).toBe(422)
+    expect((await userRow(id)).failed_login_count).toBe(1)
+    expect((await change(cookie)).status).toBe(204)
+    expect(await userRow(id)).toMatchObject({ failed_login_count: 0, locked_until: null })
+  })
+
+  test('ยิงพร้อมกันก็เดาได้ไม่เกินจำนวนครั้ง', async () => {
+    const id = await addUser('a@test.local')
+    const { cookie } = await login('a@test.local')
+    const results = await Promise.all(Array.from({ length: 12 }, () => change(cookie, next, wrong)))
+
+    expect(results.filter(result => result.status === 422)).toHaveLength(4)
+    expect(results.filter(result => result.status === 423)).toHaveLength(1)
+    expect(results.filter(result => result.status === 401)).toHaveLength(7)
+    expect((await userRow(id)).failed_login_count).toBe(5)
+  })
+
+  test('สองเครื่องเปลี่ยนพร้อมกัน สำเร็จได้เครื่องเดียว', async () => {
+    await addUser('a@test.local')
+    const first = await login('a@test.local')
+    const second = await login('a@test.local')
+    const results = await Promise.all([change(first.cookie, `${next}-1`), change(second.cookie, `${next}-2`)])
+
+    expect(results.map(result => result.status).sort()).toEqual([204, 401])
+    expect(await sessionCount()).toBe(1)
+  })
+
+  test('ต้องเข้าสู่ระบบ มาจากหน้าเว็บของระบบ และส่งข้อมูลครบ', async () => {
+    const id = await addUser('a@test.local')
+    const { cookie } = await login('a@test.local')
+
+    for (const bad of [undefined, `${sessionCookie}=not-a-session`]) {
+      const result = await change(bad)
+      expect(result.status).toBe(401)
+      expect(result.body).toEqual({ message: 'กรุณาเข้าสู่ระบบ' })
+    }
+    const foreign = await call('POST', '/auth/change-password', {
+      body: { currentPassword: password, newPassword: next }, cookie, origin: 'https://evil.example',
+    })
+    expect(foreign.status).toBe(403)
+    for (const body of [{}, { newPassword: next }, { currentPassword: '', newPassword: next },
+      { currentPassword: password, newPassword: 'x'.repeat(1001) }]) {
+      expect((await call('POST', '/auth/change-password', { body, cookie })).status).toBe(422)
+    }
+
+    await db.execute('UPDATE users SET is_active = FALSE WHERE user_id = ?', [id])
+    expect((await change(cookie)).status).toBe(401)
+    await db.execute('UPDATE users SET is_active = TRUE WHERE user_id = ?', [id])
+    await db.execute('UPDATE sessions SET expires_at = UTC_TIMESTAMP() - INTERVAL 1 SECOND')
+    expect((await change(cookie)).status).toBe(401)
+    expect(await userRow(id)).toMatchObject({ password_hash: hash, failed_login_count: 0 })
   })
 })
 

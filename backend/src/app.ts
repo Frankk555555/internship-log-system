@@ -1,7 +1,9 @@
 import { Elysia, t } from 'elysia'
 import type { Pool } from 'mysql2/promise'
+import { changePassword } from './auth/change-password'
 import { createRateLimiter, createUnknownEmailGuard } from './auth/limits'
 import { logIn } from './auth/login'
+import { maxPasswordLength } from './auth/passwords'
 import { deleteSession, rememberSeconds, sessionCookie } from './auth/sessions'
 import type { Config } from './config'
 import { HttpError } from './errors'
@@ -66,8 +68,20 @@ export function createApp({ db, config }: { db: Pool, config: Config }) {
       body: t.Object({
         email: t.String({ minLength: 1, maxLength: 255 }),
         // จำกัดความยาว กันการส่งข้อความยาวมากให้เซิร์ฟเวอร์ hash
-        password: t.String({ minLength: 1, maxLength: 200 }),
+        password: t.String({ minLength: 1, maxLength: maxPasswordLength }),
         remember: t.Boolean(),
+      }),
+    })
+    .post('/auth/change-password', async ({ body, cookie, set }) => {
+      const token = tokenFrom(cookie[sessionCookie]!.value)
+      if (!token) throw new HttpError(401, 'กรุณาเข้าสู่ระบบ')
+      await changePassword(db, token, body)
+      set.status = 204
+    }, {
+      body: t.Object({
+        currentPassword: t.String({ minLength: 1, maxLength: maxPasswordLength }),
+        // ความยาวตามกติกาตรวจใน changePassword เพื่อบอกผู้ใช้ได้ว่าผิดอะไร ค่านี้กันข้อความใหญ่ผิดปกติ
+        newPassword: t.String({ maxLength: 1000 }),
       }),
     })
     .post('/auth/logout', async ({ cookie, set }) => {

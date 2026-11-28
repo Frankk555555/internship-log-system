@@ -54,6 +54,16 @@ export function clearFailures(email: string) {
   failures.delete(email)
 }
 
+/** บันทึกการกรอกรหัสผิดหนึ่งครั้ง คืนเวลาปลดล็อกเมื่อครบจำนวนครั้ง (ขอบเขตงานข้อ 1.2) */
+function recordFailure(email: string) {
+  const record = failures.get(email)
+  // พ้นเวลาล็อกแล้วเริ่มนับใหม่
+  const count = (record?.lockedUntil ? 0 : record?.count ?? 0) + 1
+  const lockedUntil = count >= settings.maxFailedLogins ? Date.now() + settings.lockMinutes * 60_000 : undefined
+  failures.set(email, { count, lockedUntil })
+  return lockedUntil
+}
+
 /** ไม่มีการส่งอีเมลจริง แสดงลิงก์ใน console ของเบราว์เซอร์เพื่อใช้ทดสอบ */
 export function sendResetLink(account: MockAccount) {
   const token = btoa(JSON.stringify([account.profile.email, Date.now() + resetLinkMinutes * 60_000]))
@@ -75,21 +85,13 @@ export function createMockAuth(session: MockSession): AuthApi {
     async login({ email, password, remember }) {
       await wait()
       const key = normalize(email)
-      let record = failures.get(key)
-
-      if (record?.lockedUntil) {
-        if (record.lockedUntil > Date.now()) throw locked(record.lockedUntil)
-        failures.delete(key)
-        record = undefined
-      }
+      const until = lockedUntilFor(key)
+      if (until) throw locked(until)
 
       const account = findAccount(key)
       if (!account || account.password !== password) {
         // นับทุกอีเมล เพื่อไม่ให้รู้ว่ามีบัญชีนี้หรือไม่
-        const count = (record?.count ?? 0) + 1
-        // ล็อกบัญชีเมื่อกรอกผิดครบจำนวนครั้ง (ขอบเขตงานข้อ 1.2)
-        const lockedUntil = count >= settings.maxFailedLogins ? Date.now() + settings.lockMinutes * 60_000 : undefined
-        failures.set(key, { count, lockedUntil })
+        const lockedUntil = recordFailure(key)
         if (lockedUntil) throw locked(lockedUntil)
         throw new ApiError('อีเมลหรือรหัสผ่านไม่ถูกต้อง', 401, { code: 'invalid_credentials' })
       }
@@ -139,7 +141,16 @@ export function createMockAuth(session: MockSession): AuthApi {
     async changePassword({ currentPassword, newPassword }) {
       await wait()
       const account = currentAccount(session)
-      if (account.password !== currentPassword) throw new ApiError('รหัสผ่านปัจจุบันไม่ถูกต้อง', 422, { code: 'wrong_password' })
+      const { email } = account.profile
+      if (lockedUntilFor(email)) throw new ApiError('บัญชีถูกล็อกชั่วคราว จึงยังเปลี่ยนรหัสผ่านไม่ได้ กรุณาลองใหม่ภายหลัง', 423)
+      if (account.password !== currentPassword) {
+        // นับรวมกับการเข้าสู่ระบบ ครบจำนวนครั้งแล้วล็อกและออกจากระบบ
+        const lockedUntil = recordFailure(email)
+        if (!lockedUntil) throw new ApiError('รหัสผ่านปัจจุบันไม่ถูกต้อง', 422, { code: 'wrong_password' })
+        session.write(undefined)
+        throw locked(lockedUntil)
+      }
+      failures.delete(email)
       const problem = newPasswordError(newPassword, account.profile.studentId)
       if (problem) throw new ApiError(problem, 422)
       if (newPassword === currentPassword) throw new ApiError('รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านปัจจุบัน', 422)

@@ -1,3 +1,4 @@
+import { ApiError } from '~/services/api'
 import type { ChangePasswordInput, LoginInput, UpdateProfileInput } from '~/types/auth'
 import type { UserProfile } from '~/types/worklog'
 
@@ -6,10 +7,35 @@ export function useSessionUser() {
   return useState<UserProfile | null>('session-user', () => null)
 }
 
+/** เวลาปลดล็อกของบัญชีที่เพิ่งถูกล็อกและออกจากระบบ ให้หน้าเข้าสู่ระบบแสดง */
+export function useLockNotice() {
+  return useState<string | undefined>('lock-notice', () => undefined)
+}
+
 export function useSession() {
   const api = useApi()
   const user = useSessionUser()
+  const lockNotice = useLockNotice()
   const { toasts } = useToast()
+
+  /**
+   * คืน false เมื่อกรอกรหัสปัจจุบันผิดครบจำนวนครั้ง บัญชีถูกล็อกและออกจากระบบแล้ว
+   * จึงพาไปหน้าเข้าสู่ระบบ ผู้เรียกไม่ต้องแสดงอะไรต่อ
+   */
+  async function changePassword(input: ChangePasswordInput) {
+    try {
+      await api.changePassword(input)
+      return true
+    }
+    catch (error) {
+      if (!(error instanceof ApiError && error.code === 'account_locked' && error.lockedUntil)) throw error
+      lockNotice.value = error.lockedUntil
+      user.value = null
+      toasts.value = []
+      await navigateTo('/login', { replace: true })
+      return false
+    }
+  }
 
   return {
     user,
@@ -25,9 +51,10 @@ export function useSession() {
       clearNuxtData()
       return user.value
     },
-    /** เปลี่ยนรหัสผ่านเริ่มต้น แล้วอ่านผู้ใช้ใหม่เพื่อปลดการบังคับ */
+    changePassword,
+    /** เปลี่ยนรหัสผ่านเริ่มต้น แล้วอ่านผู้ใช้ใหม่เพื่อปลดการบังคับ ไม่คืนผู้ใช้เมื่อบัญชีถูกล็อก */
     async changeFirstPassword(input: ChangePasswordInput) {
-      await api.changePassword(input)
+      if (!await changePassword(input)) return undefined
       user.value = await api.getMe()
       clearNuxtData()
       return user.value

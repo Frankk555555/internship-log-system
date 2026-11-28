@@ -9,9 +9,11 @@ Elysia บน Bun ต่อฐานข้อมูล MySQL สัญญา API
 |---|---|---|
 | POST | `/auth/login` | ล็อกบัญชีตามค่าใน `system_settings` (ผิด 5 ครั้ง ล็อก 15 นาที) |
 | POST | `/auth/logout` | ลบ session ของเบราว์เซอร์นั้น |
+| POST | `/auth/change-password` | ตัด session อื่น กรอกรหัสปัจจุบันผิดนับรวมกับการล็อกบัญชี |
 | GET | `/me` | |
 
-ยังไม่มี: เปลี่ยนและรีเซ็ตรหัสผ่าน, แก้ชื่อ และ endpoint ข้อมูลทั้งหมด หน้าที่เรียกเส้นทางเหล่านี้จะขึ้นข้อความผิดพลาด
+ยังไม่มี: รีเซ็ตรหัสผ่าน (ลืมรหัสผ่าน), แก้ชื่อ และ endpoint ข้อมูลทั้งหมด หน้าที่เรียกเส้นทางเหล่านี้จะขึ้นข้อความผิดพลาด
+เมื่อเพิ่ม endpoint ข้อมูล ต้องตอบ 403 `password_change_required` ให้บัญชีที่ยังใช้รหัสเริ่มต้น
 
 ## เริ่มครั้งแรก
 
@@ -64,6 +66,8 @@ $env:NUXT_PUBLIC_API_BASE='/api'; $env:NUXT_API_SERVER_URL='http://localhost:400
 | `wichai.p@university.ac.th` | พี่เลี้ยง | ค่า `SEED_PASSWORD` |
 | `arunee.s@university.ac.th` | แอดมิน | ค่า `SEED_PASSWORD` |
 | `suspended@university.ac.th` | บัญชีถูกระงับ | ค่า `SEED_PASSWORD` |
+
+`pnpm seed` ข้ามบัญชีที่มีอยู่แล้ว บัญชีที่เปลี่ยนรหัสไปจะไม่กลับเป็นค่าเดิม
 
 ## ทดสอบ
 

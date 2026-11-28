@@ -46,6 +46,22 @@ function signInDemo(credentials: { email: string, password: string }) {
   if (!pending.value) signIn(credentials)
 }
 
+function showLocked(until: string, message: string) {
+  lockedUntil.value = new Date(until)
+  startUntil(lockedUntil.value.getTime())
+  password.value = ''
+  view.value = 'locked'
+  notify('error', 'บัญชีถูกล็อกชั่วคราว', message)
+}
+
+// ถูกล็อกระหว่างเปลี่ยนรหัสผ่านแล้วถูกพามาหน้านี้
+const lockNotice = useLockNotice()
+onMounted(() => {
+  if (!lockNotice.value) return
+  showLocked(lockNotice.value, 'กรอกรหัสผ่านปัจจุบันผิดครบจำนวนครั้ง ระบบจึงออกจากระบบให้')
+  lockNotice.value = undefined
+})
+
 async function signIn(credentials: { email: string, password: string }, destination?: string) {
   pending.value = true
   clear()
@@ -56,11 +72,7 @@ async function signIn(credentials: { email: string, password: string }, destinat
   }
   catch (error) {
     if (error instanceof ApiError && error.code === 'account_locked' && error.lockedUntil) {
-      lockedUntil.value = new Date(error.lockedUntil)
-      startUntil(lockedUntil.value.getTime())
-      password.value = ''
-      view.value = 'locked'
-      notify('error', 'บัญชีถูกล็อกชั่วคราว', error.message)
+      showLocked(error.lockedUntil, error.message)
     }
     else if (error instanceof ApiError && error.code === 'account_suspended') {
       password.value = ''
@@ -116,7 +128,7 @@ function backToForm() {
 
     <template v-else>
       <AuthHeading v-if="view === 'locked'" title="บัญชีถูกล็อกชั่วคราว" mark="alert">
-        <p>เข้าสู่ระบบไม่สำเร็จหลายครั้ง กรุณารอ 15 นาทีแล้วลองใหม่อีกครั้ง</p>
+        <p>กรอกรหัสผ่านผิดหลายครั้ง กรุณารอ 15 นาทีแล้วลองใหม่อีกครั้ง</p>
         <p class="mt-5 font-semibold text-slate-600" role="status">
           <template v-if="remaining">ลองใหม่ได้เวลา {{ unlockTime }} น. · เหลือ {{ remainingLabel }} นาที</template>
           <template v-else>ลองเข้าสู่ระบบใหม่ได้แล้ว</template>

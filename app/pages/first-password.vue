@@ -47,6 +47,7 @@ async function submit() {
   pending.value = true
   try {
     const updated = await changeFirstPassword({ currentPassword: currentPassword.value, newPassword: password.value })
+    if (!updated) return
     await navigateTo(safeRedirect(route.query.redirect) ?? homePathFor(updated.role), { replace: true })
     notify('success', 'ตั้งรหัสผ่านใหม่แล้ว', 'ครั้งต่อไปให้เข้าสู่ระบบด้วยรหัสผ่านใหม่')
   }

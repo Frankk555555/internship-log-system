@@ -1,12 +1,14 @@
 import type { UserRole } from '~/types/worklog'
 
-// ขอบเขตงานไม่ได้กำหนดเงื่อนไขรหัสผ่าน ใช้ขั้นต่ำนี้จนกว่าจะตกลงกัน (backend ต้องตรวจซ้ำ)
+// กติกาตาม docs/business-rules.md backend ตรวจซ้ำใน backend/src/auth/passwords.ts
 export const minPasswordLength = 8
+export const maxPasswordLength = 128
 
 /** studentId: นักศึกษาห้ามตั้งรหัสผ่านเป็นรหัสนักศึกษา ซึ่งเป็นรหัสเริ่มต้นและคนอื่นรู้ได้ */
 export function newPasswordError(password: string, studentId?: string) {
   if (!password) return 'กรุณากรอกรหัสผ่านใหม่'
   if (password.length < minPasswordLength) return `รหัสผ่านต้องมีอย่างน้อย ${minPasswordLength} ตัวอักษร`
+  if (password.length > maxPasswordLength) return `รหัสผ่านยาวได้ไม่เกิน ${maxPasswordLength} ตัวอักษร`
   if (studentId && password === studentId) return 'รหัสผ่านใหม่ต้องไม่ใช่รหัสนักศึกษา'
   return undefined
 }

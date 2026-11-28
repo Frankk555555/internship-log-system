@@ -78,7 +78,15 @@ NUXT_API_SERVER_URL=http://localhost:4000
 
 ลิงก์ในอีเมลรีเซ็ตรหัสผ่านชี้มาที่ `/reset-password?token=...`
 
-**ทำใน [backend](../backend/README.md) แล้ว:** `POST /auth/login`, `POST /auth/logout`, `GET /me` เส้นทางอื่นยังไม่มี
+`POST /auth/change-password`
+
+- กรอกรหัสปัจจุบันผิดตอบ 422 `wrong_password` และนับรวมกับการเข้าสู่ระบบ ครั้งที่ครบจำนวนตอบ 423 `account_locked`
+  พร้อม `lockedUntil` และลบ session ทั้งหมดของบัญชี หน้าเว็บพาไปหน้าเข้าสู่ระบบ
+- บัญชีถูกล็อกอยู่แล้ว (จากหน้าเข้าสู่ระบบ) ตอบ 423 ไม่มี `code` session ยังใช้ได้ หน้าเว็บแสดง `message`
+- รหัสใหม่ผิดกติกาตอบ 422 พร้อม `message` บอกเหตุผล (กติกาใน [business-rules.md](business-rules.md))
+
+**ทำใน [backend](../backend/README.md) แล้ว:** `POST /auth/login`, `POST /auth/logout`, `POST /auth/change-password`,
+`GET /me` เส้นทางอื่นยังไม่มี
 
 backend ต้องทำเอง
 

@@ -10,9 +10,8 @@ definePageMeta({
 
 useHead({ title: 'ตั้งค่าบัญชี' })
 
-const api = useApi()
 const user = useSessionUser()
-const { updateProfile } = useSession()
+const { updateProfile, changePassword } = useSession()
 // โหลดผู้ใช้ไม่ได้ตอนเปิดหน้า จึงไม่มีข้อมูลบัญชีให้แก้ อ่านครั้งเดียว ตอนออกจากระบบจะได้ไม่กระพริบ
 const accountError = user.value ? undefined : { message: 'โหลดข้อมูลบัญชีไม่ได้ กรุณาลองใหม่' }
 
@@ -121,7 +120,7 @@ async function save() {
 
   pending.value = true
   try {
-    await api.changePassword({ currentPassword: currentPassword.value, newPassword: password.value })
+    if (!await changePassword({ currentPassword: currentPassword.value, newPassword: password.value })) return
     reset()
     done('เปลี่ยนรหัสผ่านแล้ว', 'ครั้งต่อไปให้เข้าสู่ระบบด้วยรหัสผ่านใหม่')
   }
