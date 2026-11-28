@@ -19,6 +19,10 @@ export default defineNuxtConfig({
     },
   },
   runtimeConfig: {
+    // ที่อยู่ backend ที่เซิร์ฟเวอร์ Nuxt เรียก ใช้ส่งต่อ /api และตอน render (NUXT_API_SERVER_URL)
+    apiServerUrl: '',
+    // true เมื่อมี reverse proxy ของระบบอยู่หน้า Nuxt (NUXT_TRUST_FORWARDED_FOR)
+    trustForwardedFor: false,
     public: {
       // ตั้งผ่าน NUXT_PUBLIC_API_BASE ถ้าเว้นว่างจะใช้ข้อมูลจำลอง
       apiBase: '',

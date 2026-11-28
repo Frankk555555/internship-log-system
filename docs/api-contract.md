@@ -9,6 +9,8 @@
 | `app/services/httpApi.ts` | เรียก REST จริง (แก้ไฟล์นี้เมื่อ backend กำหนดต่างจากนี้) |
 | `app/services/mockApi.ts`, `mockData.ts` | ข้อมูลจำลองในหน่วยความจำ |
 | `app/composables/useApi.ts` | จุดเลือกว่าจะใช้ตัวไหน |
+| `server/api/[...].ts` | ส่งต่อ `/api/**` ไป backend |
+| `app/services/httpError.ts` | แปลงคำตอบที่ผิดพลาดเป็นข้อความบนหน้าจอ |
 | `app/types/worklog.ts`, `admin.ts` | ชนิดข้อมูลที่รับและส่ง (`admin.ts` = พื้นที่แอดมิน) |
 
 Backend ใช้ **Elysia** กติกาที่ยืนยันแล้วอยู่ใน [business-rules.md](business-rules.md)
@@ -18,11 +20,34 @@ Elysia ให้บริการ REST ตามตารางด้านล�
 
 ## การเชื่อมต่อ
 
-สร้างไฟล์ `.env` (ดู `.env.example`) แล้วรีสตาร์ต dev server
+เบราว์เซอร์เรียกโดเมนเดียวกับหน้าเว็บ แล้ว Nuxt ส่งต่อไป backend session cookie จึงใช้ได้โดยไม่ต้องตั้ง CORS
 
 ```
-NUXT_PUBLIC_API_BASE=http://localhost:4000/api
+เบราว์เซอร์ ──/api/me──▶ Nuxt ──/me──▶ Elysia
 ```
+
+สร้างไฟล์ `.env` (ดู `.env.example`) แล้วรีสตาร์ต dev server Elysia ต้องใช้พอร์ตอื่นจาก Nuxt (3000)
+
+```
+NUXT_PUBLIC_API_BASE=/api
+NUXT_API_SERVER_URL=http://localhost:4000
+```
+
+- Nuxt ตัด `/api` แล้วต่อเส้นทางที่เหลือท้าย `NUXT_API_SERVER_URL` ถ้า backend ตั้ง prefix ไว้ ให้ใส่ใน URL เช่น `http://localhost:4000/api`
+- ตอน render ฝั่งเซิร์ฟเวอร์ Nuxt เรียก backend ตรงที่ `NUXT_API_SERVER_URL`
+- ค่าเหล่านี้อ่านตอนเริ่มเซิร์ฟเวอร์ เปลี่ยนได้โดยไม่ต้อง build ใหม่ เซิร์ฟเวอร์ production (`node .output/server/index.mjs`)
+  ไม่อ่านไฟล์ `.env` ต้องตั้งเป็น environment variable
+- ใน Git Bash บน Windows ค่า `/api` ที่ตั้งในบรรทัดคำสั่งจะถูกแปลงเป็นเส้นทางไฟล์ ให้ใช้ไฟล์ `.env` หรือ PowerShell
+- ยังตั้ง `NUXT_PUBLIC_API_BASE` เป็น URL เต็มของ backend ได้ แต่ต้องเป็นเว็บเดียวกัน (same-site) และตั้ง CORS เอง
+
+สิ่งที่ backend ได้รับจาก Nuxt
+
+- `cookie`, `user-agent` และ `X-Forwarded-For` ซึ่งมี IP เดียวคือของผู้ใช้ ใช้ค่านี้จำกัดอัตราการเรียกได้
+  แต่เชื่อได้เฉพาะเมื่อ backend รับคำขอจาก Nuxt อย่างเดียว (ไม่เปิดพอร์ต backend ออกภายนอก)
+- `Set-Cookie` ของ backend ส่งกลับถึงเบราว์เซอร์ทุกเส้นทาง รวมตอน render ฝั่งเซิร์ฟเวอร์ **ห้ามกำหนด `Domain`** ใน cookie
+- `Origin` ของคำขอจากเบราว์เซอร์คือที่อยู่ของหน้าเว็บ backend ต้องตรวจค่านี้กับคำขอที่แก้ข้อมูล (ป้องกัน CSRF)
+
+หน้าจอรอคำตอบ 15 วินาที (ไฟล์ 120 วินาที) และคำขอ GET จากเบราว์เซอร์ลองซ้ำหนึ่งครั้งเมื่อเซิร์ฟเวอร์ขัดข้อง
 
 ถ้าไม่ตั้งค่า ระบบใช้ข้อมูลจำลอง บัญชีทดสอบอยู่ใน [`mockAccounts.ts`](../app/services/mockAccounts.ts)
 ลิงก์ตั้งรหัสผ่านใหม่ของข้อมูลจำลองแสดงใน console ของเบราว์เซอร์
@@ -75,9 +100,11 @@ backend ต้องทำเอง
 - ชื่อฟิลด์เป็น camelCase
 - `workStatus`: `pending` | `in_progress` | `done`
 - `reviewStatus`: `draft` | `submitted` | `returned` | `approved`
-- ข้อผิดพลาด: HTTP status พร้อม `{ "message": "ข้อความภาษาไทยที่แสดงให้ผู้ใช้ได้" }`
+- ข้อผิดพลาด: HTTP status พร้อม `{ "message": "ข้อความภาษาไทยที่แสดงให้ผู้ใช้ได้", "code"?: "..." }`
+  หน้าจอแสดง `message` เฉพาะที่มีอักษรไทยและไม่ใช่ JSON นอกนั้นแสดงข้อความกลางตาม status
+  (Elysia: แปลงทุกกรณีรวม validation ใน `onError`)
 - การยืนยันตัวตน: session cookie (`credentials: include`)
-- ถ้า backend อยู่คนละ origin ต้องตั้ง CORS ให้อนุญาต credentials และพิจารณาป้องกัน CSRF
+- ถ้าไม่ใช้ตัวส่งต่อ `/api` และ backend อยู่คนละ origin ต้องตั้ง CORS ระบุ origin ของหน้าเว็บและอนุญาต credentials
 
 ## Endpoint
 

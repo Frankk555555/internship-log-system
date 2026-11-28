@@ -13,6 +13,8 @@ useHead({ title: 'ตั้งค่าบัญชี' })
 const api = useApi()
 const user = useSessionUser()
 const { updateProfile } = useSession()
+// โหลดผู้ใช้ไม่ได้ตอนเปิดหน้า จึงไม่มีข้อมูลบัญชีให้แก้ อ่านครั้งเดียว ตอนออกจากระบบจะได้ไม่กระพริบ
+const accountError = user.value ? undefined : { message: 'โหลดข้อมูลบัญชีไม่ได้ กรุณาลองใหม่' }
 
 const firstName = ref(user.value?.firstName ?? '')
 const lastName = ref(user.value?.lastName ?? '')
@@ -148,74 +150,76 @@ async function save() {
       :crumbs="[{ label: `พื้นที่${user ? roleLabels[user.role] : ''}` }, { label: 'ตั้งค่าบัญชี' }]"
     />
 
-    <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
-      <div class="space-y-4">
-        <form ref="nameForm" class="card p-5" novalidate @submit.prevent="saveName">
-          <h2 class="text-base font-bold text-ink">ชื่อและนามสกุล</h2>
+    <AsyncState :loading="false" :error="accountError">
+      <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+        <div class="space-y-4">
+          <form ref="nameForm" class="card p-5" novalidate @submit.prevent="saveName">
+            <h2 class="text-base font-bold text-ink">ชื่อและนามสกุล</h2>
 
-          <div class="mt-4 grid gap-3 sm:grid-cols-2">
-            <TextField id="first-name" v-model="firstName" label="ชื่อ" autocomplete="given-name" :maxlength="maxNameLength" required :error="firstNameError" />
-            <TextField id="last-name" v-model="lastName" label="นามสกุล" autocomplete="family-name" :maxlength="maxNameLength" required :error="lastNameError" />
-          </div>
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+              <TextField id="first-name" v-model="firstName" label="ชื่อ" autocomplete="given-name" :maxlength="maxNameLength" required :error="firstNameError" />
+              <TextField id="last-name" v-model="lastName" label="นามสกุล" autocomplete="family-name" :maxlength="maxNameLength" required :error="lastNameError" />
+            </div>
 
-          <p v-if="nameFormError" class="mt-4 notice-error">
-            {{ nameFormError }}
-          </p>
+            <p v-if="nameFormError" class="mt-4 notice-error">
+              {{ nameFormError }}
+            </p>
 
-          <div class="mt-5 flex gap-3">
-            <button type="submit" :disabled="savingName" class="btn btn-primary px-7 py-2.5 text-xs">
-              {{ savingName ? 'กำลังบันทึก...' : 'บันทึกชื่อ' }}
-            </button>
-            <button type="button" :disabled="savingName" class="btn btn-secondary px-7 py-2.5 text-xs" @click="cancelName">
-              ยกเลิก
-            </button>
-          </div>
-        </form>
+            <div class="mt-5 flex gap-3">
+              <button type="submit" :disabled="savingName" class="btn btn-primary px-7 py-2.5 text-xs">
+                {{ savingName ? 'กำลังบันทึก...' : 'บันทึกชื่อ' }}
+              </button>
+              <button type="button" :disabled="savingName" class="btn btn-secondary px-7 py-2.5 text-xs" @click="cancelName">
+                ยกเลิก
+              </button>
+            </div>
+          </form>
 
-        <form ref="form" class="card p-5" novalidate @submit.prevent="save">
-          <h2 class="text-base font-bold text-ink">รหัสผ่านของฉัน</h2>
+          <form ref="form" class="card p-5" novalidate @submit.prevent="save">
+            <h2 class="text-base font-bold text-ink">รหัสผ่านของฉัน</h2>
 
-          <!-- ช่วยให้ตัวจัดการรหัสผ่านรู้ว่าเป็นบัญชีใด -->
-          <input type="email" :value="user?.email" autocomplete="username" readonly tabindex="-1" aria-hidden="true" class="sr-only">
+            <!-- ช่วยให้ตัวจัดการรหัสผ่านรู้ว่าเป็นบัญชีใด -->
+            <input type="email" :value="user?.email" autocomplete="username" readonly tabindex="-1" aria-hidden="true" class="sr-only">
 
-          <div class="mt-4 space-y-3">
-            <TextField id="current-password" v-model="currentPassword" label="รหัสผ่านปัจจุบัน" type="password" autocomplete="current-password" required :error="currentError" />
-            <TextField id="new-password" v-model="password" label="รหัสผ่านใหม่" type="password" autocomplete="new-password" required :error="passwordError" />
-            <TextField id="confirm-password" v-model="confirmation" label="ยืนยันรหัสผ่านใหม่" type="password" autocomplete="new-password" required :error="confirmationError" />
-          </div>
+            <div class="mt-4 space-y-3">
+              <TextField id="current-password" v-model="currentPassword" label="รหัสผ่านปัจจุบัน" type="password" autocomplete="current-password" required :error="currentError" />
+              <TextField id="new-password" v-model="password" label="รหัสผ่านใหม่" type="password" autocomplete="new-password" required :error="passwordError" />
+              <TextField id="confirm-password" v-model="confirmation" label="ยืนยันรหัสผ่านใหม่" type="password" autocomplete="new-password" required :error="confirmationError" />
+            </div>
 
-          <p v-if="formError" class="mt-4 notice-error">
-            {{ formError }}
-          </p>
+            <p v-if="formError" class="mt-4 notice-error">
+              {{ formError }}
+            </p>
 
-          <div class="mt-5 flex gap-3">
-            <button type="submit" :disabled="pending" class="btn btn-primary px-7 py-2.5 text-xs">
-              {{ pending ? 'กำลังบันทึก...' : 'บันทึก' }}
-            </button>
-            <button type="button" :disabled="pending" class="btn btn-secondary px-7 py-2.5 text-xs" @click="cancel">
-              ยกเลิก
-            </button>
-          </div>
-        </form>
+            <div class="mt-5 flex gap-3">
+              <button type="submit" :disabled="pending" class="btn btn-primary px-7 py-2.5 text-xs">
+                {{ pending ? 'กำลังบันทึก...' : 'บันทึก' }}
+              </button>
+              <button type="button" :disabled="pending" class="btn btn-secondary px-7 py-2.5 text-xs" @click="cancel">
+                ยกเลิก
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <section class="card p-5">
+          <h2 class="text-base font-bold text-ink">บัญชีที่กำลังใช้งาน</h2>
+          <dl v-if="user" class="mt-4 space-y-4">
+            <div>
+              <dt class="text-2xs text-ink-muted">ชื่อผู้ใช้งาน</dt>
+              <dd class="mt-0.5 text-sm font-semibold text-ink">{{ user.name }}</dd>
+            </div>
+            <div>
+              <dt class="text-2xs text-ink-muted">บทบาท</dt>
+              <dd class="mt-0.5 text-sm font-semibold text-ink">{{ roleLabels[user.role] }}</dd>
+            </div>
+            <div>
+              <dt class="text-2xs text-ink-muted">อีเมล</dt>
+              <dd class="mt-0.5 break-all text-sm font-semibold text-ink">{{ user.email }}</dd>
+            </div>
+          </dl>
+        </section>
       </div>
-
-      <section class="card p-5">
-        <h2 class="text-base font-bold text-ink">บัญชีที่กำลังใช้งาน</h2>
-        <dl v-if="user" class="mt-4 space-y-4">
-          <div>
-            <dt class="text-2xs text-ink-muted">ชื่อผู้ใช้งาน</dt>
-            <dd class="mt-0.5 text-sm font-semibold text-ink">{{ user.name }}</dd>
-          </div>
-          <div>
-            <dt class="text-2xs text-ink-muted">บทบาท</dt>
-            <dd class="mt-0.5 text-sm font-semibold text-ink">{{ roleLabels[user.role] }}</dd>
-          </div>
-          <div>
-            <dt class="text-2xs text-ink-muted">อีเมล</dt>
-            <dd class="mt-0.5 break-all text-sm font-semibold text-ink">{{ user.email }}</dd>
-          </div>
-        </dl>
-      </section>
-    </div>
+    </AsyncState>
   </div>
 </template>

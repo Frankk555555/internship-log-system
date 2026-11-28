@@ -1,22 +1,51 @@
-import { ApiError, type Api } from './api'
+import type { Api } from './api'
+import { toApiError } from './httpError'
+
+/** เวลารอคำตอบก่อนถือว่าเชื่อมต่อไม่สำเร็จ */
+const requestTimeoutMs = 15_000
+/** อัปโหลดและดาวน์โหลดไฟล์ */
+const fileTimeoutMs = 120_000
+
+export interface HttpApiOptions {
+  baseURL: string
+  /** header ที่แนบเพิ่ม อ่านใหม่ทุกคำขอ */
+  headers?: () => Record<string, string>
+  /** รับ Set-Cookie ของคำตอบ ใช้ได้ฝั่งเซิร์ฟเวอร์เท่านั้น เบราว์เซอร์จัดการ cookie เอง */
+  onResponseCookies?: (setCookies: string[]) => void
+  onSessionExpired?: () => void
+  onPasswordChangeRequired?: () => void
+  /** จำนวนครั้งที่ลองซ้ำเอง ไม่กำหนด = ลองซ้ำหนึ่งครั้งเฉพาะคำขออ่าน */
+  retry?: number
+}
 
 /**
  * เรียก REST API จริง เส้นทางและรูปแบบข้อมูลเป็นข้อเสนอ ดู docs/api-contract.md
  * เมื่อ backend กำหนดต่างจากนี้ ให้แก้ที่ไฟล์นี้ไฟล์เดียว
  */
-export function createHttpApi(baseURL: string, headers?: Record<string, string>, onSessionExpired?: () => void, onPasswordChangeRequired?: () => void): Api {
+export function createHttpApi({ baseURL, headers, onResponseCookies, onSessionExpired, onPasswordChangeRequired, retry }: HttpApiOptions): Api {
   async function request<T>(path: string, options: NonNullable<Parameters<typeof $fetch>[1]> = {}) {
+    const isFile = options.body instanceof FormData || options.responseType === 'blob'
     try {
       // credentials: ส่ง session cookie ไปด้วย
-      return await $fetch(path, { baseURL, headers, credentials: 'include', ...options }) as T
+      return await $fetch(path, {
+        baseURL,
+        headers: headers?.(),
+        credentials: 'include',
+        timeout: isFile ? fileTimeoutMs : requestTimeoutMs,
+        ...(retry === undefined ? {} : { retry }),
+        onResponse: ({ response }) => {
+          onResponseCookies?.(response.headers.getSetCookie?.() ?? [])
+        },
+        ...options,
+      }) as T
     }
     catch (error) {
-      const { statusCode, data } = error as { statusCode?: number, data?: { message?: string, code?: string, lockedUntil?: string } }
+      const failure = await toApiError(error, !options.method)
       // 401 จากเส้นทางข้อมูล = session หมดอายุ (เส้นทาง /auth และการอ่าน /me ให้ผู้เรียกจัดการเอง)
       const isSessionCheck = path === '/me' && !options.method
-      if (statusCode === 401 && !isSessionCheck && !path.startsWith('/auth/')) onSessionExpired?.()
-      if (statusCode === 403 && data?.code === 'password_change_required') onPasswordChangeRequired?.()
-      throw new ApiError(data?.message ?? 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่', statusCode ?? 503, data)
+      if (failure.statusCode === 401 && !isSessionCheck && !path.startsWith('/auth/')) onSessionExpired?.()
+      if (failure.statusCode === 403 && failure.code === 'password_change_required') onPasswordChangeRequired?.()
+      throw failure
     }
   }
 
