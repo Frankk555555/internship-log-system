@@ -24,7 +24,7 @@ export function toReviewItem(studentId: string, studentName: string, worklog: Wo
 export function activeAbsences(now: string) {
   const at = Date.parse(now)
   return db.absences
-    .filter(item => item.type === 'absent' && Date.parse(item.startAt) <= at && at < Date.parse(item.endAt))
+    .filter(item => item.type === 'absent' && !item.cancelledAt && Date.parse(item.startAt) <= at && at < Date.parse(item.endAt))
     .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))
 }
 

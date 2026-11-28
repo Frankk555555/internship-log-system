@@ -261,7 +261,7 @@ function mentorAway(intern: Intern, date: string): MentorAway | undefined {
   const now = Date.parse(serverNow())
   const isOver = (item: db.MockAbsence) => Number(Date.parse(item.endAt) <= now)
   const found = db.absences
-    .filter(item => item.mentor === intern.mentor && Date.parse(item.startAt) <= dayEnd && Date.parse(item.endAt) > dayStart)
+    .filter(item => item.mentor === intern.mentor && !item.cancelledAt && Date.parse(item.startAt) <= dayEnd && Date.parse(item.endAt) > dayStart)
     .sort((a, b) => isOver(a) - isOver(b) || a.type.localeCompare(b.type) || Date.parse(a.startAt) - Date.parse(b.startAt))[0]
   if (!found) return undefined
 

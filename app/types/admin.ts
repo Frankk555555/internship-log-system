@@ -109,7 +109,7 @@ export interface InternshipInput {
 /** absent = ไม่อยู่ในระบบ (แอดมินบันทึก อนุมัติแทนได้) unavailable = ไม่สะดวกตรวจ (พี่เลี้ยงแจ้ง) */
 export type AbsenceType = 'absent' | 'unavailable'
 
-export type AbsenceStatus = 'now' | 'upcoming' | 'ended'
+export type AbsenceStatus = 'now' | 'upcoming' | 'ended' | 'cancelled'
 
 export interface MentorAbsence {
   id: number
@@ -120,12 +120,14 @@ export interface MentorAbsence {
   reason: string
   /** คำนวณจากเวลาเซิร์ฟเวอร์ */
   status: AbsenceStatus
+  /** มีค่าเมื่อ status เป็น cancelled */
+  cancelled?: { at: string, by: string }
   /** งานที่แอดมินอนุมัติแทนในช่วงนี้ */
   proxyApprovalCount: number
 }
 
 export interface AbsenceList {
-  /** ช่วงที่ยังไม่สิ้นสุดก่อน เรียงตามเวลาเริ่ม แล้วช่วงที่สิ้นสุดแล้ว ใหม่สุดก่อน */
+  /** ช่วงที่ยังเปิดอยู่ก่อน เรียงตามเวลาเริ่ม แล้วช่วงที่สิ้นสุดหรือยกเลิกแล้ว ใหม่สุดก่อน */
   items: MentorAbsence[]
   counts: Record<AbsenceType | 'all', number>
   /** พี่เลี้ยงที่บันทึกช่วงไม่อยู่ได้ */
@@ -205,7 +207,7 @@ export interface AdminOverview {
   maxFailedLogins: number
   /** เรียงตามความเร่งด่วน */
   tasks: AdminTask[]
-  /** ช่วงไม่อยู่ที่ยังไม่สิ้นสุด เริ่มก่อนอยู่บน */
+  /** ช่วงไม่อยู่ที่ยังไม่สิ้นสุดและไม่ถูกยกเลิก เริ่มก่อนอยู่บน */
   absences: MentorAbsence[]
   /** การนำเข้าผู้ใช้ครั้งล่าสุดที่ยืนยันแล้ว */
   lastImport?: ImportSummary
@@ -255,6 +257,8 @@ export interface AdminApi {
   createMentorAbsence(input: AbsenceInput): Promise<MentorAbsence>
   /** ปรับได้เฉพาะเวลาสิ้นสุดของช่วง absent ที่ยังไม่สิ้นสุด ไม่มีการลบ */
   updateAbsenceEnd(id: number, endAt: string): Promise<MentorAbsence>
+  /** ยกเลิกได้เฉพาะช่วง absent ที่ยังไม่เริ่ม (เริ่มแล้ว: ApiError 409) รายการยังเก็บไว้ */
+  cancelMentorAbsence(id: number): Promise<MentorAbsence>
   /** mentorId ที่ไม่ได้อยู่ในช่วงไม่อยู่ เซิร์ฟเวอร์เลือกคนแรกให้แทน */
   getProxyQueue(limit: number, mentorId?: number): Promise<ProxyQueue>
   /** นอกช่วงไม่อยู่ของพี่เลี้ยง: ApiError 403 ส่งกลับแก้ไขแทนไม่ได้ */

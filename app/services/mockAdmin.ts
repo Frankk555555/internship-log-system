@@ -112,7 +112,8 @@ function toAbsence(item: db.MockAbsence, now: number): MentorAbsence {
     startAt: item.startAt,
     endAt: item.endAt,
     reason: item.reason,
-    status: Date.parse(item.endAt) <= now ? 'ended' : Date.parse(item.startAt) <= now ? 'now' : 'upcoming',
+    status: item.cancelledAt ? 'cancelled' : Date.parse(item.endAt) <= now ? 'ended' : Date.parse(item.startAt) <= now ? 'now' : 'upcoming',
+    cancelled: item.cancelledAt ? { at: item.cancelledAt, by: item.cancelledBy!.name } : undefined,
     proxyApprovalCount: db.proxyApprovals.filter(approval => approval.absenceId === item.id).length,
   }
 }
@@ -136,12 +137,16 @@ function lastImportSummary() {
   return summary
 }
 
-/** ช่วงที่ยังไม่สิ้นสุดก่อน เรียงตามเวลาเริ่ม แล้วช่วงที่สิ้นสุดแล้ว ใหม่สุดก่อน */
+/** ช่วงที่กำลังมีผลหรือรอถึงเวลา */
+const isOpenAbsence = ({ status }: MentorAbsence) => status === 'now' || status === 'upcoming'
+
+/** ช่วงที่ยังเปิดอยู่ก่อน เรียงตามเวลาเริ่ม แล้วช่วงที่สิ้นสุดหรือยกเลิกแล้ว ใหม่สุดก่อน */
 function listAbsences(now: number) {
   const all = db.absences.map(item => toAbsence(item, now))
-  const open = all.filter(item => item.status !== 'ended').sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))
-  const ended = all.filter(item => item.status === 'ended').sort((a, b) => Date.parse(b.endAt) - Date.parse(a.endAt))
-  return [...open, ...ended]
+  const closedAt = (item: MentorAbsence) => Date.parse(item.cancelled?.at ?? item.endAt)
+  const open = all.filter(isOpenAbsence).sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))
+  const closed = all.filter(item => !isOpenAbsence(item)).sort((a, b) => closedAt(b) - closedAt(a))
+  return [...open, ...closed]
 }
 
 const activeAccountsOf = (role: AdminUser['role']) => mockAccounts.filter(account => account.profile.role === role && !account.suspended)
@@ -156,6 +161,13 @@ const activeStudents = () => db.students.filter(record => activeAccountsOf('stud
 
 const studentsWithoutMentor = () => activeStudents().filter(record => !record.mentor)
 
+/** คนเดียวบอกชื่อ หลายคนบอกจำนวนและชื่อไม่เกินสองคน */
+function studentNames(names: string[]) {
+  if (names.length === 1) return names[0]!
+  const listed = names.length === 2 ? names.join(' และ ') : `${names.slice(0, 2).join(', ')} และอีก ${names.length - 2} คน`
+  return `นักศึกษา ${names.length} คน (${listed})`
+}
+
 /** ปรับการแจ้งเตือนของแอดมินตามสถานการณ์ปัจจุบัน เรียกตอนเปิดรายการแจ้งเตือน */
 export function syncAdminNotifications(now: string) {
   const absent = absentWithPending(now).map(({ absence, waiting }): AdminAlert => {
@@ -167,12 +179,16 @@ export function syncAdminNotifications(now: string) {
       mentorId: accountIdOf(absence.mentor),
     }
   })
-  const noMentor = studentsWithoutMentor().map(({ profile }): AdminAlert => ({
-    key: `no-mentor-${profile.studentId}`,
-    type: 'student_without_mentor',
-    message: `${profile.name} ยังบันทึกและส่งตรวจไม่ได้`,
-    studentId: profile.studentId,
-  }))
+  // นักศึกษาทุกคนรวมเป็นเรื่องเดียว นำเข้าครั้งละหลายคนจะได้ไม่แจ้งทีละคน
+  const without = studentsWithoutMentor().map(({ profile }) => profile)
+  const noMentor: AdminAlert[] = without.length
+    ? [{
+        key: 'no-mentor',
+        type: 'student_without_mentor',
+        message: `${studentNames(without.map(profile => profile.name))} ยังบันทึกและส่งตรวจไม่ได้`,
+        members: without.map(accountIdOf),
+      }]
+    : []
   syncAdminAlerts([...absent, ...noMentor], now)
 }
 
@@ -271,7 +287,7 @@ function toImport(importId: string, fileName: string, fileSize: number, checked:
 
 /** ช่วงไม่อยู่ของพี่เลี้ยงคนเดียวกันต้องไม่ซ้อนกัน */
 function assertNoAbsenceOverlap(mentor: db.MockAbsence['mentor'], startAt: string, endAt: string, ignoreId?: number) {
-  const overlaps = db.absences.some(item => item.id !== ignoreId && item.mentor === mentor && item.type === 'absent'
+  const overlaps = db.absences.some(item => item.id !== ignoreId && item.mentor === mentor && item.type === 'absent' && !item.cancelledAt
     && Date.parse(startAt) < Date.parse(item.endAt) && Date.parse(item.startAt) < Date.parse(endAt))
   if (overlaps) throw new ApiError('ช่วงเวลานี้ซ้อนกับช่วงไม่อยู่ที่บันทึกไว้ของพี่เลี้ยงคนนี้', 409)
 }
@@ -306,7 +322,7 @@ export function createMockAdmin(session: MockSession, now: () => string): AdminA
         overdueDays: db.settings.reviewOverdueDays,
         maxFailedLogins: db.settings.maxFailedLogins,
         tasks: adminTasks(current),
-        absences: listAbsences(Date.parse(current)).filter(item => item.type === 'absent' && item.status !== 'ended'),
+        absences: listAbsences(Date.parse(current)).filter(item => item.type === 'absent' && isOpenAbsence(item)),
         lastImport: lastImportSummary(),
       })
     },
@@ -453,6 +469,7 @@ export function createMockAdmin(session: MockSession, now: () => string): AdminA
       const item = db.absences.find(entry => entry.id === id)
       if (!item) throw new ApiError('ไม่พบช่วงเวลานี้', 404)
       if (item.type !== 'absent') throw new ApiError('ช่วงที่พี่เลี้ยงแจ้งเองปรับจากหน้านี้ไม่ได้', 422)
+      if (item.cancelledAt) throw new ApiError('ช่วงนี้ถูกยกเลิกแล้ว', 409)
       if (Date.parse(item.endAt) <= Date.parse(now())) throw new ApiError('ช่วงที่สิ้นสุดแล้วปรับไม่ได้', 409)
       if (!isDateTime(endAt)) throw new ApiError('รูปแบบวันที่หรือเวลาไม่ถูกต้อง', 422)
       if (Date.parse(endAt) <= Date.parse(item.startAt)) throw new ApiError('เวลาสิ้นสุดต้องหลังเวลาเริ่ม', 422)
@@ -465,6 +482,19 @@ export function createMockAdmin(session: MockSession, now: () => string): AdminA
       assertNoAbsenceOverlap(item.mentor, item.startAt, endAt, id)
       item.endAt = endAt
       return toAbsence(item, Date.parse(now()))
+    },
+
+    async cancelMentorAbsence(id) {
+      const actor = await authorise()
+      const item = db.absences.find(entry => entry.id === id)
+      if (!item) throw new ApiError('ไม่พบช่วงเวลานี้', 404)
+      if (item.type !== 'absent') throw new ApiError('ช่วงที่พี่เลี้ยงแจ้งเองยกเลิกจากหน้านี้ไม่ได้', 422)
+      if (item.cancelledAt) throw new ApiError('ช่วงนี้ถูกยกเลิกแล้ว', 409)
+      const at = now()
+      // เริ่มแล้วอาจมีการอนุมัติแทนไปแล้ว ให้จบช่วงด้วยการปรับเวลาสิ้นสุด
+      if (Date.parse(item.startAt) <= Date.parse(at)) throw new ApiError('ช่วงนี้เริ่มแล้ว ยกเลิกไม่ได้ ให้ปรับเวลาสิ้นสุดแทน', 409)
+      Object.assign(item, { cancelledAt: at, cancelledBy: actor })
+      return toAbsence(item, Date.parse(at))
     },
 
     async getProxyQueue(limit, mentorId) {

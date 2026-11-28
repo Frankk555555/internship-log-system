@@ -238,6 +238,9 @@ export interface MockAbsence {
   endAt: string
   reason: string
   createdBy: UserProfile
+  /** ยกเลิกก่อนถึงเวลา ไม่มีผลกับการอนุมัติแทนและนักศึกษาไม่เห็น */
+  cancelledAt?: string
+  cancelledBy?: UserProfile
 }
 
 /** ช่วงที่พี่เลี้ยงไม่อยู่ (แอดมินบันทึก) และไม่สะดวกตรวจ (พี่เลี้ยงแจ้ง) ตัวเลขติดลบใน seedTime คือวันข้างหน้า */

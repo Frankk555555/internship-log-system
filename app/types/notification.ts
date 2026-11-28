@@ -12,7 +12,7 @@ export interface AppNotification {
   isRead: boolean
   /** ไม่มีในการแจ้งเตือนของแอดมิน */
   worklogId?: number
-  /** นักศึกษาที่เกี่ยวข้อง ใช้กับการแจ้งเตือนของพี่เลี้ยงและแอดมิน */
+  /** นักศึกษาเจ้าของรายการ ใช้กับการแจ้งเตือนของพี่เลี้ยง */
   studentId?: string
   /** พี่เลี้ยงที่ไม่อยู่ ใช้กับ absent_mentor_pending */
   mentorId?: number

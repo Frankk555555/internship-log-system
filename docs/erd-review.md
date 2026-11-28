@@ -42,7 +42,7 @@
 | `attachments` | uploaded_by, deleted_at, deleted_by | เปลี่ยนไฟล์แล้วยังดูข้อมูลก่อนแก้ได้ | 6.2, 8.2 |
 | `work_list_reviews` | work_version | บันทึกว่าตรวจฉบับไหน | 10.3 |
 | `work_list_reviews` | is_proxy, on_behalf_of_user_id, mentor_busy_id | ระบุว่าแอดมินอนุมัติแทน | 10.6 |
-| `mentor_busy` | created_by, type (absent, unavailable) | `absent` แอดมินบันทึกและเปิดสิทธิ์อนุมัติแทน `unavailable` พี่เลี้ยงบันทึกเพื่อแจ้งเท่านั้น | 10.6 |
+| `mentor_busy` | created_by, type (absent, unavailable), cancelled_at, cancelled_by | `absent` แอดมินบันทึกและเปิดสิทธิ์อนุมัติแทน `unavailable` พี่เลี้ยงบันทึกเพื่อแจ้งเท่านั้น ช่วงที่ยกเลิกไม่ลบแถว | 10.6 |
 | `mentor_assignments` | assigned_by, created_at | ตรวจย้อนหลังว่าใครเปลี่ยนพี่เลี้ยง | 3.2 |
 | `internships` | position, semester | หน้าจอแสดงตำแหน่งและภาคการศึกษา | หน้าจอ |
 | `internships` | work_start_time, work_end_time (TIME, NOT NULL) | เวลาเข้างานและเลิกงานต่างกันตามสถานประกอบการ | 5.4 |

@@ -64,22 +64,29 @@ export interface AdminAlert {
   type: AdminNotificationType
   message: string
   mentorId?: number
-  studentId?: string
+  /** ผู้ที่เรื่องนี้ครอบคลุม มีคนใหม่เพิ่มเข้ามาจึงแจ้งเป็นยังไม่อ่านอีกครั้ง */
+  members?: number[]
 }
+
+const alertMembers = new Map<string, number[]>()
 
 /**
  * การแจ้งเตือนของแอดมินตามเรื่องที่ยังค้างอยู่: เรื่องใหม่เพิ่มครั้งเดียว เรื่องเดิมปรับข้อความโดยคงสถานะอ่าน
- * เรื่องที่จัดการแล้วเอาออก ถ้าเกิดขึ้นอีกจึงแจ้งใหม่
+ * เว้นแต่มีคนใหม่เข้ามาในเรื่องนั้น เรื่องที่จัดการแล้วเอาออก ถ้าเกิดขึ้นอีกจึงแจ้งใหม่
  */
 export function syncAdminAlerts(alerts: AdminAlert[], now: string) {
   for (let index = stored.length - 1; index >= 0; index--) {
     const { recipient, key } = stored[index]!
-    if (recipient === 'admin' && !alerts.some(alert => alert.key === key)) stored.splice(index, 1)
+    if (recipient !== 'admin' || alerts.some(alert => alert.key === key)) continue
+    stored.splice(index, 1)
+    alertMembers.delete(key!)
   }
-  for (const alert of alerts) {
+  for (const { members = [], ...alert } of alerts) {
     const existing = stored.find(entry => entry.key === alert.key)
-    if (existing) Object.assign(existing, alert)
+    const hasNewMember = members.some(member => !alertMembers.get(alert.key)?.includes(member))
+    if (existing) Object.assign(existing, alert, hasNewMember ? { isRead: false, createdAt: now } : {})
     else stored.push({ ...alert, id: nextId++, recipient: 'admin', title: titles[alert.type], createdAt: now, isRead: false })
+    alertMembers.set(alert.key, members)
   }
 }
 

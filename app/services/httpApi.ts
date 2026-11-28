@@ -75,6 +75,7 @@ export function createHttpApi({ baseURL, headers, onResponseCookies, onSessionEx
     getMentorAbsences: type => request('/admin/mentor-absences', { query: { type } }),
     createMentorAbsence: body => request('/admin/mentor-absences', { method: 'POST', body }),
     updateAbsenceEnd: (id, endAt) => request(`/admin/mentor-absences/${id}`, { method: 'PATCH', body: { endAt } }),
+    cancelMentorAbsence: id => request(`/admin/mentor-absences/${id}/cancel`, { method: 'POST' }),
     getOverview: () => request('/admin/overview'),
     previewUserImport: (file) => {
       const body = new FormData()

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { errorMessage } from '~/services/api'
+import { ApiError, errorMessage } from '~/services/api'
 import type { AbsenceInput, AbsenceType, MentorAbsence } from '~/types/admin'
 import type { BadgeTone } from '~/types/worklog'
 
@@ -26,10 +26,17 @@ const typeText: Record<AbsenceType, { label: string, source: string }> = {
 }
 
 function statusBadge(item: MentorAbsence): { label: string, tone: BadgeTone } {
+  if (item.status === 'cancelled') return { label: 'ยกเลิกแล้ว', tone: 'slate' }
   if (item.status === 'ended') return { label: 'สิ้นสุดแล้ว', tone: 'slate' }
   if (item.type === 'unavailable' && toThaiTimeParts(item.startAt).date === data.value?.today) return { label: 'วันนี้', tone: 'blue' }
   if (item.status === 'now') return { label: item.type === 'absent' ? 'ไม่อยู่ตอนนี้' : 'ตอนนี้', tone: 'amber' }
   return { label: 'กำหนดไว้', tone: 'blue' }
+}
+
+function cancelledNote({ cancelled }: MentorAbsence) {
+  if (!cancelled) return ''
+  const { date, time } = toThaiTimeParts(cancelled.at)
+  return `ยกเลิกเมื่อ ${formatThaiDate(date)} ${time} น. โดย ${cancelled.by}`
 }
 
 /** บรรทัดแรกคือเวลาเริ่ม บรรทัดสองคือเวลาสิ้นสุด วันเดียวกันไม่แสดงวันซ้ำ */
@@ -98,6 +105,40 @@ async function adjust(endAt: string) {
     adjustPending.value = false
   }
 }
+// ยกเลิกช่วงที่ยังไม่เริ่ม
+const cancelOpen = ref(false)
+const cancelling = ref<MentorAbsence>()
+const cancelPending = ref(false)
+const cancelError = ref<string>()
+
+function askCancel(item: MentorAbsence) {
+  cancelling.value = item
+  cancelError.value = undefined
+  cancelOpen.value = true
+}
+
+async function cancelAbsence() {
+  const target = cancelling.value
+  if (!target || cancelPending.value) return
+  cancelPending.value = true
+  cancelError.value = undefined
+  try {
+    const saved = await api.cancelMentorAbsence(target.id)
+    cancelOpen.value = false
+    await refresh()
+    notify('success', 'ยกเลิกช่วงไม่อยู่แล้ว', `${saved.mentorName}\n${range(saved).start} ${range(saved).end}`)
+  }
+  catch (problem) {
+    const message = errorMessage(problem)
+    notify('error', 'ยกเลิกช่วงไม่สำเร็จ', message)
+    // สถานะเปลี่ยนไปแล้ว เช่น ถึงเวลาเริ่มระหว่างเปิดหน้า โหลดตารางใหม่ให้ตรง
+    if (problem instanceof ApiError && problem.statusCode === 409) await refresh()
+    cancelError.value = message
+  }
+  finally {
+    cancelPending.value = false
+  }
+}
 </script>
 
 <template>
@@ -154,17 +195,28 @@ async function adjust(endAt: string) {
                     </td>
                     <td class="px-2 py-3.5"><StatusBadge v-bind="statusBadge(item)" /></td>
                     <td class="px-3 py-3.5 text-right">
-                      <button
-                        v-if="item.type === 'absent' && item.status !== 'ended'"
-                        type="button"
-                        class="btn btn-secondary px-3 py-1.5 text-2xs"
-                        :aria-label="`ปรับเวลาสิ้นสุดของ ${item.mentorName} ${range(item).start}`"
-                        @click="openAdjust(item)"
-                      >
-                        ปรับเวลาสิ้นสุด
-                      </button>
-                      <span v-else-if="item.type === 'absent'" class="text-2xs">{{ item.proxyApprovalCount ? `อนุมัติแทน ${item.proxyApprovalCount} รายการ` : 'ไม่มีการอนุมัติแทน' }}</span>
-                      <span v-else>–</span>
+                      <span v-if="item.type !== 'absent'">–</span>
+                      <span v-else-if="item.status === 'cancelled'" class="text-2xs">{{ cancelledNote(item) }}</span>
+                      <span v-else-if="item.status === 'ended'" class="text-2xs">{{ item.proxyApprovalCount ? `อนุมัติแทน ${item.proxyApprovalCount} รายการ` : 'ไม่มีการอนุมัติแทน' }}</span>
+                      <div v-else class="flex flex-col items-end gap-1.5">
+                        <button
+                          type="button"
+                          class="btn btn-secondary px-3 py-1.5 text-2xs"
+                          :aria-label="`ปรับเวลาสิ้นสุดของ ${item.mentorName} ${range(item).start}`"
+                          @click="openAdjust(item)"
+                        >
+                          ปรับเวลาสิ้นสุด
+                        </button>
+                        <button
+                          v-if="item.status === 'upcoming'"
+                          type="button"
+                          class="btn btn-danger-outline px-3 py-1.5 text-2xs"
+                          :aria-label="`ยกเลิกช่วงของ ${item.mentorName} ${range(item).start}`"
+                          @click="askCancel(item)"
+                        >
+                          ยกเลิกช่วง
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   <tr v-if="!data.items.length" class="border-t border-line">
@@ -177,6 +229,15 @@ async function adjust(endAt: string) {
         </div>
       </AsyncState>
     </div>
+
+    <AbsenceCancelModal
+      v-model:open="cancelOpen"
+      :mentor-name="cancelling?.mentorName"
+      :period="cancelling ? `${range(cancelling).start} ${range(cancelling).end}` : ''"
+      :pending="cancelPending"
+      :server-error="cancelError"
+      @confirm="cancelAbsence"
+    />
 
     <AbsenceEndModal v-model:open="endOpen" :absence="adjusting" :pending="adjustPending" :server-error="adjustError" @save="adjust" />
   </div>
