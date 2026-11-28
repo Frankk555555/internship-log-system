@@ -73,19 +73,6 @@ function move(step: number) {
   if (date) show({ date: addDays(date, step * (view.value === 'week' ? 7 : 1)) })
 }
 
-const picker = useTemplateRef<HTMLInputElement>('picker')
-
-function openPicker() {
-  if (!picker.value || !current.value) return
-  picker.value.value = current.value.date
-  picker.value.showPicker()
-}
-
-function onPick(event: Event) {
-  const { value } = event.target as HTMLInputElement
-  if (value) show({ date: value })
-}
-
 const tabs: { view: CalendarView, label: string }[] = [
   { view: 'week', label: 'รายสัปดาห์' },
   { view: 'day', label: 'รายวัน' },
@@ -118,13 +105,14 @@ const tabs: { view: CalendarView, label: string }[] = [
           <button type="button" :disabled="!current" class="flex size-8 items-center justify-center rounded-lg text-ink-muted hover:bg-slate-100 hover:text-brand" :aria-label="`${unit}ก่อนหน้า`" @click="move(-1)">
             <UIcon name="i-lucide-chevron-left" class="size-4" />
           </button>
-          <button type="button" :disabled="!current" class="min-w-44 rounded-lg px-2 py-1.5 text-sm font-semibold text-ink hover:bg-slate-100" title="เลือกวันที่" @click="openPicker">
-            <span aria-live="polite">{{ label }}</span>
-          </button>
+          <DatePicker align="center" :week="view === 'week'" :value="current?.date" label="เลือกวันที่" @pick="date => show({ date })">
+            <button type="button" :disabled="!current" class="min-w-44 rounded-lg px-2 py-1.5 text-sm font-semibold text-ink hover:bg-slate-100" title="เลือกวันที่">
+              <span aria-live="polite">{{ label }}</span>
+            </button>
+          </DatePicker>
           <button type="button" :disabled="!current" class="flex size-8 items-center justify-center rounded-lg text-ink-muted hover:bg-slate-100 hover:text-brand" :aria-label="`${unit}ถัดไป`" @click="move(1)">
             <UIcon name="i-lucide-chevron-right" class="size-4" />
           </button>
-          <input ref="picker" type="date" tabindex="-1" aria-hidden="true" class="pointer-events-none absolute bottom-0 left-1/2 size-px opacity-0" @change="onPick">
         </div>
 
         <button type="button" class="btn btn-secondary px-3 py-1.5 text-xs" @click="show({ date: undefined })">
