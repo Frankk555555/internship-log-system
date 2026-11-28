@@ -6,9 +6,9 @@ import type {
   DailyWorklogs,
   InternshipInfo,
   MentorStudent,
+  ReportData,
   SaveWorklogInput,
   StudentDashboard,
-  WeeklyReportData,
   WorkLog,
   WorklogFormContext,
   WorklogFormMode,
@@ -42,12 +42,13 @@ export interface Api extends AuthApi, AdminApi {
   finishWorklog(id: number): Promise<WorkLog>
   deleteWorklog(id: number, reason: string): Promise<void>
   getWorklogHistory(id: number): Promise<WorklogHistory>
-  getMyWeeklyReport(weekStart: string): Promise<WeeklyReportData>
+  /** รายงานของตนเองในช่วงวันที่ from–to (ไม่เกิน 1 ปี) */
+  getMyReport(from: string, to: string): Promise<ReportData>
 
   // พี่เลี้ยง
   getMentorStudents(): Promise<MentorStudent[]>
   /** ไม่ระบุ studentId = นักศึกษาในความดูแลทั้งหมด */
-  getMentorWeeklyReports(weekStart: string, studentId?: string): Promise<WeeklyReportData[]>
+  getMentorReports(from: string, to: string, studentId?: string): Promise<ReportData[]>
   getSupervisedStudents(): Promise<SupervisedStudents>
   /** ไม่ระบุ studentId = นักศึกษาในความดูแลทั้งหมด */
   getReviewQueue(filter: ReviewFilter, limit: number, studentId?: string): Promise<ReviewQueue>

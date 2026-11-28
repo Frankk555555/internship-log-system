@@ -101,7 +101,7 @@ function announce(kind: 'approve' | 'return', items: ReviewItem[]) {
     notify(
       'success',
       items.length === 1 ? 'อนุมัติรายการแล้ว' : `อนุมัติ ${items.length} รายการแล้ว`,
-      `${items.length === 1 ? `${first.studentName} · ${first.worklog.title}\n` : ''}${hours} ชม. ถูกนับในรายงานรายสัปดาห์`,
+      `${items.length === 1 ? `${first.studentName} · ${first.worklog.title}\n` : ''}${hours} ชม. ถูกนับในรายงาน`,
     )
   }
   else {

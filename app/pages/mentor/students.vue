@@ -166,7 +166,7 @@ function submittedLabel(value: string) {
                         <NuxtLink :to="{ path: '/mentor/reviews', query: { student: student.studentId, tab: 'all' } }" class="btn btn-secondary min-w-12 whitespace-nowrap px-3 py-1.5 text-2xs" :aria-label="`ดูบันทึกงานของ ${student.name}`">
                           ดูบันทึกงาน
                         </NuxtLink>
-                        <NuxtLink :to="{ path: '/mentor/reports', query: { student: student.studentId } }" class="btn btn-secondary min-w-12 whitespace-nowrap px-3 py-1.5 text-2xs" :aria-label="`รายงานรายสัปดาห์ของ ${student.name}`">
+                        <NuxtLink :to="{ path: '/mentor/reports', query: { student: student.studentId } }" class="btn btn-secondary min-w-12 whitespace-nowrap px-3 py-1.5 text-2xs" :aria-label="`รายงานของ ${student.name}`">
                           รายงาน
                         </NuxtLink>
                       </div>

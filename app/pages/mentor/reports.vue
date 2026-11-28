@@ -3,10 +3,9 @@ definePageMeta({ layout: 'staff', role: 'supervisor' })
 
 const api = useApi()
 const notify = useNotify()
-const user = useSessionUser()
 const { data: students, error: studentsError, refresh: refreshStudents } = await useLazyAsyncData('mentor-students', () => api.getMentorStudents())
 
-// ตัวเลือกสัปดาห์และนักศึกษา (ขอบเขตงานข้อ 12.1)
+// ตัวเลือกช่วงเวลาและนักศึกษา (ขอบเขตงานข้อ 12.1)
 const allStudents = 'all'
 // เปิดจากหน้านักศึกษาในความดูแลจะเลือกคนนั้นไว้ให้
 const route = useRoute()
@@ -17,27 +16,22 @@ const selectedStudent = computed({
   set: value => pickedStudent.value = value,
 })
 
-const pickedWeek = ref<string>()
-const weekStart = computed({
-  get: () => pickedWeek.value ?? startOfWeek(user.value?.defaultReportDate ?? toThaiTimeParts(new Date().toISOString()).date),
-  set: value => pickedWeek.value = value,
-})
-const weekLabel = computed(() => formatWeekLabel(weekStart.value))
-const selectionKey = computed(() => `${weekStart.value}|${selectedStudent.value}`)
+const { view, date, period } = useReportPeriod()
+const selectionKey = computed(() => `${period.value.from}|${period.value.to}|${selectedStudent.value}`)
 
 const { data, status, error, refresh } = await useLazyAsyncData(
-  'mentor-weekly-reports',
+  'mentor-reports',
   async () => {
     const key = selectionKey.value
     const studentId = selectedStudent.value === allStudents ? undefined : selectedStudent.value
-    return { key, reports: await api.getMentorWeeklyReports(weekStart.value, studentId) }
+    return { key, reports: await api.getMentorReports(period.value.from, period.value.to, studentId) }
   },
   { watch: [selectionKey] },
 )
 
 // แสดงเฉพาะข้อมูลที่ตรงกับตัวเลือกปัจจุบัน
 const reports = computed(() => data.value?.key === selectionKey.value
-  ? data.value.reports.map(report => buildWeeklyReport(report, weekStart.value))
+  ? data.value.reports.map(report => buildReport(report, period.value))
   : undefined)
 
 const isAll = computed(() => selectedStudent.value === allStudents)
@@ -46,7 +40,7 @@ const reportName = computed(() => isAll.value ? 'นักศึกษาทั�
 
 // ชื่อหน้าใช้เป็นชื่อไฟล์เริ่มต้นเวลาบันทึกเป็น PDF จึงไม่ต่อท้ายด้วยชื่อระบบ
 useHead({
-  title: () => `รายงานประจำสัปดาห์ ${reportName.value} ${formatThaiDate(weekStart.value)}`,
+  title: () => `${period.value.name} ${reportName.value} ${period.value.label}`,
   titleTemplate: '%s',
 })
 
@@ -58,13 +52,13 @@ function retry() {
 function downloadExcel() {
   if (!reports.value) return
   try {
-    downloadWeeklyReportExcel({
+    downloadReportExcel({
       reports: reports.value,
-      weekStart: weekStart.value,
+      period: period.value,
       fileKey: selectedStudent.value,
       showOverallTotal: isAll.value,
     })
-    notify('success', 'ดาวน์โหลด Excel แล้ว', `${reportName.value}\nสัปดาห์ ${weekLabel.value}`)
+    notify('success', 'ดาวน์โหลด Excel แล้ว', `${reportName.value}\n${period.value.name} ${period.value.label}`)
   }
   catch {
     notify('error', 'ดาวน์โหลดไม่สำเร็จ', 'กรุณาลองอีกครั้ง')
@@ -74,7 +68,7 @@ function downloadExcel() {
 
 <template>
   <div>
-    <PageHeader class="mb-4 print:hidden" title="รายงานประจำสัปดาห์" :crumbs="[{ label: 'พื้นที่พี่เลี้ยง' }, { label: 'รายงานประจำสัปดาห์' }]">
+    <PageHeader class="mb-4 print:hidden" title="รายงาน" :crumbs="[{ label: 'พื้นที่พี่เลี้ยง' }, { label: 'รายงาน' }]">
       <template v-if="linkedStudent" #back>
         <BackButton fallback="/mentor/students" />
       </template>
@@ -82,6 +76,7 @@ function downloadExcel() {
         <NotificationButton />
       </template>
 
+      <ReportViewTabs v-model="view" class="mb-3" />
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div class="flex flex-wrap items-end gap-3">
           <label class="flex flex-col gap-1 text-2xs font-semibold text-slate-600">
@@ -93,7 +88,7 @@ function downloadExcel() {
               </option>
             </select>
           </label>
-          <WeekSelector v-model="weekStart" />
+          <PeriodSelector v-model="date" :view="view" />
         </div>
 
         <ReportDownloadButtons :disabled="!reports" @excel="downloadExcel" />
@@ -103,11 +98,11 @@ function downloadExcel() {
     <AsyncState :loading="!reports && status !== 'error'" :error="studentsError ?? error" @retry="retry">
       <div class="space-y-4">
         <!-- แต่ละคนขึ้นหน้าใหม่ในเอกสาร PDF -->
-        <WeeklyReportCard
+        <ReportCard
           v-for="(report, index) in reports"
           :key="report.studentId"
           :report="report"
-          :week-label="weekLabel"
+          :period="period"
           :class="index > 0 ? 'print:break-before-page' : ''"
         />
 

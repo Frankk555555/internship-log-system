@@ -21,7 +21,7 @@ export interface UserProfile {
   role: UserRole
   /** ยังใช้รหัสผ่านเริ่มต้น ต้องตั้งรหัสใหม่ก่อนใช้งานส่วนอื่น */
   mustChangePassword?: boolean
-  /** วันที่ตั้งต้นของหน้ารายงานรายสัปดาห์ (ปกติคือวันนี้ของเซิร์ฟเวอร์) */
+  /** วันที่ตั้งต้นของหน้ารายงาน (ปกติคือวันนี้ของเซิร์ฟเวอร์) */
   defaultReportDate: string
 }
 
@@ -191,8 +191,8 @@ export interface MentorStudent {
   name: string
 }
 
-/** ข้อมูลดิบของรายงานรายสัปดาห์ของนักศึกษา 1 คน */
-export interface WeeklyReportData extends MentorStudent {
+/** ข้อมูลดิบของรายงานของนักศึกษา 1 คนในช่วงวันที่ที่ขอ */
+export interface ReportData extends MentorStudent {
   mentorName: string
   worklogs: WorkLog[]
 }

@@ -123,14 +123,17 @@ backend ต้องทำเอง
 | POST | `/me/worklogs/:id/finish` | `WorkLog` บันทึกเวลาสิ้นสุดจากเซิร์ฟเวอร์ | หน้าหลัก |
 | DELETE | `/me/worklogs/:id` body `{ reason }` | ไม่มี | ลบรายการ |
 | GET | `/me/worklogs/:id/history` | `WorklogHistory` | ประวัติการแก้ไข |
-| GET | `/me/reports/weekly?weekStart=` | `WeeklyReportData` | รายงานของนักศึกษา |
+| GET | `/me/reports?from=&to=` | `ReportData` | รายงานรายวัน รายสัปดาห์ และรายปีของนักศึกษา |
 | GET | `/mentor/students` | `MentorStudent[]` | รายงานของพี่เลี้ยง |
-| GET | `/mentor/reports/weekly?weekStart=&studentId=` | `WeeklyReportData[]` | รายงานของพี่เลี้ยง |
+| GET | `/mentor/reports?from=&to=&studentId=` | `ReportData[]` | รายงานของพี่เลี้ยง (วัน สัปดาห์ ปี) |
 | GET | `/mentor/students/overview` | `SupervisedStudents` | นักศึกษาในความดูแล |
 | GET | `/mentor/reviews?filter=pending\|all&limit=&studentId=` | `ReviewQueue` (กรองรายคนได้ ถ้าไม่อยู่ในความดูแลตอบ 403) | ตรวจงานนักศึกษา |
 | POST | `/mentor/reviews/approve` body `{ items: [{ id, version }], comment? }` | `ReviewResult` | ตรวจงานนักศึกษา |
 | POST | `/mentor/reviews/return` body `{ items: [{ id, version }], comment, allowTimeEdit? }` | `ReviewResult` | ตรวจงานนักศึกษา |
 | POST | `/mentor/unavailability` body `{ date, startTime, endTime, reason }` | ไม่มี | ตารางเวลาไม่สะดวก |
+
+`/me/reports` และ `/mentor/reports`: `from`, `to` เป็น `YYYY-MM-DD` นับรวมทั้งสองวัน ช่วงยาวไม่เกิน 366 วัน ผิดตอบ 422
+ส่งรายการงานทุกรายการในช่วง การสรุปรายเดือนและชั่วโมงรวมทำที่หน้าจอ พี่เลี้ยงไม่ได้รับฉบับร่าง
 
 `/me/worklogs/:id/history` เรียกได้ทั้งนักศึกษาเจ้าของรายการ พี่เลี้ยงของนักศึกษานั้น
 และแอดมินเฉพาะรายการที่อนุมัติแทนได้ตอนนี้หรือเคยอนุมัติแทน (ดู "การอนุมัติแทน")

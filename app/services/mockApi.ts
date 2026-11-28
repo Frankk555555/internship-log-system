@@ -1,5 +1,5 @@
 import type { ReviewResult, ReviewTarget } from '~/types/review'
-import type { Attachment, HistoryEvent, InternshipInfo, MentorAway, SaveWorklogInput, UserProfile, WeeklyReportData, WorkLog } from '~/types/worklog'
+import type { Attachment, HistoryEvent, InternshipInfo, MentorAway, ReportData, SaveWorklogInput, UserProfile, WorkLog } from '~/types/worklog'
 import { addDays, formatThaiDate, toThaiTimeParts } from '~/utils/date'
 import { fileError } from '~/utils/attachments'
 import { toMinutes } from '~/utils/time'
@@ -66,14 +66,19 @@ function assertEditable(worklog: WorkLog) {
   }
 }
 
-function weekly({ profile, mentor, worklogs }: db.StudentRecord, weekStart: string, includeDrafts: boolean): WeeklyReportData {
-  const weekEnd = addDays(weekStart, 6)
+function reportOf({ profile, mentor, worklogs }: db.StudentRecord, from: string, to: string, includeDrafts: boolean): ReportData {
   return {
     studentId: profile.studentId!,
     name: profile.name,
     mentorName: mentor?.name ?? 'ยังไม่กำหนด',
-    worklogs: worklogs.filter(log => log.date >= weekStart && log.date <= weekEnd && (includeDrafts || log.reviewStatus !== 'draft')),
+    worklogs: worklogs.filter(log => log.date >= from && log.date <= to && (includeDrafts || log.reviewStatus !== 'draft')),
   }
+}
+
+/** รายงานหนึ่งครั้งไม่เกินหนึ่งปี */
+function assertReportRange(from: string, to: string) {
+  const isDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value))
+  if (!isDate(from) || !isDate(to) || to < from || to > addDays(from, 365)) throw new ApiError('ช่วงวันที่ของรายงานไม่ถูกต้อง', 422)
 }
 
 /** นักศึกษาในความดูแลของพี่เลี้ยง (ขอบเขตงานข้อ 9.2) */
@@ -278,7 +283,7 @@ function runningSummary(intern: Intern) {
   return running && { id: running.id, title: running.title, startTime: running.startTime! }
 }
 
-type StudentApi = Pick<Api, 'getDashboard' | 'getInternship' | 'getDailyWorklogs' | 'listWorklogs' | 'getWorklog' | 'getWorklogFormContext' | 'saveWorklog' | 'startWorklog' | 'finishWorklog' | 'deleteWorklog' | 'getWorklogHistory' | 'getMyWeeklyReport'>
+type StudentApi = Pick<Api, 'getDashboard' | 'getInternship' | 'getDailyWorklogs' | 'listWorklogs' | 'getWorklog' | 'getWorklogFormContext' | 'saveWorklog' | 'startWorklog' | 'finishWorklog' | 'deleteWorklog' | 'getWorklogHistory' | 'getMyReport'>
 
 /** ข้อมูลของนักศึกษาที่เข้าสู่ระบบ ทุกเมธอดเห็นเฉพาะรายการของตนเอง */
 function studentApi(intern: Intern): StudentApi {
@@ -462,21 +467,27 @@ function studentApi(intern: Intern): StudentApi {
       return respond({ worklog, events: db.histories[id] ?? [] })
     },
 
-    getMyWeeklyReport: weekStart => respond(weekly(intern, weekStart, true)),
+    getMyReport: async (from, to) => {
+      assertReportRange(from, to)
+      return respond(reportOf(intern, from, to, true))
+    },
   }
 }
 
-type MentorApi = Pick<Api, 'getMentorStudents' | 'getMentorWeeklyReports' | 'getSupervisedStudents' | 'getReviewQueue' | 'approveWorklogs' | 'returnWorklogs' | 'createUnavailability' | 'getWorklogHistory'>
+type MentorApi = Pick<Api, 'getMentorStudents' | 'getMentorReports' | 'getSupervisedStudents' | 'getReviewQueue' | 'approveWorklogs' | 'returnWorklogs' | 'createUnavailability' | 'getWorklogHistory'>
 
 /** ข้อมูลของพี่เลี้ยงที่เข้าสู่ระบบ เห็นเฉพาะนักศึกษาในความดูแล */
 function mentorApi(mentor: UserProfile): MentorApi {
   return {
     getMentorStudents: () => respond(mentoredStudents(mentor).map(({ studentId, name }) => ({ studentId, name }))),
 
-    getMentorWeeklyReports: (weekStart, studentId) => respond(db.students
-      .filter(item => item.mentor === mentor && item.internship && (!studentId || item.profile.studentId === studentId))
-      // ฉบับร่างยังไม่ถูกส่งตรวจ พี่เลี้ยงจึงไม่เห็น
-      .map(item => weekly(item, weekStart, false))),
+    getMentorReports: async (from, to, studentId) => {
+      assertReportRange(from, to)
+      return respond(db.students
+        .filter(item => item.mentor === mentor && item.internship && (!studentId || item.profile.studentId === studentId))
+        // ฉบับร่างยังไม่ถูกส่งตรวจ พี่เลี้ยงจึงไม่เห็น
+        .map(item => reportOf(item, from, to, false)))
+    },
 
     getSupervisedStudents: () => respond({
       overdueDays: db.settings.reviewOverdueDays,
@@ -639,10 +650,10 @@ export function createMockApi(session: MockSession): Api {
     finishWorklog: student('finishWorklog'),
     deleteWorklog: student('deleteWorklog'),
     getWorklogHistory,
-    getMyWeeklyReport: student('getMyWeeklyReport'),
+    getMyReport: student('getMyReport'),
 
     getMentorStudents: mentor('getMentorStudents'),
-    getMentorWeeklyReports: mentor('getMentorWeeklyReports'),
+    getMentorReports: mentor('getMentorReports'),
     getSupervisedStudents: mentor('getSupervisedStudents'),
     getReviewQueue: mentor('getReviewQueue'),
     approveWorklogs: mentor('approveWorklogs'),

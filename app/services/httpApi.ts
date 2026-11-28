@@ -118,9 +118,9 @@ export function createHttpApi({ baseURL, headers, onResponseCookies, onSessionEx
     },
 
     getWorklogHistory: id => request(`/me/worklogs/${id}/history`),
-    getMyWeeklyReport: weekStart => request('/me/reports/weekly', { query: { weekStart } }),
+    getMyReport: (from, to) => request('/me/reports', { query: { from, to } }),
     getMentorStudents: () => request('/mentor/students'),
-    getMentorWeeklyReports: (weekStart, studentId) => request('/mentor/reports/weekly', { query: { weekStart, studentId } }),
+    getMentorReports: (from, to, studentId) => request('/mentor/reports', { query: { from, to, studentId } }),
     getSupervisedStudents: () => request('/mentor/students/overview'),
     getReviewQueue: (filter, limit, studentId) => request('/mentor/reviews', { query: { filter, limit, studentId } }),
     approveWorklogs: (items, comment) => request('/mentor/reviews/approve', { method: 'POST', body: { items, comment } }),

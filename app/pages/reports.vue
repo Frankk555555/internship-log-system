@@ -3,46 +3,35 @@ definePageMeta({ role: 'student' })
 
 const api = useApi()
 const notify = useNotify()
-const user = useSessionUser()
-
-// เริ่มที่สัปดาห์ปัจจุบัน จนกว่าผู้ใช้จะเลือกสัปดาห์เอง
-const pickedWeek = ref<string>()
-const weekStart = computed({
-  get: () => pickedWeek.value ?? startOfWeek(user.value?.defaultReportDate ?? toThaiTimeParts(new Date().toISOString()).date),
-  set: value => pickedWeek.value = value,
-})
-const weekLabel = computed(() => formatWeekLabel(weekStart.value))
+const { view, date, period } = useReportPeriod()
+const rangeKey = computed(() => `${period.value.from}|${period.value.to}`)
 
 // นักศึกษาเห็นเฉพาะงานของตนเอง (ขอบเขตงานข้อ 2.3)
 const { data, status, error, refresh } = await useLazyAsyncData(
-  'my-weekly-report',
+  'my-report',
   async () => {
-    const week = weekStart.value
-    return { week, report: await api.getMyWeeklyReport(week) }
+    const key = rangeKey.value
+    return { key, report: await api.getMyReport(period.value.from, period.value.to) }
   },
-  { watch: [weekStart] },
+  { watch: [rangeKey] },
 )
 
-// แสดงเฉพาะข้อมูลที่ตรงกับสัปดาห์ที่เลือก
-const current = computed(() => data.value?.week === weekStart.value ? data.value.report : undefined)
+// แสดงเฉพาะข้อมูลที่ตรงกับช่วงที่เลือก
+const current = computed(() => data.value?.key === rangeKey.value ? data.value.report : undefined)
 // ฉบับร่างเป็นงานของตนเอง จึงแสดงได้ แต่ไม่นับในชั่วโมงรวม
-const report = computed(() => current.value && buildWeeklyReport(current.value, weekStart.value))
+const report = computed(() => current.value && buildReport(current.value, period.value))
 
 // ชื่อหน้าใช้เป็นชื่อไฟล์เริ่มต้นเวลาบันทึกเป็น PDF จึงไม่ต่อท้ายด้วยชื่อระบบ
 useHead({
-  title: () => `รายงานประจำสัปดาห์ ${current.value?.name ?? ''} ${formatThaiDate(weekStart.value)}`,
+  title: () => `${period.value.name} ${current.value?.name ?? ''} ${period.value.label}`,
   titleTemplate: '%s',
 })
 
 function downloadExcel() {
   if (!report.value || !current.value) return
   try {
-    downloadWeeklyReportExcel({
-      reports: [report.value],
-      weekStart: weekStart.value,
-      fileKey: current.value.studentId,
-    })
-    notify('success', 'ดาวน์โหลด Excel แล้ว', `รายงานสัปดาห์ ${weekLabel.value}`)
+    downloadReportExcel({ reports: [report.value], period: period.value, fileKey: current.value.studentId })
+    notify('success', 'ดาวน์โหลด Excel แล้ว', `${period.value.name} ${period.value.label}`)
   }
   catch {
     notify('error', 'ดาวน์โหลดไม่สำเร็จ', 'กรุณาลองอีกครั้ง')
@@ -52,15 +41,18 @@ function downloadExcel() {
 
 <template>
   <div>
-    <PageHeader class="mb-4 print:hidden" title="รายงานประจำสัปดาห์" :crumbs="[{ label: 'พื้นที่นักศึกษา' }, { label: 'รายงานประจำสัปดาห์' }]">
-      <div class="flex flex-wrap items-end justify-between gap-3">
-        <WeekSelector v-model="weekStart" />
-        <ReportDownloadButtons :disabled="!report" @excel="downloadExcel" />
+    <PageHeader class="mb-4 print:hidden" title="รายงาน" :crumbs="[{ label: 'พื้นที่นักศึกษา' }, { label: 'รายงาน' }]">
+      <div class="space-y-3">
+        <ReportViewTabs v-model="view" />
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <PeriodSelector v-model="date" :view="view" />
+          <ReportDownloadButtons :disabled="!report" @excel="downloadExcel" />
+        </div>
       </div>
     </PageHeader>
 
     <AsyncState :loading="!report && status !== 'error'" :error="error" @retry="refresh()">
-      <WeeklyReportCard v-if="report" :report="report" :week-label="weekLabel" />
+      <ReportCard v-if="report" own :report="report" :period="period" />
     </AsyncState>
   </div>
 </template>
