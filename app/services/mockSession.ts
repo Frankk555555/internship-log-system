@@ -2,7 +2,7 @@
 // backend จริงใช้ session cookie แบบ HttpOnly ที่ client อ่านไม่ได้
 
 const name = 'mock_session'
-const rememberSeconds = 30 * 24 * 60 * 60
+const rememberSeconds = 7 * 24 * 60 * 60
 
 export interface MockSession {
   read(): string | undefined

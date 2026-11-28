@@ -1,0 +1,46 @@
+# ฐานข้อมูล MySQL สำหรับพัฒนา ค่าอ่านจาก backend/.env (ดู .env.example)
+# สร้างตารางจาก db/schema.sql เฉพาะครั้งแรกที่ volume ยังว่าง ล้างแล้วสร้างใหม่: docker compose down -v
+name: internship-log
+
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: internship_log
+      MYSQL_USER: app
+      MYSQL_PASSWORD: ${DB_PASSWORD:?ตั้ง DB_PASSWORD ใน backend/.env}
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+    # เปิดให้เครื่องนี้เท่านั้น ใช้พอร์ต 3310 ไม่ชนกับ MySQL หรือ MariaDB ที่ติดตั้งอยู่
+    ports:
+      - "127.0.0.1:${DB_PORT:-3310}:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      # ตรวจผ่าน TCP ระหว่างสร้างฐานข้อมูลครั้งแรก MySQL ยังไม่เปิด TCP
+      test: ["CMD-SHELL", "mysql --protocol=TCP -h127.0.0.1 -uapp -p\"$$MYSQL_PASSWORD\" -e 'SELECT 1 FROM system_settings' internship_log"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+  # ฐานข้อมูลสำหรับ pnpm test เปิดเมื่อสั่ง --profile test ข้อมูลอยู่ในหน่วยความจำ ปิดแล้วหายทั้งหมด
+  db-test:
+    profiles: [test]
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ils_test
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    ports:
+      - "127.0.0.1:33998:3306"
+    tmpfs:
+      - /var/lib/mysql
+    volumes:
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysql --protocol=TCP -h127.0.0.1 -uroot -e 'SELECT 1 FROM system_settings' ils_test"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+volumes:
+  db-data:
